@@ -1,0 +1,632 @@
+require('dotenv').config();
+
+const fs = require('fs');
+const fsPromises = fs.promises;
+const path = require('path');
+const express = require('express');
+const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
+const bcrypt = require('bcrypt');
+const axios = require('axios');
+const multer = require('multer');
+const db = require('./db');
+const dbReady = db.ready || Promise.resolve();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const HISTORY_LIMIT = Number(process.env.HISTORY_LIMIT || 20);
+const SYSTEM_PROMPT =
+  process.env.SYSTEM_PROMPT || 'You are a helpful AI assistant that remembers each conversation.';
+const GPT5_ENDPOINT = process.env.GPT5_ENDPOINT || '';
+const GPT5_API_KEY = process.env.GPT5_API_KEY || '';
+const GPT5_MODEL = process.env.GPT5_MODEL || 'gpt-5-chat';
+const GPT5_TEMPERATURE = Number(process.env.GPT5_TEMPERATURE || 0.3);
+const GPT5_TIMEOUT = Number(process.env.GPT5_TIMEOUT_MS || 30000);
+const ASSISTANT_DISPLAY_NAME = process.env.ASSISTANT_DISPLAY_NAME || '小叶';
+const UPLOAD_SIZE_LIMIT =
+  Number(process.env.UPLOAD_SIZE_LIMIT_MB || 15) * 1024 * 1024; // bytes
+const MAX_UPLOAD_FILES = Number(process.env.MAX_UPLOAD_FILES || 5);
+
+const parseAccounts = () => {
+  const raw = (process.env.USER_ACCOUNTS || '').trim();
+  if (!raw) {
+    throw new Error(
+      'USER_ACCOUNTS 未配置。格式：username:displayName:password，多组用逗号分隔，例如 meimei:梅梅:pass,xiaoye:小叶:pass2'
+    );
+  }
+  return raw
+    .split(',')
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [username, displayName, password] = entry.split(':').map((item) => (item || '').trim());
+      if (!username || !displayName || !password) {
+        throw new Error(`USER_ACCOUNTS 配置错误：${entry}`);
+      }
+      return { username: username.toLowerCase(), displayName, password };
+    });
+};
+
+const USER_ACCOUNTS = parseAccounts();
+const accountLookup = new Map(USER_ACCOUNTS.map((acc) => [acc.username, acc]));
+const sanitizedAccounts = USER_ACCOUNTS.map(({ username, displayName }) => ({
+  username,
+  displayName,
+}));
+
+const dataDir = path.join(__dirname, '..', 'data');
+const publicDir = path.join(__dirname, '..', 'public');
+const uploadDir = path.join(dataDir, 'uploads');
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: uploadDir,
+  filename: (_req, file, cb) => {
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = path.extname(file.originalname || '').slice(0, 10);
+    cb(null, `${unique}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: UPLOAD_SIZE_LIMIT },
+});
+
+const run = async (sql, params = []) => {
+  await dbReady;
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) return reject(err);
+      resolve(this);
+    });
+  });
+};
+
+const get = async (sql, params = []) => {
+  await dbReady;
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
+};
+
+const all = async (sql, params = []) => {
+  await dbReady;
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+};
+
+const userCache = new Map();
+
+const ensureDefaultConversation = async (userId, displayName) => {
+  const existing = await get('SELECT id, title FROM conversations WHERE user_id = ? LIMIT 1', [
+    userId,
+  ]);
+  const legacyTitle = `${displayName} 的第一个会话`;
+  const desiredTitle = `${displayName}的第一个会话`;
+  if (existing) {
+    if (existing.title === legacyTitle) {
+      await run('UPDATE conversations SET title = ? WHERE id = ?', [desiredTitle, existing.id]);
+    }
+    return existing.id;
+  }
+  const result = await run('INSERT INTO conversations (user_id, title) VALUES (?, ?)', [
+    userId,
+    desiredTitle,
+  ]);
+  return result.lastID;
+};
+
+const ensureAccountsPromise = (async () => {
+  for (const account of USER_ACCOUNTS) {
+    const normalized = account.username.toLowerCase();
+    const passwordHash = await bcrypt.hash(account.password, 12);
+    const existing = await get('SELECT * FROM users WHERE username = ?', [normalized]);
+
+    if (!existing) {
+      const result = await run(
+        'INSERT INTO users (username, display_name, password_hash) VALUES (?, ?, ?)',
+        [normalized, account.displayName, passwordHash]
+      );
+      userCache.set(normalized, { id: result.lastID, displayName: account.displayName });
+      await ensureDefaultConversation(result.lastID, account.displayName);
+    } else {
+      const storedDisplayName =
+        existing.display_name || existing.displayName || account.displayName || normalized;
+      userCache.set(normalized, { id: existing.id, displayName: storedDisplayName });
+      if (storedDisplayName !== account.displayName) {
+        await run('UPDATE users SET display_name = ? WHERE id = ?', [
+          account.displayName,
+          existing.id,
+        ]);
+        userCache.set(normalized, { id: existing.id, displayName: account.displayName });
+      }
+      const matches = await bcrypt.compare(account.password, existing.password_hash);
+      if (!matches) {
+        await run('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, existing.id]);
+      }
+      await ensureDefaultConversation(existing.id, account.displayName);
+    }
+  }
+})();
+
+app.locals.ensureAccountsReady = ensureAccountsPromise;
+
+const ensureAuth = (req, res, next) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: '未登录或会话已过期' });
+  }
+  return next();
+};
+
+const listConversations = (userId) =>
+  all(
+    `SELECT id, title, created_at, updated_at
+     FROM conversations
+     WHERE user_id = ?
+     ORDER BY datetime(updated_at) DESC`,
+    [userId]
+  );
+
+const touchConversation = (conversationId) =>
+  run('UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?', [conversationId]);
+
+const deleteConversationFiles = async (conversationId) => {
+  const attachments = await all(
+    `SELECT DISTINCT attachments.stored_name
+     FROM attachments
+     INNER JOIN messages ON attachments.message_id = messages.id
+     WHERE messages.conversation_id = ?`,
+    [conversationId]
+  );
+  const uniqueFiles = [
+    ...new Set(attachments.map((item) => item.stored_name).filter(Boolean)),
+  ];
+  await Promise.all(
+    uniqueFiles.map(async (storedName) => {
+      const filePath = path.join(uploadDir, storedName);
+      try {
+        await fsPromises.unlink(filePath);
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          console.error('删除附件失败', storedName, error);
+        }
+      }
+    })
+  );
+};
+
+const ensureConversationAccess = async (userId, conversationId) => {
+  const conversation = await get(
+    'SELECT * FROM conversations WHERE id = ? AND user_id = ?',
+    [conversationId, userId]
+  );
+  if (!conversation) {
+    const error = new Error('对话不存在或没有权限访问');
+    error.statusCode = 404;
+    throw error;
+  }
+  return conversation;
+};
+
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false }));
+
+app.use(
+  session({
+    store: new SQLiteStore({
+      dir: dataDir,
+      db: 'sessions.db',
+    }),
+    secret: process.env.SESSION_SECRET || 'replace-me',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    },
+  })
+);
+
+app.use(express.static(publicDir));
+app.use('/uploads', express.static(uploadDir));
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.get('/api/session', async (req, res) => {
+  await ensureAccountsPromise;
+  if (req.session.userId && req.session.username) {
+    return res.json({
+      authenticated: true,
+      user: {
+        username: req.session.username,
+        displayName: req.session.displayName,
+      },
+      assistantName: ASSISTANT_DISPLAY_NAME,
+      accounts: sanitizedAccounts,
+    });
+  }
+  return res.json({
+    authenticated: false,
+    assistantName: ASSISTANT_DISPLAY_NAME,
+    accounts: sanitizedAccounts,
+  });
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    await ensureAccountsPromise;
+    const username = ((req.body && req.body.username) || '').trim().toLowerCase();
+    const password = (req.body && req.body.password) || '';
+
+    if (!username || !password) {
+      return res.status(400).json({ error: '请输入用户名和密码' });
+    }
+
+    const account = accountLookup.get(username);
+    if (!account) {
+      return res.status(401).json({ error: '账号或密码错误' });
+    }
+
+    const user = await get('SELECT * FROM users WHERE username = ?', [username]);
+    if (!user) {
+      return res.status(401).json({ error: '账号或密码错误' });
+    }
+
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({ error: '账号或密码错误' });
+    }
+
+    await ensureDefaultConversation(user.id, account.displayName);
+
+    req.session.userId = user.id;
+    req.session.username = username;
+    req.session.displayName = account.displayName;
+
+    return res.json({ message: '登录成功' });
+  } catch (error) {
+    console.error('Login error', error);
+    return res.status(500).json({ error: '服务器错误，登录失败' });
+  }
+});
+
+app.post('/api/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie('connect.sid');
+    res.json({ message: '已退出登录' });
+  });
+});
+
+app.get('/api/conversations', ensureAuth, async (req, res) => {
+  try {
+    await ensureAccountsPromise;
+    let conversations = await listConversations(req.session.userId);
+    if (!conversations.length) {
+      const createdId = await ensureDefaultConversation(
+        req.session.userId,
+        req.session.displayName
+      );
+      conversations = await listConversations(req.session.userId);
+      req.session.activeConversationId = createdId;
+    }
+    return res.json({ conversations });
+  } catch (error) {
+    console.error('Fetch conversations error', error);
+    return res.status(500).json({ error: '无法获取会话列表' });
+  }
+});
+
+app.post('/api/conversations', ensureAuth, async (req, res) => {
+  try {
+    await ensureAccountsPromise;
+    const title = (req.body?.title || '').trim() || '新的会话';
+    const result = await run(
+      'INSERT INTO conversations (user_id, title) VALUES (?, ?)',
+      [req.session.userId, title]
+    );
+    const conversation = await get(
+      'SELECT id, title, created_at, updated_at FROM conversations WHERE id = ?',
+      [result.lastID]
+    );
+    return res.status(201).json({ conversation });
+  } catch (error) {
+    console.error('Create conversation error', error);
+    return res.status(500).json({ error: '创建会话失败' });
+  }
+});
+
+app.patch('/api/conversations/:id', ensureAuth, async (req, res) => {
+  try {
+    await ensureAccountsPromise;
+    const conversationId = Number(req.params.id);
+    if (!conversationId) {
+      return res.status(400).json({ error: '缺少会话 ID' });
+    }
+    const title = (req.body?.title || '').trim();
+    if (!title) {
+      return res.status(400).json({ error: '标题不能为空' });
+    }
+    await ensureConversationAccess(req.session.userId, conversationId);
+    await run('UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [
+      title,
+      conversationId,
+    ]);
+    const updated = await get(
+      'SELECT id, title, created_at, updated_at FROM conversations WHERE id = ?',
+      [conversationId]
+    );
+    return res.json({ conversation: updated });
+  } catch (error) {
+    console.error('Rename conversation error', error);
+    return res
+      .status(error.statusCode || 500)
+      .json({ error: error.statusCode ? error.message : '重命名失败' });
+  }
+});
+
+app.delete('/api/conversations/:id', ensureAuth, async (req, res) => {
+  try {
+    await ensureAccountsPromise;
+    const conversationId = Number(req.params.id);
+    if (!conversationId) {
+      return res.status(400).json({ error: '缺少会话 ID' });
+    }
+    await ensureConversationAccess(req.session.userId, conversationId);
+    await deleteConversationFiles(conversationId);
+    await run('DELETE FROM conversations WHERE id = ? AND user_id = ?', [
+      conversationId,
+      req.session.userId,
+    ]);
+    return res.json({ message: '会话已删除' });
+  } catch (error) {
+    console.error('Delete conversation error', error);
+    return res
+      .status(error.statusCode || 500)
+      .json({ error: error.statusCode ? error.message : '删除失败' });
+  }
+});
+
+app.get('/api/history', ensureAuth, async (req, res) => {
+  try {
+    await ensureAccountsPromise;
+    let conversationId = Number(req.query.conversationId);
+    const conversations = await listConversations(req.session.userId);
+
+    if (!conversations.length) {
+      const createdId = await ensureDefaultConversation(
+        req.session.userId,
+        req.session.displayName
+      );
+      conversationId = createdId;
+    }
+
+    if (!conversationId) {
+      conversationId = conversations[0]?.id || null;
+    }
+
+    if (!conversationId) {
+      return res.json({ conversation: null, history: [] });
+    }
+
+    const conversation = await ensureConversationAccess(req.session.userId, conversationId);
+
+    const rows = await all(
+      `SELECT id, role, content, created_at
+       FROM messages
+       WHERE user_id = ? AND conversation_id = ?
+       ORDER BY id ASC`,
+      [req.session.userId, conversationId]
+    );
+
+    const messageIds = rows.map((row) => row.id);
+    let attachmentRows = [];
+    if (messageIds.length) {
+      const placeholders = messageIds.map(() => '?').join(',');
+      attachmentRows = await all(
+        `SELECT id, message_id, file_name, mime_type, stored_name, size, created_at
+         FROM attachments
+         WHERE message_id IN (${placeholders})
+         ORDER BY id ASC`,
+        messageIds
+      );
+    }
+
+    const attachmentMap = attachmentRows.reduce((map, att) => {
+      if (!map.has(att.message_id)) {
+        map.set(att.message_id, []);
+      }
+      map.get(att.message_id).push({
+        id: att.id,
+        fileName: att.file_name,
+        mimeType: att.mime_type,
+        size: att.size,
+        url: `/uploads/${att.stored_name}`,
+        created_at: att.created_at,
+      });
+      return map;
+    }, new Map());
+
+    const history = rows.map((row) => ({
+      role: row.role,
+      content: row.content,
+      created_at: row.created_at,
+      attachments: attachmentMap.get(row.id) || [],
+    }));
+
+    return res.json({
+      conversation: {
+        id: conversation.id,
+        title: conversation.title,
+      },
+      history,
+    });
+  } catch (error) {
+    console.error('History error', error);
+    return res.status(500).json({ error: '无法获取聊天记录' });
+  }
+});
+
+app.post(
+  '/api/chat',
+  ensureAuth,
+  upload.array('files', MAX_UPLOAD_FILES),
+  async (req, res) => {
+    try {
+      await ensureAccountsPromise;
+      if (!GPT5_ENDPOINT || !GPT5_API_KEY) {
+        return res.status(500).json({ error: '尚未配置 GPT-5 接口信息' });
+      }
+
+      const rawBody = req.body || {};
+      const message = (rawBody.message || '').trim();
+      const conversationId = Number(rawBody.conversationId);
+      const files = req.files || [];
+
+      if (!conversationId) {
+        return res.status(400).json({ error: '缺少会话 ID' });
+      }
+
+      await ensureConversationAccess(req.session.userId, conversationId);
+
+      if (!message && !files.length) {
+        return res.status(400).json({ error: '消息或附件至少输入一个' });
+      }
+
+      const insertResult = await run(
+        'INSERT INTO messages (user_id, conversation_id, role, content) VALUES (?, ?, ?, ?)',
+        [req.session.userId, conversationId, 'user', message]
+      );
+      const userMessageId = insertResult.lastID;
+
+      for (const file of files) {
+        await run(
+          `INSERT INTO attachments (message_id, file_name, mime_type, stored_name, size)
+           VALUES (?, ?, ?, ?, ?)`,
+          [userMessageId, file.originalname, file.mimetype, path.basename(file.path), file.size]
+        );
+      }
+
+      const historyRows = await all(
+        `SELECT id, role, content
+         FROM messages
+         WHERE user_id = ? AND conversation_id = ?
+         ORDER BY id DESC
+         LIMIT ?`,
+        [req.session.userId, conversationId, HISTORY_LIMIT]
+      );
+
+      const messageIds = historyRows.map((row) => row.id);
+      let attachmentRows = [];
+      if (messageIds.length) {
+        const placeholders = messageIds.map(() => '?').join(',');
+        attachmentRows = await all(
+          `SELECT message_id, file_name, mime_type, stored_name, size
+           FROM attachments
+           WHERE message_id IN (${placeholders})`,
+          messageIds
+        );
+      }
+
+      const attachmentMap = attachmentRows.reduce((map, att) => {
+        if (!map.has(att.message_id)) {
+          map.set(att.message_id, []);
+        }
+        map.get(att.message_id).push(att);
+        return map;
+      }, new Map());
+
+      const conversation = historyRows.reverse().map((row) => {
+        const attachments = attachmentMap.get(row.id) || [];
+        let content = row.content;
+        if (attachments.length) {
+          const noteLines = attachments.map((att, index) => {
+            const readableSize = `${(att.size / 1024).toFixed(1)} KB`;
+            return `${index + 1}. 文件名：${att.file_name}，类型：${att.mime_type}，大小：${readableSize}`;
+          });
+          content = `${content}\n\n[附件说明]\n${noteLines.join('\n')}`;
+        }
+        return {
+          role: row.role,
+          content,
+        };
+      });
+
+      const payload = {
+        model: GPT5_MODEL,
+        messages: SYSTEM_PROMPT
+          ? [{ role: 'system', content: SYSTEM_PROMPT }, ...conversation]
+          : conversation,
+        temperature: GPT5_TEMPERATURE,
+      };
+
+      const { data } = await axios.post(GPT5_ENDPOINT, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${GPT5_API_KEY}`,
+        },
+        timeout: GPT5_TIMEOUT,
+      });
+
+      const reply = data?.choices?.[0]?.message?.content?.trim();
+
+      if (!reply) {
+        throw new Error('无效的 GPT-5 响应');
+      }
+
+      await run(
+        'INSERT INTO messages (user_id, conversation_id, role, content) VALUES (?, ?, ?, ?)',
+        [req.session.userId, conversationId, 'assistant', reply]
+      );
+      await touchConversation(conversationId);
+
+      return res.json({ reply });
+    } catch (error) {
+      console.error('Chat error', error.response?.data || error.message);
+      const message =
+        error.response?.data?.error?.message ||
+        error.message ||
+        '与 GPT-5 服务通信失败，请稍后重试';
+      return res.status(error.statusCode || 500).json({ error: message });
+    }
+  }
+);
+
+app.use((err, _req, res, _next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      const maxMb = (UPLOAD_SIZE_LIMIT / (1024 * 1024)).toFixed(0);
+      return res.status(400).json({ error: `单个文件大小不能超过 ${maxMb} MB` });
+    }
+    return res.status(400).json({ error: `上传失败：${err.message}` });
+  }
+
+  console.error('Unexpected server error', err);
+  return res.status(500).json({ error: '服务器内部错误' });
+});
+
+app.get(/^(?!\/api).*/, (req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
+});
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`AI assistant server listening on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
