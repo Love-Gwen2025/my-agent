@@ -1,113 +1,122 @@
 package com.ynp.agent.filter;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ynp.agent.helper.AuthConstants;
-import com.ynp.agent.helper.UserContextHolder;
-import com.ynp.agent.helper.model.JwtPayload;
-import com.ynp.agent.service.AuthService;
-import com.ynp.agent.vo.ErrorResponse;
+
+import com.ynp.agent.config.JwtProperties;
+import com.ynp.agent.config.SecurityIgnoreProperties;
+import com.ynp.agent.model.domain.CurrentSession;
+import com.ynp.agent.utils.JwtUtil;
+import com.ynp.agent.utils.SessionUtil;
+import com.ynp.agent.utils.StringUtil;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.time.Duration;
 import java.util.Objects;
-
-/**
- * JWT 鉴权过滤器。
- */
 @Component
+@RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private static final AntPathMatcher MATCHER = new AntPathMatcher();
+    private final JwtUtil jwtUtil;
 
-    private final AuthService authService;
+    private final JwtProperties jwtProperties;
+
+    private final SecurityIgnoreProperties securityIgnoreProperties;
+
+    private final StringRedisTemplate redisTemplate;
+
     private final ObjectMapper objectMapper;
 
-    public JwtAuthFilter(AuthService authService, ObjectMapper objectMapper) {
-        this.authService = authService;
-        this.objectMapper = objectMapper;
-    }
 
-    /**
-     * 1. 判断是否跳过鉴权。
-     */
-    private boolean shouldSkip(String uri, String method) {
-        return "OPTIONS".equalsIgnoreCase(method)
-                || MATCHER.match("/agent/user/login", uri)
-                || MATCHER.match("/agent/health", uri)
-                || MATCHER.match("/agent/uploads/**", uri)
-                || MATCHER.match("/error", uri);
-    }
-
-    /**
-     * 1. 过滤请求，校验 JWT 并写入上下文。
-     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String uri = request.getRequestURI();
+        //在白名单之中，直接放行
+        if(StringUtil.match(request.getServletPath(),securityIgnoreProperties.getWhites())){
+            filterChain.doFilter(request,response);
+            return;
+        }
+        //不在白名单中，校验token
+
+        //1.获取token
+        String token =request.getHeader("token");
+        if(StringUtil.isBlank(token)){
+            throwsUnValidToken(response);
+            return;
+        }
+        //2.解析token
+        Claims claims = jwtUtil.parseToken(token);
+        if (Objects.isNull(claims)){
+            throwsUnValidToken(response);
+            return;
+        }
+        /*
+        *3.从redis中取session判断登录状态。
+        * 如果session不存在，即从zset中移除
+        * */
+        String userId = String.valueOf(claims.get("userId"));
+        String sessionJson = redisTemplate.opsForValue()
+                .get(CurrentSession.sessionKey(userId,token));
+        if(!StringUtils.hasText(sessionJson)){
+            redisTemplate.opsForZSet().remove(CurrentSession.indexKey(userId), token);
+            throwsUnValidToken(response);
+            return;
+        }
+        CurrentSession currentSession;
+        /*
+        * 如果session无法反序列化，也直接删了，多余的token会在下一次访问时删除
+        * */
         try {
-            if (shouldSkip(uri, request.getMethod())) {
-                /* 1. 放行无需鉴权的请求 */
-                filterChain.doFilter(request, response);
-                return;
-            }
-            /* 2. 提取并校验 JWT */
-            String token = extractToken(request);
-            JwtPayload payload = authService.validateToken(token);
-            if (Objects.isNull(payload)) {
-                if (MATCHER.match("/agent/user/session", uri)) {
-                    /* 3. session 查询允许未登录透传 */
-                    filterChain.doFilter(request, response);
-                    return;
-                }
-                /* 4. 未登录返回 401 */
-                writeUnauthorized(response);
-                return;
-            }
-            /* 5. 写入上下文后继续链路 */
-            UserContextHolder.setContext(payload);
+            currentSession = objectMapper.readValue(sessionJson, CurrentSession.class);
+        } catch (JsonProcessingException e) {
+            redisTemplate.opsForValue().getOperations().delete(CurrentSession.sessionKey(userId, token));
+            throwsUnValidToken(response);
+            return;
+        }
+        if (!StringUtil.equal(token, currentSession.getToken())){
+            throwsUnValidToken(response);
+            return;
+        }
+        if (!StringUtil.equal(userId, String.valueOf(currentSession.getId()))){
+            throwsUnValidToken(response);
+            return;
+        }
+
+        //校验全通过，刷新登陆的token有效期
+        String userIdKey = String.valueOf(currentSession.getId());
+        String indexKey = CurrentSession.indexKey(userIdKey);
+        String sessionKey = CurrentSession.sessionKey(userIdKey, currentSession.getToken());
+        long ttlSeconds = Duration.ofMinutes(jwtProperties.getExpirationMinutes()).getSeconds();
+        if (ttlSeconds <= 0) {
+            // 兜底处理，避免配置异常导致不过期
+            ttlSeconds = 60;
+        }
+        double score = (double) System.currentTimeMillis();
+        redisTemplate.opsForZSet().add(indexKey, sessionKey, score);
+        redisTemplate.expire(indexKey, Duration.ofSeconds(ttlSeconds));
+        redisTemplate.opsForValue().set(sessionKey, sessionJson, Duration.ofSeconds(ttlSeconds));
+
+        try {
+            SessionUtil.set(currentSession);
+            //整个调用链
             filterChain.doFilter(request, response);
         } finally {
-            /* 6. 清理上下文避免线程复用污染 */
-            UserContextHolder.clear();
+            //调用链结束清除
+            SessionUtil.clear();
         }
     }
-
-    /**
-     * 1. 返回未登录响应。
-     */
-    private void writeUnauthorized(HttpServletResponse response) throws IOException {
-        response.setStatus(HttpStatus.UNAUTHORIZED.value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        String body = objectMapper.writeValueAsString(new ErrorResponse("未登录或会话已过期"));
-        response.getWriter().write(body);
-    }
-
-    /**
-     * 1. 从 Cookie 中提取 token。
-     */
-    private String extractToken(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (Objects.isNull(cookies)) {
-            return "";
-        }
-        return Arrays.stream(cookies)
-                .filter(item -> AuthConstants.TOKEN_COOKIE.equals(item.getName()))
-                .map(Cookie::getValue)
-                .filter(StringUtils::hasText)
-                .findFirst()
-                .orElse("");
+    private void throwsUnValidToken(HttpServletResponse response) throws IOException {
+        response.setContentType("application/json;charset=UTF-8");
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.getWriter().append("token缺失或非法");
     }
 }

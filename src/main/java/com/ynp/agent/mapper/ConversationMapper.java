@@ -1,12 +1,8 @@
 package com.ynp.agent.mapper;
 
 import com.github.yulichang.base.MPJBaseMapper;
-import com.ynp.agent.domain.entity.ConversationEntity;
-import org.apache.ibatis.annotations.Mapper;
+import com.ynp.agent.model.domain.Conversation;
 
-/**
- * 会话表 Mapper。
- */
-@Mapper
-public interface ConversationMapper extends MPJBaseMapper<ConversationEntity> {
+
+public interface ConversationMapper extends MPJBaseMapper<Conversation> {
 }

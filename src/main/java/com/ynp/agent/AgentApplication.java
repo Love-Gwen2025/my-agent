@@ -1,11 +1,16 @@
 package com.ynp.agent;
 
+import com.ynp.agent.config.JwtProperties;
+import com.ynp.agent.config.OssProperties;
+import com.ynp.agent.config.SecurityIgnoreProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 /**
  * 应用入口。
  */
+@EnableConfigurationProperties({JwtProperties.class, SecurityIgnoreProperties.class, OssProperties.class})
 @SpringBootApplication
 public class AgentApplication {
 

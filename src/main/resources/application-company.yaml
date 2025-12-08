@@ -1,0 +1,37 @@
+spring:
+  cloud:
+    nacos:
+      server-addr: 100.111.14.76:8848
+      username: nacos
+      password: nacos
+      namespace: couple-agent
+      group: AGENT_GROUP
+      discovery:
+        namespace: ${spring.cloud.nacos.namespace}
+        group: ${spring.cloud.nacos.group}
+        enabled: true
+        service: ${spring.application.name}
+        heart-beat-interval: 5000
+        heart-beat-timeout: 15000
+        naming-load-cache-at-start: false
+        register-enabled: true
+        watch:
+          enabled: true
+        watch-delay: 3000
+        weight: 1
+      config:
+        namespace: ${spring.cloud.nacos.namespace}
+        group: ${spring.cloud.nacos.group}
+        config-retry-time: 10
+        encode: UTF-8
+        timeout: 3000
+        max-retry: 10
+        refresh-enabled: true
+        file-extension: yaml
+        prefix: ${spring.application.name}
+        extension-configs[0]:
+          data-id: agent-company.yaml
+          group: ${spring.cloud.nacos.group}
+          refresh: true
+  config:
+    import: "nacos:agent-company.yaml"

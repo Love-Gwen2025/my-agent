@@ -1,55 +1,53 @@
 package com.ynp.agent.service;
 
-import com.ynp.agent.config.AppProperties;
-import com.ynp.agent.helper.JwtHelper;
-import com.ynp.agent.manager.AttachmentManager;
-import com.ynp.agent.manager.ConversationManager;
-import com.ynp.agent.manager.MessageManager;
-import com.ynp.agent.manager.UserManager;
-import com.ynp.agent.service.ai.AiService;
-import com.ynp.agent.service.file.FileStorageService;
-import org.springframework.data.mongodb.core.MongoTemplate;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.ynp.agent.config.JwtProperties;
+import com.ynp.agent.config.OssProperties;
+import com.ynp.agent.converter.UserConverter;
+import com.ynp.agent.mangaer.ConversationManager;
+import com.ynp.agent.mangaer.MessageManager;
+import com.ynp.agent.mangaer.UserManager;
+import com.ynp.agent.utils.JwtUtil;
+import com.ynp.agent.utils.OSSSUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/**
- * Service 层基类，集中注入所有依赖。
- */
-public abstract class BaseService {
+public class BaseService {
 
-    protected final AppProperties appProperties;
-    protected final UserManager userManager;
-    protected final ConversationManager conversationManager;
-    protected final MessageManager messageManager;
-    protected final AttachmentManager attachmentManager;
-    protected final PasswordEncoder passwordEncoder;
-    protected final JwtHelper jwtHelper;
-    protected final StringRedisTemplate stringRedisTemplate;
-    protected final MongoTemplate mongoTemplate;
-    protected final AiService aiService;
-    protected final FileStorageService fileStorageService;
+    // manager 层统一注入，业务层只通过 manager 访问数据库
+    @Autowired
+    protected ConversationManager conversationManager;
+    @Autowired
+    protected UserManager userManager;
+    @Autowired
+    protected MessageManager messageManager;
 
-    protected BaseService(AppProperties appProperties,
-                          UserManager userManager,
-                          ConversationManager conversationManager,
-                          MessageManager messageManager,
-                          AttachmentManager attachmentManager,
-                          PasswordEncoder passwordEncoder,
-                          JwtHelper jwtHelper,
-                          StringRedisTemplate stringRedisTemplate,
-                          MongoTemplate mongoTemplate,
-                          AiService aiService,
-                          FileStorageService fileStorageService) {
-        this.appProperties = appProperties;
-        this.userManager = userManager;
-        this.conversationManager = conversationManager;
-        this.messageManager = messageManager;
-        this.attachmentManager = attachmentManager;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtHelper = jwtHelper;
-        this.stringRedisTemplate = stringRedisTemplate;
-        this.mongoTemplate = mongoTemplate;
-        this.aiService = aiService;
-        this.fileStorageService = fileStorageService;
-    }
+    @Autowired
+    protected PasswordEncoder passwordEncoder;
+    @Autowired
+    protected JwtProperties jwtProperties;
+
+    // 工具类依赖集中管理
+    @Autowired
+    protected JwtUtil jwtUtil;
+    @Autowired
+    protected OSSSUtil osssUtil;
+    @Autowired
+    protected StringRedisTemplate redisTemplate;
+    @Autowired
+    protected RedisScript<Long> loginLimitScript;
+    @Autowired
+    protected ObjectMapper objectMapper;
+    @Autowired
+    protected OssProperties ossProperties;
+    @Autowired
+    protected SimpMessagingTemplate messagingTemplate;
+
+    //转换器
+    @Autowired
+    protected UserConverter userConverter;
 }

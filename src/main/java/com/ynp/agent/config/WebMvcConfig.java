@@ -1,32 +1,36 @@
 package com.ynp.agent.config;
 
-import com.ynp.agent.service.file.FileStorageService;
+import com.ynp.agent.interceptor.JwtAuthInterceptor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * Web MVC 配置，处理静态资源映射。
- */
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 @Configuration
+@RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    private final FileStorageService fileStorageService;
+    private final JwtAuthInterceptor jwtAuthInterceptor;
+    private final SecurityIgnoreProperties securityIgnoreProperties;
 
-    public WebMvcConfig(FileStorageService fileStorageService) {
-        this.fileStorageService = fileStorageService;
-    }
-
-    /**
-     * 1. 将上传目录暴露为静态资源。
-     */
     @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String uploadPath = fileStorageService.getUploadDir().toUri().toString();
-        if (!uploadPath.endsWith("/")) {
-            uploadPath = uploadPath + "/";
-        }
-        registry.addResourceHandler("/agent/uploads/**")
-                .addResourceLocations(uploadPath);
+    public void addInterceptors(InterceptorRegistry registry) {
+        List<String> excludes = new ArrayList<>(Arrays.asList(
+                "/api/auth/**",
+                "/swagger-ui/**",
+                "/swagger-resources/**",
+                "/v3/api-docs/**",
+                "/doc.html",
+                "/webjars/**"
+        ));
+        excludes.addAll(securityIgnoreProperties.getWhites());
+
+        registry.addInterceptor(jwtAuthInterceptor)
+                .addPathPatterns("/**")
+                .excludePathPatterns(excludes.toArray(new String[0]));
     }
 }
