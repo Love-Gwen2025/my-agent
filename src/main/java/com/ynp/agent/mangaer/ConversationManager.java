@@ -70,4 +70,36 @@ public interface ConversationManager {
     List<Long> listActiveMemberIds(Long conversationId);
 
     int updateById(Conversation conversation);
+
+    /**
+     * 查询用户参与的会话列表，按活跃时间倒序。
+     *
+     * @param userId 用户ID
+     * @return 会话列表
+     */
+    List<Conversation> listByUser(Long userId);
+
+    /**
+     * 更新会话标题。
+     *
+     * @param conversationId 会话ID
+     * @param title          新标题
+     * @return 受影响行数
+     */
+    int updateTitle(Long conversationId, String title);
+
+    /**
+     * 删除会话并返回受影响行数。
+     *
+     * @param conversationId 会话ID
+     * @return 受影响行数
+     */
+    int deleteConversation(Long conversationId);
+
+    /**
+     * 删除会话的成员关系。
+     *
+     * @param conversationId 会话ID
+     */
+    void deleteMembers(Long conversationId);
 }

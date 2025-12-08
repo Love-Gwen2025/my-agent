@@ -3,6 +3,7 @@ package com.ynp.agent.controller;
 
 import com.ynp.agent.assistant.LoveAssistant;
 import com.ynp.agent.converter.UserConverter;
+import com.ynp.agent.service.ChatApiService;
 import com.ynp.agent.service.ConversationService;
 import com.ynp.agent.service.MessageService;
 import com.ynp.agent.service.UserService;
@@ -18,6 +19,8 @@ public class BaseController {
     protected ConversationService conversationService;
     @Autowired
     protected MessageService messageService;
+    @Autowired
+    protected ChatApiService chatApiService;
 
 
     /**

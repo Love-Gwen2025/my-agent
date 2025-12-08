@@ -9,6 +9,7 @@ import com.ynp.agent.model.domain.Conversation;
 import com.ynp.agent.model.domain.ConversationMember;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -123,5 +124,48 @@ public class ConversationManagerImpl extends BaseManager implements Conversation
     @Override
     public int updateById(Conversation conversation) {
         return conversationMapper.updateById(conversation);
+    }
+
+    @Override
+    public List<Conversation> listByUser(Long userId) {
+        if (Objects.isNull(userId)) {
+            return Collections.emptyList();
+        }
+        MPJLambdaWrapper<Conversation> wrapper = new MPJLambdaWrapper<>();
+        wrapper.selectAll(Conversation.class)
+                .innerJoin(ConversationMember.class, ConversationMember::getConversationId, Conversation::getId)
+                .eq(ConversationMember::getUserId, userId)
+                .eq(ConversationMember::getStatus, 1)
+                .orderByDesc(Conversation::getLastMessageAt, Conversation::getCreateTime);
+        return conversationMapper.selectJoinList(Conversation.class, wrapper);
+    }
+
+    @Override
+    public int updateTitle(Long conversationId, String title) {
+        if (Objects.isNull(conversationId)) {
+            return 0;
+        }
+        LambdaUpdateWrapper<Conversation> updateWrapper = new LambdaUpdateWrapper<Conversation>()
+                .eq(Conversation::getId, conversationId)
+                .set(StringUtils.hasText(title), Conversation::getTitle, title);
+        return conversationMapper.update(null, updateWrapper);
+    }
+
+    @Override
+    public int deleteConversation(Long conversationId) {
+        if (Objects.isNull(conversationId)) {
+            return 0;
+        }
+        return conversationMapper.deleteById(conversationId);
+    }
+
+    @Override
+    public void deleteMembers(Long conversationId) {
+        if (Objects.isNull(conversationId)) {
+            return;
+        }
+        LambdaQueryWrapper<ConversationMember> queryWrapper = new LambdaQueryWrapper<ConversationMember>()
+                .eq(ConversationMember::getConversationId, conversationId);
+        conversationMemberMapper.delete(queryWrapper);
     }
 }
