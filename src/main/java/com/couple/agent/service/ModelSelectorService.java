@@ -19,10 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 模型选择服务
- *
- * <p>负责根据模型编码动态选择和创建对应的 AI 聊天模型</p>
- *
- * @author ynp
+ * 负责根据模型编码动态选择和创建对应的 AI 聊天模
  */
 @Slf4j
 @Service

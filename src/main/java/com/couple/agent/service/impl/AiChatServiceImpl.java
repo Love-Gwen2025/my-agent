@@ -15,6 +15,7 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
@@ -39,6 +40,9 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
      * 默认模型编码
      */
     private static final String DEFAULT_MODEL_CODE = "gpt-4o";
+
+    @Autowired
+    StreamingChatModel deepSeekStreamingChatModel;
 
     /**
      * AI 助手发送者ID
@@ -72,20 +76,8 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
         // 1. 创建 Sink 用于发送流式事件
         Sinks.Many<StreamChatEvent> sink = Sinks.many().unicast().onBackpressureBuffer();
 
-        // 2. 确定使用的模型
-        String finalModelCode = determineModelCode(conversationId, modelCode);
-
-        // 3. 获取流式模型
-        StreamingChatModel streamingModel = modelSelectorService.getStreamingChatModel(finalModelCode);
-        if (Objects.isNull(streamingModel)) {
-            log.error("无法获取流式模型: {}", finalModelCode);
-            sink.tryEmitNext(StreamChatEvent.error("模型不可用: " + finalModelCode));
-            sink.tryEmitComplete();
-            return sink.asFlux();
-        }
-
-        // 4. 异步执行流式对话
-        executeStreamChat(sink, streamingModel, userId, conversationId, content, finalModelCode, systemPrompt);
+        // 2.异步执行流式对话
+        executeStreamChat(sink,deepSeekStreamingChatModel, userId, conversationId, content, null, systemPrompt);
 
         return sink.asFlux();
     }

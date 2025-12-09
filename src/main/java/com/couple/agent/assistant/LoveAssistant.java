@@ -8,7 +8,7 @@ import dev.langchain4j.service.spring.AiServiceWiringMode;
 
 @AiService(
         wiringMode = AiServiceWiringMode.EXPLICIT,
-        streamingChatModel = "azureOpenAiChatModel",
+        streamingChatModel = "deepSeekStreamingChatModel",
         chatMemoryProvider = "chatMemoryProvider"
 )
 public interface LoveAssistant {

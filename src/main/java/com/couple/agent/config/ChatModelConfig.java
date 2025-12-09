@@ -4,7 +4,10 @@ import com.couple.agent.store.RedisChatMemoryStore;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.azure.AzureOpenAiStreamingChatModel;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -56,13 +59,13 @@ public class ChatModelConfig {
 //                .build();
 //    }
 
-    @Bean("azureOpenAiChatModel")
-    public StreamingChatModel azureOpenAiChatModel(
-            @Value("${openai.api_key}") String apiKey,
-            @Value("${openai.base_url}") String endPoint,
-            @Value("${openai.deployment_name}") String deploymentName,
-            @Value("${openai.temperature}") double temperature,
-            @Value("${openai.timeout}") Duration timeout) {
+    @Bean("azureOpenAiStreamingChatModel")
+    public StreamingChatModel azureOpenAiStreamingChatModel(
+            @Value("${ai.openai.api-key}") String apiKey,
+            @Value("${ai.openai.base-url}") String endPoint,
+            @Value("${ai.openai.deployment-name}") String deploymentName,
+            @Value("${ai.openai.temperature}") double temperature,
+            @Value("${ai.openai.timeout}") Duration timeout) {
 
         return AzureOpenAiStreamingChatModel.builder()
                 .apiKey(apiKey)
@@ -71,6 +74,22 @@ public class ChatModelConfig {
                 .temperature(temperature)
                 .timeout(timeout)
                 .logRequestsAndResponses(true)
+                .build();
+    }
+
+    @Bean("deepSeekStreamingChatModel")
+    public StreamingChatModel deepSeekStreamingChatModel(
+            @Value("${ai.deepseek.api-key}") String apiKey,
+            @Value("${ai.deepseek.base-url}") String baseUrl,
+            @Value("${ai.deepseek.model-name}") String modelName,
+            @Value("${ai.deepseek.temperature}") double temperature,
+            @Value("${ai.deepseek.timeout}") Duration timeout) {
+        return OpenAiStreamingChatModel.builder()
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(modelName)
+                .temperature(temperature)
+                .timeout(timeout)
                 .build();
     }
 
