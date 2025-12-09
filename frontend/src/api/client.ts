@@ -27,7 +27,8 @@ apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
     if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+      // 后端使用 header `token` 读取登录态
+      config.headers.token = token;
     }
     return config;
   },

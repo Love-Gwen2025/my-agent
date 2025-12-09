@@ -5,8 +5,8 @@
     <groupId>com.ynp</groupId>
     <artifactId>agent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>Ynp-Agent</name>
-    <description>Ynp-Agent</description>
+    <name>Couple-Agent</name>
+    <description>Couple-Agent</description>
 
     <parent>
         <groupId>org.springframework.boot</groupId>

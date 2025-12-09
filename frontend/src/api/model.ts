@@ -10,8 +10,13 @@ import type { AiModel, ApiResponse } from '../types';
  * @returns 模型列表
  */
 export async function getModels(): Promise<AiModel[]> {
-  const response = await apiClient.get<ApiResponse<AiModel[]>>('/api/model');
-  return response.data.data || [];
+  try {
+    const response = await apiClient.get<ApiResponse<AiModel[]>>('/model');
+    return response.data.data || [];
+  } catch (e) {
+    // 后端未提供模型接口时，返回空数组以保证前端可用
+    return [];
+  }
 }
 
 /**

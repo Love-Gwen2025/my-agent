@@ -80,7 +80,7 @@ export function useSSEChat(options: UseSSEChatOptions = {}): UseSSEChatReturn {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(token ? { token } : {}),
           },
           body: JSON.stringify(request),
           signal: controller.signal,

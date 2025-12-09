@@ -4,36 +4,29 @@
  * 定义前端使用的所有 TypeScript 类型
  */
 
-/** 用户信息 */
+/** 用户信息（后端字段命名） */
 export interface User {
   id: number;
-  username: string;
-  email?: string;
+  userCode: string;
+  userName?: string;
   avatar?: string;
 }
 
-/** 登录参数 */
+/** 登录参数（后端要求 userCode/userPassword） */
 export interface LoginParams {
-  username: string;
-  password: string;
+  userCode: string;
+  userPassword: string;
 }
 
-/** 登录响应 */
-export interface LoginResponse {
-  token: string;
-  user: User;
-}
+/** 登录响应：后端仅返回 token 字符串 */
+export type LoginResponse = string;
 
 /** 会话信息 */
 export interface Conversation {
   id: number;
   title: string;
-  userId: number;
-  modelCode: string;
-  lastMessageId?: number;
-  lastMessageTime?: string;
-  createTime: string;
-  updateTime: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /** 消息信息 */
@@ -47,6 +40,13 @@ export interface Message {
   modelCode?: string;
   tokenCount?: number;
   sendTime: string;
+}
+
+/** 会话历史消息视图（后端 history 接口返回） */
+export interface HistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
 }
 
 /** AI 模型信息 */
@@ -85,7 +85,8 @@ export interface StreamChatEvent {
 
 /** API 响应包装 */
 export interface ApiResponse<T> {
-  code: number;
+  success: boolean;
+  code: string;
   message: string;
   data: T;
 }

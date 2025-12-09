@@ -44,12 +44,12 @@ COMMENT ON COLUMN t_user.version IS '乐观锁版本号';
 CREATE TABLE IF NOT EXISTS t_conversation (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    type INTEGER NOT NULL DEFAULT 3,
     title VARCHAR(255),
     model_code VARCHAR(50),
     last_message_id BIGINT,
     last_message_at TIMESTAMP,
     ext JSONB,
+    avatar varchar(512),
     create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     version BIGINT DEFAULT 0
@@ -58,7 +58,6 @@ CREATE TABLE IF NOT EXISTS t_conversation (
 COMMENT ON TABLE t_conversation IS '会话表';
 COMMENT ON COLUMN t_conversation.id IS '主键ID';
 COMMENT ON COLUMN t_conversation.user_id IS '所属用户ID';
-COMMENT ON COLUMN t_conversation.type IS '会话类型：1=单聊，2=群聊，3=AI对话';
 COMMENT ON COLUMN t_conversation.title IS '会话标题';
 COMMENT ON COLUMN t_conversation.model_code IS '使用的AI模型编码';
 COMMENT ON COLUMN t_conversation.last_message_id IS '最后一条消息ID';
@@ -123,7 +122,9 @@ CREATE TABLE IF NOT EXISTS t_message_embedding (
     user_id BIGINT NOT NULL,
     content_text TEXT NOT NULL,
     embedding vector(384),
-    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT DEFAULT 0
 );
 
 COMMENT ON TABLE t_message_embedding IS '消息向量表（长期记忆）';
@@ -134,6 +135,8 @@ COMMENT ON COLUMN t_message_embedding.user_id IS '所属用户ID';
 COMMENT ON COLUMN t_message_embedding.content_text IS '原始文本内容';
 COMMENT ON COLUMN t_message_embedding.embedding IS '向量嵌入（384维）';
 COMMENT ON COLUMN t_message_embedding.create_time IS '创建时间';
+COMMENT ON COLUMN t_message_embedding.update_time IS '更新时间';
+COMMENT ON COLUMN t_message_embedding.version IS '乐观锁版本号';
 
 -- 向量索引（使用 IVFFlat 算法，适合中等规模数据）
 -- 注意：创建索引前需要有一定量的数据，建议数据量超过1000条后再创建
@@ -154,6 +157,8 @@ CREATE TABLE IF NOT EXISTS t_embedding_task (
     retry_count INTEGER DEFAULT 0,
     error_message TEXT,
     create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT DEFAULT 0,
     process_time TIMESTAMP
 );
 
@@ -167,6 +172,8 @@ COMMENT ON COLUMN t_embedding_task.status IS '状态：0=待处理，1=处理中
 COMMENT ON COLUMN t_embedding_task.retry_count IS '重试次数';
 COMMENT ON COLUMN t_embedding_task.error_message IS '错误信息';
 COMMENT ON COLUMN t_embedding_task.create_time IS '创建时间';
+COMMENT ON COLUMN t_embedding_task.update_time IS '更新时间';
+COMMENT ON COLUMN t_embedding_task.version IS '乐观锁版本号';
 COMMENT ON COLUMN t_embedding_task.process_time IS '处理时间';
 
 CREATE INDEX IF NOT EXISTS idx_task_status ON t_embedding_task(status, create_time);
@@ -221,32 +228,3 @@ VALUES
     ('gemini-1.5-flash', 'Gemini 1.5 Flash', 'google_gemini', FALSE, TRUE, 4096, 0.7, 7)
 ON CONFLICT (model_code) DO NOTHING;
 
--- ============================================
--- 消息附件表
--- ============================================
-CREATE TABLE IF NOT EXISTS t_message_attachment (
-    id BIGSERIAL PRIMARY KEY,
-    message_id BIGINT NOT NULL,
-    file_type VARCHAR(50) NOT NULL,
-    file_name VARCHAR(255) NOT NULL,
-    file_size BIGINT NOT NULL,
-    url VARCHAR(500) NOT NULL,
-    extra JSONB,
-    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    version BIGINT DEFAULT 0
-);
-
-COMMENT ON TABLE t_message_attachment IS '消息附件表';
-COMMENT ON COLUMN t_message_attachment.id IS '主键ID';
-COMMENT ON COLUMN t_message_attachment.message_id IS '消息ID';
-COMMENT ON COLUMN t_message_attachment.file_type IS '文件类型：IMAGE/FILE/VOICE';
-COMMENT ON COLUMN t_message_attachment.file_name IS '原始文件名';
-COMMENT ON COLUMN t_message_attachment.file_size IS '文件大小（字节）';
-COMMENT ON COLUMN t_message_attachment.url IS '文件访问地址';
-COMMENT ON COLUMN t_message_attachment.extra IS '额外信息（如图片宽高等）';
-COMMENT ON COLUMN t_message_attachment.create_time IS '创建时间';
-COMMENT ON COLUMN t_message_attachment.update_time IS '更新时间';
-COMMENT ON COLUMN t_message_attachment.version IS '乐观锁版本号';
-
-CREATE INDEX IF NOT EXISTS idx_attachment_message ON t_message_attachment(message_id);

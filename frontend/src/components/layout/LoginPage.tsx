@@ -28,9 +28,10 @@ export function LoginPage() {
     setError('');
 
     try {
-      const response = await login({ username, password });
-      setToken(response.token);
-      setUser(response.user);
+      const token = await login({ userCode: username, userPassword: password });
+      setToken(token);
+      // 后端登录只返回 token，这里以登录名构造本地用户占位
+      setUser({ id: 0, userCode: username, userName: username });
     } catch (err) {
       setError('登录失败，请检查用户名和密码');
     } finally {

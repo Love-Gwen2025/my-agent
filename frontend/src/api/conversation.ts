@@ -7,7 +7,6 @@ import type {
   Conversation,
   CreateConversationParams,
   Message,
-  PageResponse,
 } from '../types';
 
 /**
@@ -16,11 +15,10 @@ import type {
  * @returns 会话列表
  */
 export async function getConversations(): Promise<Conversation[]> {
-  const response = await apiClient.get<ApiResponse<PageResponse<Conversation>>>(
-    '/api/conversation',
-    { params: { page: 1, size: 100 } }
+  const response = await apiClient.get<ApiResponse<Conversation[]>>(
+    '/conversation/list'
   );
-  return response.data.data.records || [];
+  return response.data.data || [];
 }
 
 /**
@@ -32,8 +30,9 @@ export async function getConversations(): Promise<Conversation[]> {
 export async function createConversation(
   params: CreateConversationParams
 ): Promise<Conversation> {
+  // 后端 AI 会话创建接口
   const response = await apiClient.post<ApiResponse<Conversation>>(
-    '/api/conversation',
+    '/conversation/create/assistant',
     params
   );
   return response.data.data;
@@ -45,7 +44,7 @@ export async function createConversation(
  * @param id 会话ID
  */
 export async function deleteConversation(id: number): Promise<void> {
-  await apiClient.delete(`/api/conversation/${id}`);
+  await apiClient.delete(`/conversation/${id}`);
 }
 
 /**
@@ -57,11 +56,11 @@ export async function deleteConversation(id: number): Promise<void> {
 export async function getConversationHistory(
   conversationId: number
 ): Promise<Message[]> {
-  const response = await apiClient.get<ApiResponse<PageResponse<Message>>>(
-    `/api/conversation/${conversationId}/history`,
-    { params: { page: 1, size: 100 } }
+  const response = await apiClient.get<ApiResponse<Message[]>>(
+    `/conversation/history`,
+    { params: { conversationId } }
   );
-  return response.data.data.records || [];
+  return response.data.data || [];
 }
 
 /**
@@ -74,5 +73,5 @@ export async function updateConversationTitle(
   id: number,
   title: string
 ): Promise<void> {
-  await apiClient.put(`/api/conversation/${id}`, { title });
+  await apiClient.patch(`/conversation/modify`, { id, title });
 }

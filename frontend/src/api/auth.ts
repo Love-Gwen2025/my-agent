@@ -12,7 +12,7 @@ import type { ApiResponse, LoginParams, LoginResponse, User } from '../types';
  */
 export async function login(params: LoginParams): Promise<LoginResponse> {
   const response = await apiClient.post<ApiResponse<LoginResponse>>(
-    '/api/auth/login',
+    '/user/login',
     params
   );
   return response.data.data;
@@ -22,7 +22,7 @@ export async function login(params: LoginParams): Promise<LoginResponse> {
  * 用户登出
  */
 export async function logout(): Promise<void> {
-  await apiClient.post('/api/auth/logout');
+  await apiClient.post('/user/logout');
 }
 
 /**
@@ -31,7 +31,7 @@ export async function logout(): Promise<void> {
  * @returns 用户信息
  */
 export async function getCurrentUser(): Promise<User> {
-  const response = await apiClient.get<ApiResponse<User>>('/api/user/profile');
+  const response = await apiClient.get<ApiResponse<User>>('/user/detail/0');
   return response.data.data;
 }
 
@@ -43,7 +43,7 @@ export async function getCurrentUser(): Promise<User> {
  */
 export async function register(params: LoginParams): Promise<User> {
   const response = await apiClient.post<ApiResponse<User>>(
-    '/api/auth/register',
+    '/user/register',
     params
   );
   return response.data.data;
