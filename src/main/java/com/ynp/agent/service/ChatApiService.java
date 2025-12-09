@@ -28,37 +28,15 @@ import java.util.stream.Collectors;
 @Service
 public class ChatApiService extends BaseService {
 
-    private static final String DEFAULT_ASSISTANT_NAME = "小叶";
-    private final LoveAssistant assistant;
 
-    @Autowired
-    public ChatApiService(LoveAssistant assistant) {
-        this.assistant = assistant;
-    }
 
     /**
-     * 1. 构造登录态返回视图，未登录返回 authenticated=false。
-     */
-    public SessionView session(User user) {
-        boolean loggedIn = Objects.nonNull(user);
-        return SessionView.builder()
-                .authenticated(loggedIn)
-                .assistantName(DEFAULT_ASSISTANT_NAME)
-                .user(buildUserView(user))
-                .accounts(Collections.emptyList())
-                .build();
-    }
-
-    /**
-     * 1. 创建机器人会话：默认 type=3，成员包含当前用户。
+     * 创建机器人会话：默认 type=3，成员包含当前用户。
      */
     public ConversationView createConversation(Long userId, String title) {
-        if (Objects.isNull(userId)) {
-            throw new BizException(BizErrorCode.AUTH_UNAUTHORIZED, "用户未登录或会话已过期");
-        }
         Conversation conversation = Conversation.builder()
                 .type(3)
-                .title(StringUtils.hasText(title) ? title : DEFAULT_ASSISTANT_NAME + " 的会话")
+                .title(StringUtils.hasText(title) ? title : "与聊天助手的会话")
                 .build();
         Long conversationId = conversationManager.insertConversation(conversation);
         conversationManager.insertMembers(conversationId, Collections.singletonList(userId));
@@ -68,9 +46,7 @@ public class ChatApiService extends BaseService {
         return toConversationView(conversation);
     }
 
-    /**
-     * 1. 返回用户的会话列表，按活跃度倒序。
-     */
+
     public List<ConversationView> listConversations(Long userId) {
         if (Objects.isNull(userId)) {
             return Collections.emptyList();
@@ -84,7 +60,7 @@ public class ChatApiService extends BaseService {
     /**
      * 1. 更新会话标题，要求成员权限。
      */
-    public ConversationView renameConversation(Long userId, Long conversationId, String title) {
+    public ConversationView modifyConversation(Long userId, Long conversationId, String title) {
         ensureMembership(userId, conversationId);
         int affected = conversationManager.updateTitle(conversationId, title);
         if (affected <= 0) {
@@ -227,9 +203,6 @@ public class ChatApiService extends BaseService {
     }
 
     private void ensureMembership(Long userId, Long conversationId) {
-        if (Objects.isNull(userId)) {
-            throw new BizException(BizErrorCode.AUTH_UNAUTHORIZED, "用户未登录或会话已过期");
-        }
         Conversation conversation = conversationManager.selectById(conversationId);
         if (Objects.isNull(conversation)) {
             throw new BizException(BizErrorCode.MESSAGE_CONVERSATION_NOT_FOUND, "会话不存在或已被删除");

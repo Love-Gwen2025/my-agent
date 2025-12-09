@@ -1,7 +1,6 @@
 package com.ynp.agent.config;
 
-
-import com.ynp.agent.store.MongoMemoryMessageStore;
+import com.ynp.agent.store.RedisChatMemoryStore;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.azure.AzureOpenAiChatModel;
@@ -13,12 +12,32 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 
+/**
+ * 聊天模型配置类
+ *
+ * <p>配置 AI 聊天模型和聊天记忆提供者</p>
+ *
+ * @author ynp
+ */
 @Configuration
 public class ChatModelConfig {
 
+    /**
+     * Redis 聊天记忆存储
+     */
     @Autowired
-    private MongoMemoryMessageStore mongoMemoryMessageStore;
+    private RedisChatMemoryStore redisChatMemoryStore;
 
+    /**
+     * 创建 Azure OpenAI 聊天模型 Bean
+     *
+     * @param apiKey API密钥
+     * @param endPoint 端点地址
+     * @param deploymentName 部署名称
+     * @param temperature 温度参数
+     * @param timeout 超时时间
+     * @return Azure OpenAI 聊天模型实例
+     */
     @Bean("azureOpenAiChatModel")
     public ChatModel azureOpenAiChatModel(
             @Value("${openai.api_key}") String apiKey,
@@ -37,13 +56,18 @@ public class ChatModelConfig {
                 .build();
     }
 
+    /**
+     * 创建聊天记忆提供者 Bean
+     * 使用 Redis 作为记忆存储，滑动窗口大小为10条消息
+     *
+     * @return 聊天记忆提供者
+     */
     @Bean
     ChatMemoryProvider chatMemoryProvider() {
         return memoryId -> MessageWindowChatMemory.builder()
                 .id(memoryId)
                 .maxMessages(10)
-                .chatMemoryStore(mongoMemoryMessageStore)
+                .chatMemoryStore(redisChatMemoryStore)
                 .build();
     }
-
 }

@@ -13,10 +13,6 @@ import java.util.List;
 @Component
 @ConfigurationProperties(prefix = "security.ignore")
 public class SecurityIgnoreProperties {
-
-    /**
-     * Additional white-list paths that should bypass authentication.
-     */
     private List<String> whites = new ArrayList<>();
 }
 

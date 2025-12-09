@@ -12,6 +12,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -33,14 +34,16 @@ public class ConversationManagerImpl extends BaseManager implements Conversation
         if (CollectionUtils.isEmpty(memberIds)) {
             return;
         }
+        List<ConversationMember> members =new ArrayList<>();
         memberIds.forEach(memberId -> {
             ConversationMember member = ConversationMember.builder()
                     .conversationId(conversationId)
                     .userId(memberId)
                     .status(1)
                     .build();
-            conversationMemberMapper.insert(member);
+            members.add(member);
         });
+        conversationMemberMapper.insert(members);
     }
 
     @Override
