@@ -1,21 +1,4 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
 
-These instructions are for AI assistants working in this project.
-
-Always open `@/openspec/AGENTS.md` when the request:
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
-
-Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
-
-Keep this managed block so 'openspec update' can refresh the instructions.
-
-<!-- OPENSPEC:END -->
 # Other
 - 代码需要加上详尽清晰详细易懂的中文注释，方法内部也要有注释，不能使用行尾注释
 - 避免"=="号的使用，应使用工具类
