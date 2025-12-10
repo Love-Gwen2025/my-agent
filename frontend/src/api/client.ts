@@ -5,9 +5,23 @@
  */
 import axios, { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '../types';
+import { useAppStore } from '../store';
 
 /** API 基础地址 */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+/**
+ * 处理未授权响应
+ *
+ * 1. 清理本地 token 与用户信息，避免继续使用失效会话
+ * 2. 同步重置 Zustand 持久化存储，避免刷新后仍加载旧 token
+ * 3. 跳转到登录页重新获取登录态
+ */
+export function handleUnauthorized(): void {
+  const { logout } = useAppStore.getState();
+  logout();
+  window.location.href = '/login';
+}
 
 /** 创建 axios 实例 */
 const apiClient = axios.create({
@@ -49,9 +63,7 @@ apiClient.interceptors.response.use(
   (error: AxiosError<ApiResponse<unknown>>) => {
     // 处理 401 未授权
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      handleUnauthorized();
     }
     return Promise.reject(error);
   }

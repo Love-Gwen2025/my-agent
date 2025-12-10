@@ -1,4 +1,4 @@
-package com.couple.agent.model.dto.api;
+package com.couple.agent.model.vo;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -13,7 +13,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SessionView {
+public class SessionVo {
 
     /**
      * 1. 是否已登录。

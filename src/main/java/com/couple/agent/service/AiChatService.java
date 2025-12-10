@@ -1,6 +1,6 @@
 package com.couple.agent.service;
 
-import com.couple.agent.model.dto.api.StreamChatEvent;
+import com.couple.agent.model.vo.StreamChatEvent;
 import reactor.core.publisher.Flux;
 
 /**
@@ -14,9 +14,7 @@ public interface AiChatService {
 
     /**
      * 流式聊天
-     *
-     * <p>以 SSE 方式实时返回 AI 响应内容</p>
-     *
+     * 以 SSE 方式实时返回 AI 响应内容
      * @param userId 用户ID
      * @param conversationId 会话ID
      * @param content 用户消息内容
@@ -29,9 +27,7 @@ public interface AiChatService {
 
     /**
      * 同步聊天
-     *
-     * <p>阻塞等待 AI 完整响应</p>
-     *
+     *阻塞等待 AI 完整响应
      * @param userId 用户ID
      * @param conversationId 会话ID
      * @param content 用户消息内容

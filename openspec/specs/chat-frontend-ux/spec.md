@@ -1,0 +1,20 @@
+# chat-frontend-ux Specification
+
+## Purpose
+TBD - created by archiving change fix-streaming-display. Update Purpose after archive.
+## Requirements
+### Requirement: 流式聊天应平滑累积并完成落库
+前端流式聊天显示 SHALL 在 token 推送过程中持续累积展示，完成时将最终内容写入消息列表，无需刷新即可看到完整回复。
+
+#### Scenario: 新建会话首条消息平滑展示
+- **WHEN** 用户在新建会话发送首条消息并收到流式响应
+- **THEN** 前端按顺序累加展示内容，不出现只闪现单 token 的情况，完成后消息持久展示在列表
+
+#### Scenario: 完成事件缺少 messageId 也能落消息
+- **WHEN** 流式完成事件未返回 messageId 或返回空
+- **THEN** 前端使用本地生成的占位 ID 落入消息列表并在后续与后端记录对齐，不因缺失 ID 而清空内容
+
+#### Scenario: 异常/中断后状态被清理
+- **WHEN** 流式请求被中止或返回错误
+- **THEN** 前端清理加载态与临时内容，已有历史消息不受影响，后续继续发送不需要刷新页面
+

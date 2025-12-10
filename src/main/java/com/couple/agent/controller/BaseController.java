@@ -4,9 +4,7 @@ package com.couple.agent.controller;
 import com.couple.agent.assistant.LoveAssistant;
 import com.couple.agent.converter.UserConverter;
 import com.couple.agent.service.AiChatService;
-import com.couple.agent.service.ChatApiService;
 import com.couple.agent.service.ConversationService;
-import com.couple.agent.service.MessageService;
 import com.couple.agent.service.ModelSelectorService;
 import com.couple.agent.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,19 +33,7 @@ public class BaseController {
     protected ConversationService conversationService;
 
     /**
-     * 消息服务
-     */
-    @Autowired
-    protected MessageService messageService;
-
-    /**
-     * 聊天 API 服务（旧版，保留兼容）
-     */
-    @Autowired
-    protected ChatApiService chatApiService;
-
-    /**
-     * AI 聊天服务（新版，支持流式）
+     * AI 聊天服务
      */
     @Autowired
     protected AiChatService aiChatService;

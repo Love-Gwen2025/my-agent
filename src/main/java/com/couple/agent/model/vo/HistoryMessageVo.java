@@ -1,4 +1,4 @@
-package com.couple.agent.model.dto.api;
+package com.couple.agent.model.vo;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -15,7 +15,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class HistoryMessageView {
+public class HistoryMessageVo {
 
     /**
      * 1. 角色标识：user 或 assistant。

@@ -1,13 +1,12 @@
 package com.couple.agent.service.impl;
 
-import com.couple.agent.exception.BizErrorCode;
-import com.couple.agent.exception.BizException;
 import com.couple.agent.model.domain.Conversation;
 import com.couple.agent.model.domain.Message;
-import com.couple.agent.model.dto.api.StreamChatEvent;
+import com.couple.agent.model.vo.StreamChatEvent;
 import com.couple.agent.service.AiChatService;
 import com.couple.agent.service.BaseService;
 import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
@@ -16,6 +15,7 @@ import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
@@ -27,10 +27,7 @@ import java.util.Objects;
 
 /**
  * AI 聊天服务实现
- *
- * <p>提供流式和同步两种 AI 对话模式</p>
- *
- * @author ynp
+ * 提供流式和同步两种 AI 对话模式
  */
 @Slf4j
 @Service
@@ -93,11 +90,8 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
      */
     @Override
     public String chat(Long userId, Long conversationId, String content, String modelCode) {
-        // 0. 校验会话归属
-        validateOwnership(userId, conversationId);
         // 1. 确定使用的模型
         String finalModelCode = determineModelCode(conversationId, modelCode);
-
         // 2. 获取同步模型
         ChatModel chatModel = modelSelectorService.getChatModel(finalModelCode);
         if (Objects.isNull(chatModel)) {
@@ -142,7 +136,6 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
                                    String modelCode, String systemPrompt) {
 
         try {
-            validateOwnership(userId, conversationId);
             // 1. 保存用户消息
             Message userMessage = saveUserMessage(userId, conversationId, content);
 
@@ -228,40 +221,24 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
     }
 
     /**
-     * 校验会话归属，只允许会话拥有者发起对话。
-     */
-    private void validateOwnership(Long userId, Long conversationId) {
-        Conversation conversation = conversationManager.selectById(conversationId);
-        if (Objects.isNull(conversation)) {
-            throw new BizException(BizErrorCode.MESSAGE_CONVERSATION_NOT_FOUND, "会话不存在或已被删除");
-        }
-        if (!Objects.equals(conversation.getUserId(), userId)) {
-            throw new BizException(BizErrorCode.MESSAGE_FORBIDDEN, "您不在该会话中，无法操作");
-        }
-    }
-
-    /**
      * 构建聊天消息列表
-     *
-     * <p>包含系统提示词、相关历史记忆、Redis 缓存的近期消息和当前用户消息</p>
-     *
+     * 包含系统提示词、相关历史记忆、Redis 缓存的近期消息和当前用户消息
      * @param conversationId 会话ID
      * @param systemPrompt 系统提示词
      * @param userContent 用户消息内容
      * @return LangChain4j 消息列表
      */
-    private List<dev.langchain4j.data.message.ChatMessage> buildChatMessages(
+    private List<ChatMessage> buildChatMessages(
             Long conversationId, String systemPrompt, String userContent) {
 
-        List<dev.langchain4j.data.message.ChatMessage> messages = new ArrayList<>();
+        List<ChatMessage> messages = new ArrayList<>();
 
         // 1. 构建增强的系统提示词（包含相关记忆）
         String enhancedSystemPrompt = buildEnhancedSystemPrompt(conversationId, systemPrompt, userContent);
         messages.add(SystemMessage.from(enhancedSystemPrompt));
 
         // 2. 从 Redis 加载历史消息
-        List<dev.langchain4j.data.message.ChatMessage> historyMessages =
-                redisChatMemoryStore.getMessages(conversationId.toString());
+        List<ChatMessage> historyMessages = redisChatMemoryStore.getMessages(conversationId.toString());
         messages.addAll(historyMessages);
 
         // 3. 添加当前用户消息
@@ -272,9 +249,7 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
 
     /**
      * 构建增强的系统提示词
-     *
-     * <p>通过语义搜索获取相关历史记忆，增强 AI 的上下文理解能力</p>
-     *
+     * 通过语义搜索获取相关历史记忆，增强 AI 的上下文理解能力
      * @param conversationId 会话ID
      * @param baseSystemPrompt 基础系统提示词
      * @param userContent 当前用户消息
@@ -384,9 +359,7 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
         String memoryId = conversationId.toString();
 
         // 获取现有消息
-        List<dev.langchain4j.data.message.ChatMessage> messages =
-                new ArrayList<>(redisChatMemoryStore.getMessages(memoryId));
-
+        List<ChatMessage> messages = new ArrayList<>(redisChatMemoryStore.getMessages(memoryId));
         // 添加新消息
         if ("user".equals(role)) {
             messages.add(UserMessage.from(content));
@@ -398,7 +371,6 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
         if (messages.size() > 10) {
             messages = messages.subList(messages.size() - 10, messages.size());
         }
-
         // 更新缓存
         redisChatMemoryStore.updateMessages(memoryId, messages);
     }
@@ -418,9 +390,7 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
 
     /**
      * 创建向量化任务
-     *
-     * <p>异步将消息内容向量化存储，用于长期记忆语义搜索</p>
-     *
+     * 异步将消息内容向量化存储，用于长期记忆语义搜索
      * @param messageId 消息ID
      * @param conversationId 会话ID
      * @param userId 用户ID

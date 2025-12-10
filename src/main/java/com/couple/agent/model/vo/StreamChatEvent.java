@@ -1,4 +1,4 @@
-package com.couple.agent.model.dto.api;
+package com.couple.agent.model.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;

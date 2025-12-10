@@ -70,4 +70,9 @@ public class ConversationManagerImpl extends BaseManager implements Conversation
         }
         return conversationMapper.deleteById(conversationId);
     }
+
+    @Override
+    public int updateConversation(Conversation conversation) {
+        return conversationMapper.updateById(conversation);
+    }
 }

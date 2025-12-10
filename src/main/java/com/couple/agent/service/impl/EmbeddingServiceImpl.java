@@ -19,11 +19,8 @@ import java.util.stream.Collectors;
 
 /**
  * 向量嵌入服务实现
- *
- * <p>使用 all-MiniLM-L6-v2 本地模型进行文本向量化</p>
- * <p>向量维度：384</p>
- *
- * @author ynp
+ * 使用 all-MiniLM-L6-v2 本地模型进行文本向量化
+ * 向量维度：384
  */
 @Slf4j
 @Service
@@ -197,7 +194,6 @@ public class EmbeddingServiceImpl extends BaseManager implements EmbeddingServic
         if (Objects.isNull(content) || content.isEmpty()) {
             return;
         }
-
         EmbeddingTask task = EmbeddingTask.builder()
                 .messageId(messageId)
                 .conversationId(conversationId)

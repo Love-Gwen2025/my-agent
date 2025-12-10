@@ -1,13 +1,12 @@
 package com.couple.agent.controller;
 
 import com.couple.agent.model.dto.Result;
-import com.couple.agent.model.dto.api.ConversationView;
-import com.couple.agent.model.dto.api.HistoryMessageView;
+import com.couple.agent.model.vo.ConversationVo;
+import com.couple.agent.model.vo.HistoryMessageVo;
 import com.couple.agent.model.param.ConversationParam;
 import com.couple.agent.utils.SessionUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -25,41 +24,43 @@ import java.util.Objects;
 @RequestMapping("/conversation")
 @Tag(name = "会话管理")
 public class ConversationController extends BaseController{
-    @PostMapping(value = "/create")
-    @Operation(description = "会话创建")
-    public Result<Long> create(@Validated @RequestBody ConversationParam inParam){
-        return Result.ok(conversationService.create(inParam));
-    }
 
     @GetMapping("/list")
     @Operation(summary = "查询当前用户的会话列表")
-    public Result<List<ConversationView>> list() {
-        return Result.ok(chatApiService.listConversations(SessionUtil.get().getId()));
+    public Result<List<ConversationVo>> list() {
+        return Result.ok(conversationService.listConversations(SessionUtil.get().getId()));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "查询指定会话信息")
+    public Result<ConversationVo> get(@PathVariable(value = "id") Long id) {
+        return Result.ok(conversationService.getConversation(id));
     }
 
     @PostMapping("/create/assistant")
     @Operation(summary = "创建机器人会话")
-    public Result<ConversationView> createAssistant(@RequestBody(required = false) ConversationParam conversationParam) {
+    public Result<Long> createAssistant(@RequestBody ConversationParam conversationParam) {
         String title = Objects.nonNull(conversationParam) ? conversationParam.getTitle() : null;
-        return Result.ok(chatApiService.createConversation(SessionUtil.get().getId(), title));
+        return Result.ok(conversationService.createConversation(title));
     }
 
     @PatchMapping("/modify")
     @Operation(summary = "修改会话")
-    public Result<ConversationView> modifyConversation(@RequestBody ConversationParam conversationParam) {
-        return Result.ok(chatApiService.modifyConversation(SessionUtil.get().getId(),conversationParam.getId(), conversationParam.getTitle()));
+    public Result<Void> modifyConversation(@RequestBody ConversationParam conversationParam) {
+        conversationService.modifyConversation(conversationParam);
+        return Result.ok();
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除会话")
     public Result<Void> delete(@PathVariable("id") Long conversationId) {
-        chatApiService.deleteConversation(SessionUtil.get().getId(), conversationId);
+        conversationService.deleteConversation(conversationId);
         return Result.ok();
     }
 
     @GetMapping("/history")
     @Operation(summary = "查询会话历史")
-    public Result<List<HistoryMessageView>> history(@RequestParam("conversationId") Long conversationId) {
-        return Result.ok(chatApiService.history(SessionUtil.get().getId(), conversationId));
+    public Result<List<HistoryMessageVo>> history(@RequestParam("conversationId") Long conversationId) {
+        return Result.ok(conversationService.history(conversationId));
     }
 }

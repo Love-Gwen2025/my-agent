@@ -2,6 +2,7 @@ package com.couple.agent.model.domain;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.couple.agent.model.vo.HistoryMessageVo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -9,6 +10,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.Objects;
 
 /**
  * 消息实体
@@ -100,4 +103,14 @@ public class Message extends BasePo {
      */
     @TableField("ext")
     private String ext;
+
+    public static HistoryMessageVo toHistoryMessageVo(Message message, Long currentUserId) {
+        String role = Objects.equals(message.getSenderId(), currentUserId) ? "user" : "assistant";
+        return HistoryMessageVo.builder()
+                .role(role)
+                .content(message.getContent())
+                .createdAt(message.getSendTime())
+                .attachments(Collections.emptyList())
+                .build();
+    }
 }

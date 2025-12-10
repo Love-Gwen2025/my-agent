@@ -59,4 +59,5 @@ public interface ConversationManager {
      */
     int deleteConversation(Long conversationId);
 
+    int updateConversation(Conversation conversation);
 }

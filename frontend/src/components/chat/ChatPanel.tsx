@@ -43,32 +43,41 @@ export function ChatPanel() {
   } = useAppStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const latestStreamingRef = useRef<string>('');
+  const latestMessageIdRef = useRef<number | null>(null);
 
   /** SSE 聊天 Hook */
   const { isLoading, sendMessage, abort } = useSSEChat({
+    // 1. 增量回调：使用 ref 累积，避免闭包旧状态导致闪烁或丢字
     onChunk: (chunk) => {
-      setStreamingContent(streamingContent + chunk);
+      latestStreamingRef.current = `${latestStreamingRef.current}${chunk}`;
+      setStreamingContent(latestStreamingRef.current);
     },
-    onComplete: (event) => {
-      // 将流式内容转为正式消息
-      if (streamingContent && event.messageId) {
+    // 2. 完成回调：无论是否有 messageId，都将最终内容落入消息列表
+    onComplete: (event, finalContent) => {
+      const contentToSave = finalContent || latestStreamingRef.current;
+      if (contentToSave) {
+        const messageId = event.messageId ?? latestMessageIdRef.current ?? Date.now();
         const aiMessage: Message = {
-          id: event.messageId,
+          id: messageId,
           conversationId: currentConversationId!,
           senderId: -1,
           role: 'assistant',
-          content: streamingContent,
+          content: contentToSave,
           contentType: 'TEXT',
           modelCode: currentModelCode || undefined,
           tokenCount: event.tokenCount,
           sendTime: new Date().toISOString(),
         };
         addMessage(aiMessage);
+        latestMessageIdRef.current = messageId;
       }
+      latestStreamingRef.current = '';
       clearStreamingContent();
     },
     onError: (error) => {
       console.error('聊天错误:', error);
+      latestStreamingRef.current = '';
       clearStreamingContent();
     },
   });
@@ -111,6 +120,8 @@ export function ChatPanel() {
         sendTime: new Date().toISOString(),
       };
       addMessage(userMessage);
+      latestStreamingRef.current = '';
+      latestMessageIdRef.current = null;
       clearStreamingContent();
 
       // 发送 SSE 请求

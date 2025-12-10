@@ -1,4 +1,4 @@
-package com.couple.agent.model.dto.api;
+package com.couple.agent.model.param;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Schema(description = "流式聊天请求")
-public class StreamChatRequest {
+public class StreamChatParam {
 
     /**
      * 会话ID

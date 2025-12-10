@@ -2,6 +2,8 @@ package com.couple.agent.model.domain;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.couple.agent.model.param.ConversationParam;
+import com.couple.agent.model.vo.ConversationVo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -9,6 +11,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * 会话实体
@@ -71,4 +74,29 @@ public class Conversation extends BasePo {
      */
     @TableField("ext")
     private String ext;
+
+    public static ConversationVo toConversationVo(Conversation conversation) {
+        if (Objects.isNull(conversation)) {
+            return null;
+        }
+        LocalDateTime lastMessageAt = Objects.nonNull(conversation.getLastMessageAt())
+                ? conversation.getLastMessageAt()
+                : conversation.getUpdateTime();
+        return ConversationVo.builder()
+                .id(conversation.getId())
+                .title(conversation.getTitle())
+                .createTime(conversation.getCreateTime())
+                .lastMessageAt(lastMessageAt)
+                .build();
+    }
+
+    public static Conversation ofParam(ConversationParam conversationParam) {
+        if (Objects.isNull(conversationParam)) {
+            return null;
+        }
+        return Conversation.builder()
+                .id(conversationParam.getId())
+                .title(conversationParam.getTitle())
+                .build();
+    }
 }
