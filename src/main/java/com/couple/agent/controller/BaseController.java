@@ -1,7 +1,7 @@
 package com.couple.agent.controller;
 
 
-import com.couple.agent.assistant.LoveAssistant;
+import com.couple.agent.assistant.assistant;
 import com.couple.agent.converter.UserConverter;
 import com.couple.agent.service.AiChatService;
 import com.couple.agent.service.ConversationService;
@@ -52,7 +52,7 @@ public class BaseController {
      * 情感助手（保留兼容）
      */
     @Autowired
-    protected LoveAssistant assistant;
+    protected assistant assistant;
 
     /**
      * 模型选择服务

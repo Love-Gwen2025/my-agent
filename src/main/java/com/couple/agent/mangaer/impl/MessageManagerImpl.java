@@ -39,7 +39,7 @@ public class MessageManagerImpl extends BaseManager implements MessageManager {
         return messageMapper.selectList(
                 new LambdaQueryWrapper<Message>()
                         .eq(Message::getConversationId, conversationId)
-                        .orderByAsc(Message::getSendTime, Message::getId)
+                        .orderByAsc(Message::getCreateTime, Message::getId)
         );
     }
 
@@ -68,7 +68,7 @@ public class MessageManagerImpl extends BaseManager implements MessageManager {
         return messageMapper.selectOne(
                 new LambdaQueryWrapper<Message>()
                         .eq(Message::getConversationId, conversationId)
-                        .orderByDesc(Message::getSendTime, Message::getId)
+                        .orderByDesc(Message::getCreateTime, Message::getId)
                         .last("LIMIT 1")
         );
     }

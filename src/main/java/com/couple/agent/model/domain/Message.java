@@ -3,11 +3,13 @@ package com.couple.agent.model.domain;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.couple.agent.model.vo.HistoryMessageVo;
+import com.couple.agent.model.vo.MessageVo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.springframework.beans.BeanUtils;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -15,10 +17,6 @@ import java.util.Objects;
 
 /**
  * 消息实体
- *
- * <p>用于持久化聊天消息内容、类型、状态等信息，支持后续历史查询与撤回操作</p>
- *
- * @author ynp
  */
 @Data
 @NoArgsConstructor
@@ -62,6 +60,12 @@ public class Message extends BasePo {
     private String contentType;
 
     /**
+     * 父消息的id
+     * */
+    @TableField("parent_id")
+    private Long parentId;
+
+    /**
      * Token 数量（AI 回复时记录）
      */
     @TableField("token_count")
@@ -74,12 +78,6 @@ public class Message extends BasePo {
     private String modelCode;
 
     /**
-     * 引用的消息 ID，实现"回复某条消息"的功能
-     */
-    @TableField("reply_to")
-    private Long replyTo;
-
-    /**
      * 消息状态：1=正常，2=撤回，3=删除
      * 撤回或删除后仍保留记录，满足追溯需求
      */
@@ -87,30 +85,14 @@ public class Message extends BasePo {
     private Integer status;
 
     /**
-     * 消息发送时间，默认等于 createTime，可在特定场景下自定义写入
-     */
-    @TableField("send_time")
-    private LocalDateTime sendTime;
-
-    /**
-     * 消息编辑时间，支持后续"修改消息"功能时记录最新更新时间
-     */
-    @TableField("edit_time")
-    private LocalDateTime editTime;
-
-    /**
      * 扩展字段（JSON 字符串），用于存放地理位置、引用卡片等附加信息
      */
     @TableField("ext")
     private String ext;
 
-    public static HistoryMessageVo toHistoryMessageVo(Message message, Long currentUserId) {
-        String role = Objects.equals(message.getSenderId(), currentUserId) ? "user" : "assistant";
-        return HistoryMessageVo.builder()
-                .role(role)
-                .content(message.getContent())
-                .createdAt(message.getSendTime())
-                .attachments(Collections.emptyList())
-                .build();
+    public static MessageVo toMessageVo(Message message) {
+        MessageVo messageVo =new MessageVo();
+        BeanUtils.copyProperties(message,messageVo);
+        return messageVo;
     }
 }

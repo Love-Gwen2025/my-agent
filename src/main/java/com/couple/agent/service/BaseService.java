@@ -2,7 +2,7 @@ package com.couple.agent.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.couple.agent.assistant.LoveAssistant;
+import com.couple.agent.assistant.assistant;
 import com.couple.agent.config.JwtProperties;
 import com.couple.agent.config.OssProperties;
 import com.couple.agent.converter.UserConverter;
@@ -119,7 +119,7 @@ public class BaseService {
      * 情感助手（保留兼容）
      */
     @Autowired
-    protected LoveAssistant assistant;
+    protected assistant assistant;
 
     /**
      * 模型选择服务

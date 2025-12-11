@@ -27,10 +27,9 @@ import java.util.UUID;
 @RequestMapping("/api/chat")
 @Tag(name = "Ai聊天控制器")
 public class AIChatController extends BaseController {
-
     /**
      * 流式对话接口
-     * 使用 SSE 实时推送 AI 响应内容<
+     * 使用 SSE 实时推送 AI 响应内容
      * @param streamChatParam 聊天请求
      * @return SSE 事件流
      */

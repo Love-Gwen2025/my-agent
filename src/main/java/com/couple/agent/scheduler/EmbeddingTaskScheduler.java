@@ -48,7 +48,7 @@ public class EmbeddingTaskScheduler {
      *
      * 每 10 秒扫描一次待处理任务
      */
-    @Scheduled(fixedDelay = 10000000)
+    @Scheduled(fixedDelay = 10000)
     public void processPendingTasks() {
         // 1. 查询待处理的任务
         List<EmbeddingTask> tasks = fetchPendingTasks(BATCH_SIZE);

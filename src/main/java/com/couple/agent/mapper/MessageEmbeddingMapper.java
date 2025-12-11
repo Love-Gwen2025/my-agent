@@ -10,10 +10,7 @@ import java.util.List;
 
 /**
  * 消息向量嵌入 Mapper 接口
- *
- * <p>提供向量数据的存储和语义搜索功能</p>
- *
- * @author ynp
+ * 提供向量数据的存储和语义搜索功能
  */
 @Mapper
 public interface MessageEmbeddingMapper extends MPJBaseMapper<MessageEmbedding> {

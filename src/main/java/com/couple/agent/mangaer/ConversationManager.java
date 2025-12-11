@@ -28,9 +28,9 @@ public interface ConversationManager {
      *
      * @param conversationId 会话ID
      * @param messageId      最新消息ID
-     * @param sendTime       最新消息时间
+    最新消息时间
      */
-    void updateLastMessage(Long conversationId, Long messageId, LocalDateTime sendTime);
+    void updateLastMessage(Long conversationId, Long messageId,LocalDateTime createTime);
 
     int updateById(Conversation conversation);
 

@@ -11,6 +11,7 @@ import com.couple.agent.model.param.MessageSendParam;
 import com.couple.agent.model.vo.ChatReplyVo;
 import com.couple.agent.model.vo.ConversationVo;
 import com.couple.agent.model.vo.HistoryMessageVo;
+import com.couple.agent.model.vo.MessageVo;
 import com.couple.agent.model.vo.SessionVo;
 import com.couple.agent.service.BaseService;
 import com.couple.agent.service.ConversationService;
@@ -72,13 +73,16 @@ public class ConversationServiceImpl extends BaseService implements Conversation
      *  查询会话消息历史
      */
     @Override
-    public List<HistoryMessageVo> history(Long conversationId) {
+    public List<MessageVo> history(Long conversationId) {
+
+
+
         List<Message> messages = messageManager.listByConversation(conversationId);
         if (CollectionUtils.isEmpty(messages)) {
             return Collections.emptyList();
         }
-        return messages.stream()
-                .map(message-> Message.toHistoryMessageVo(message, SessionUtil.get().getId()))
+        List<MessageVo> collect = messages.stream()
+                .map(Message::toMessageVo)
                 .collect(Collectors.toList());
     }
     /**
@@ -156,7 +160,6 @@ public class ConversationServiceImpl extends BaseService implements Conversation
                 .content(param.getContent())
                 .contentType(StringUtils.hasText(param.getContentType()) ? param.getContentType() : "TEXT")
                 .status(1)
-                .sendTime(now)
                 .build();
         messageManager.insertMessage(message);
         return message;
@@ -170,7 +173,6 @@ public class ConversationServiceImpl extends BaseService implements Conversation
                 .content(reply)
                 .contentType("TEXT")
                 .status(1)
-                .sendTime(now)
                 .build();
         messageManager.insertMessage(assistantMessage);
         return assistantMessage;

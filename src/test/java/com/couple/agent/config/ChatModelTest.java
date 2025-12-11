@@ -1,6 +1,6 @@
 package com.couple.agent.config;
 
-import com.couple.agent.assistant.LoveAssistant;
+import com.couple.agent.assistant.assistant;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 public class ChatModelTest {
 
     @Autowired
-    LoveAssistant assistant;
+    assistant assistant;
 
     @Autowired
     ChatModel azureOpenAiChatModel;
@@ -24,6 +24,6 @@ public class ChatModelTest {
 
     @Test
     public void aiAssistantTest(){
-        assistant.chat(1,"你是谁？");
+        System.out.println(assistant.chat(1L, "给我说个笑话？"));
     }
 }

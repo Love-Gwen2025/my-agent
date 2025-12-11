@@ -10,11 +10,9 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import dev.langchain4j.service.TokenStream;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -37,9 +35,6 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
      * 默认模型编码
      */
     private static final String DEFAULT_MODEL_CODE = "gpt-4o";
-
-    @Autowired
-    StreamingChatModel deepSeekStreamingChatModel;
 
     /**
      * AI 助手发送者ID
@@ -69,13 +64,13 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
     @Override
     public Flux<StreamChatEvent> streamChat(Long userId, Long conversationId, String content,
                                              String modelCode, String systemPrompt) {
-
-        // 1. 创建 Sink 用于发送流式事件
+        // 1. 创建单播 Sink 承载流式事件
         Sinks.Many<StreamChatEvent> sink = Sinks.many().unicast().onBackpressureBuffer();
 
-        // 2.异步执行流式对话
-        executeStreamChat(sink,deepSeekStreamingChatModel, userId, conversationId, content, null, systemPrompt);
+        // 2. 执行流式对话
+        executeStreamChat(sink, userId, conversationId, content);
 
+        // 3. 返回事件流
         return sink.asFlux();
     }
 
@@ -103,7 +98,7 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
         Message userMessage = saveUserMessage(userId, conversationId, content);
 
         // 4. 构建消息列表
-        List<dev.langchain4j.data.message.ChatMessage> messages = buildChatMessages(
+        List<ChatMessage> messages = buildChatMessages(
                 conversationId, DEFAULT_SYSTEM_PROMPT, content);
 
         // 5. 调用模型
@@ -123,71 +118,44 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
      * 执行流式聊天
      *
      * @param sink 事件发送器
-     * @param streamingModel 流式模型
      * @param userId 用户ID
      * @param conversationId 会话ID
      * @param content 用户消息内容
-     * @param modelCode 模型编码
-     * @param systemPrompt 系统提示词
      */
     private void executeStreamChat(Sinks.Many<StreamChatEvent> sink,
-                                   StreamingChatModel streamingModel,
-                                   Long userId, Long conversationId, String content,
-                                   String modelCode, String systemPrompt) {
+                                   Long userId, Long conversationId, String content) {
 
         try {
-            // 1. 保存用户消息
-            Message userMessage = saveUserMessage(userId, conversationId, content);
+            // 1. 保存用户消息并写入缓存、向量任务
+            saveUserMessage(userId, conversationId, content);
 
-            // 2. 确定系统提示词
-            String finalSystemPrompt = Objects.nonNull(systemPrompt) && !systemPrompt.isEmpty()
-                    ? systemPrompt : DEFAULT_SYSTEM_PROMPT;
-
-            // 3. 构建消息列表
-            List<dev.langchain4j.data.message.ChatMessage> messages = buildChatMessages(
-                    conversationId, finalSystemPrompt, content);
-
-            // 4. 用于收集完整响应
+            // 2. 用于收集完整响应内容
             StringBuilder fullResponse = new StringBuilder();
 
-            // 5. 调用流式模型
-            streamingModel.chat(messages, new StreamingChatResponseHandler() {
+            // 3. 调用 AI 助手的流式接口
+            TokenStream tokenStream = assistant.chat(conversationId, content);
 
-                @Override
-                public void onPartialResponse(String partialResponse) {
-                    // 发送内容片段
-                    fullResponse.append(partialResponse);
-                    sink.tryEmitNext(StreamChatEvent.chunk(partialResponse));
-                }
+            // 4. 监听分片回调，逐片推送事件
+            tokenStream.onPartialResponse(partial -> {
+                fullResponse.append(partial);
+                sink.tryEmitNext(StreamChatEvent.chunk(partial));
+            });
 
-                @Override
-                public void onCompleteResponse(ChatResponse response) {
-                    // 计算 Token 数量
-                    Integer tokenCount = null;
-                    if (Objects.nonNull(response.tokenUsage())) {
-                        tokenCount = response.tokenUsage().totalTokenCount();
-                    }
+            // 5. 监听完成回调，落库并推送完成事件
+            tokenStream.onCompleteResponse(chatResponse-> {
+                Message aiMessage = saveAiMessage(conversationId, fullResponse.toString(), null, chatResponse.tokenUsage().totalTokenCount());
+               //更新会话最新消息
+                updateConversationLastMessage(conversationId);
+                sink.tryEmitNext(StreamChatEvent.done(aiMessage.getId(), conversationId, chatResponse.tokenUsage().totalTokenCount()));
+                sink.tryEmitComplete();
+                log.info("流式对话完成，会话ID: {}, 响应长度: {}", conversationId, fullResponse.length());
+            });
 
-                    // 保存 AI 回复到数据库
-                    Message aiMessage = saveAiMessage(conversationId, fullResponse.toString(),
-                            modelCode, tokenCount);
-
-                    // 更新会话最后消息
-                    updateConversationLastMessage(conversationId);
-
-                    // 发送完成事件
-                    sink.tryEmitNext(StreamChatEvent.done(aiMessage.getId(), conversationId, tokenCount));
-                    sink.tryEmitComplete();
-
-                    log.info("流式对话完成，会话ID: {}, 响应长度: {}", conversationId, fullResponse.length());
-                }
-
-                @Override
-                public void onError(Throwable error) {
-                    log.error("流式对话错误，会话ID: {}", conversationId, error);
-                    sink.tryEmitNext(StreamChatEvent.error(error.getMessage()));
-                    sink.tryEmitComplete();
-                }
+            // 6. 监听异常回调，推送错误事件
+            tokenStream.onError(error -> {
+                log.error("流式对话错误，会话ID: {}", conversationId, error);
+                sink.tryEmitNext(StreamChatEvent.error(error.getMessage()));
+                sink.tryEmitComplete();
             });
 
         } catch (Exception e) {
@@ -298,13 +266,9 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
                 .content(content)
                 .contentType("TEXT")
                 .status(1)
-                .sendTime(LocalDateTime.now())
                 .build();
 
         messageManager.insertMessage(message);
-
-        // 更新 Redis 缓存
-        updateChatMemory(conversationId, "user", content);
 
         // 创建向量化任务（异步处理）
         createEmbeddingTask(message.getId(), conversationId, userId, content);
@@ -331,14 +295,9 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
                 .modelCode(modelCode)
                 .tokenCount(tokenCount)
                 .status(1)
-                .sendTime(LocalDateTime.now())
                 .build();
 
         messageManager.insertMessage(message);
-
-        // 更新 Redis 缓存
-        updateChatMemory(conversationId, "assistant", content);
-
         // 获取会话所属用户，创建向量化任务
         Conversation conversation = conversationManager.selectById(conversationId);
         if (Objects.nonNull(conversation) && Objects.nonNull(conversation.getUserId())) {
@@ -384,7 +343,7 @@ public class AiChatServiceImpl extends BaseService implements AiChatService {
         // 获取最后一条消息
         Message lastMessage = messageManager.selectLastMessage(conversationId);
         if (Objects.nonNull(lastMessage)) {
-            conversationManager.updateLastMessage(conversationId, lastMessage.getId(), lastMessage.getSendTime());
+            conversationManager.updateLastMessage(conversationId, lastMessage.getId(),lastMessage.getCreateTime());
         }
     }
 

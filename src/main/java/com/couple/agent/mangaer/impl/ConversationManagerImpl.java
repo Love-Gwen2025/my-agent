@@ -28,11 +28,11 @@ public class ConversationManagerImpl extends BaseManager implements Conversation
     }
 
     @Override
-    public void updateLastMessage(Long conversationId, Long messageId, LocalDateTime sendTime) {
+    public void updateLastMessage(Long conversationId, Long messageId,LocalDateTime createTime) {
         conversationMapper.update(null, new LambdaUpdateWrapper<Conversation>()
                 .eq(Conversation::getId, conversationId)
                 .set(Conversation::getLastMessageId, messageId)
-                .set(Conversation::getLastMessageAt, sendTime));
+                .set(Conversation::getLastMessageAt, createTime));
     }
 
     @Override

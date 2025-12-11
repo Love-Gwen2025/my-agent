@@ -3,6 +3,7 @@ package com.couple.agent.config;
 import com.couple.agent.store.RedisChatMemoryStore;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.azure.AzureOpenAiChatModel;
 import dev.langchain4j.model.azure.AzureOpenAiStreamingChatModel;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
@@ -17,10 +18,7 @@ import java.time.Duration;
 
 /**
  * 聊天模型配置类
- *
- * <p>配置 AI 聊天模型和聊天记忆提供者</p>
- *
- * @author ynp
+ 配置 AI 聊天模型和聊天记忆提供者
  */
 @Configuration
 public class ChatModelConfig {
@@ -33,7 +31,6 @@ public class ChatModelConfig {
 
     /**
      * 创建 Azure OpenAI 聊天模型 Bean
-     *
      * @param apiKey API密钥
      * @param endPoint 端点地址
      * @param deploymentName 部署名称
@@ -41,23 +38,23 @@ public class ChatModelConfig {
      * @param timeout 超时时间
      * @return Azure OpenAI 聊天模型实例
      */
-
-//    public ChatModel azureOpenAiChatModel(
-//            @Value("${openai.api_key}") String apiKey,
-//            @Value("${openai.base_url}") String endPoint,
-//            @Value("${openai.deployment_name}") String deploymentName,
-//            @Value("${openai.temperature}") double temperature,
-//            @Value("${openai.timeout}") Duration timeout) {
-//
-//        return AzureOpenAiChatModel.builder()
-//                .apiKey(apiKey)
-//                .endpoint(endPoint)
-//                .deploymentName(deploymentName)
-//                .temperature(temperature)
-//                .timeout(timeout)
-//                .logRequestsAndResponses(true)
-//                .build();
-//    }
+    @Bean
+   public ChatModel azureOpenAiChatModel(
+           @Value("${ai.openai.api-key}") String apiKey,
+            @Value("${ai.openai.base-url}") String endPoint,
+            @Value("${ai.openai.deployment-name}") String deploymentName,
+            @Value("${ai.openai.temperature}") double temperature,
+            @Value("${ai.openai.timeout}") Duration timeout) {
+        // 1. 使用与流式模型一致的配置前缀 ai.openai.*，避免占位符缺失导致 Bean 创建失败
+        return AzureOpenAiChatModel.builder()
+                .apiKey(apiKey)
+                .endpoint(endPoint)
+                .deploymentName(deploymentName)
+                .temperature(temperature)
+                .timeout(timeout)
+                .logRequestsAndResponses(true)
+                .build();
+    }
 
     @Bean("azureOpenAiStreamingChatModel")
     public StreamingChatModel azureOpenAiStreamingChatModel(
@@ -85,6 +82,22 @@ public class ChatModelConfig {
             @Value("${ai.deepseek.temperature}") double temperature,
             @Value("${ai.deepseek.timeout}") Duration timeout) {
         return OpenAiStreamingChatModel.builder()
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(modelName)
+                .temperature(temperature)
+                .timeout(timeout)
+                .build();
+    }
+
+    @Bean("deepSeekChatModel")
+    public ChatModel deepSeekChatModel(
+            @Value("${ai.deepseek.api-key}") String apiKey,
+            @Value("${ai.deepseek.base-url}") String baseUrl,
+            @Value("${ai.deepseek.model-name}") String modelName,
+            @Value("${ai.deepseek.temperature}") double temperature,
+            @Value("${ai.deepseek.timeout}") Duration timeout) {
+        return OpenAiChatModel.builder()
                 .apiKey(apiKey)
                 .baseUrl(baseUrl)
                 .modelName(modelName)

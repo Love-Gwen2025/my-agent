@@ -4,6 +4,7 @@ import com.couple.agent.model.dto.Result;
 import com.couple.agent.model.vo.ConversationVo;
 import com.couple.agent.model.vo.HistoryMessageVo;
 import com.couple.agent.model.param.ConversationParam;
+import com.couple.agent.model.vo.MessageVo;
 import com.couple.agent.utils.SessionUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -60,7 +61,7 @@ public class ConversationController extends BaseController{
 
     @GetMapping("/history")
     @Operation(summary = "查询会话历史")
-    public Result<List<HistoryMessageVo>> history(@RequestParam("conversationId") Long conversationId) {
+    public Result<List<MessageVo>> history(@RequestParam("conversationId") Long conversationId) {
         return Result.ok(conversationService.history(conversationId));
     }
 }
