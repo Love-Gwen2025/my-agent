@@ -32,6 +32,7 @@ public class ConversationManagerImpl extends BaseManager implements Conversation
         conversationMapper.update(null, new LambdaUpdateWrapper<Conversation>()
                 .eq(Conversation::getId, conversationId)
                 .set(Conversation::getLastMessageId, messageId)
+                .set(Conversation::getCurrentMessageId, messageId)
                 .set(Conversation::getLastMessageAt, createTime));
     }
 

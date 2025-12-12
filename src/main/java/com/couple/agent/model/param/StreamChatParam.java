@@ -41,4 +41,10 @@ public class StreamChatParam {
      */
     @Schema(description = "系统提示词（可选）")
     private String systemPrompt;
+
+    /**
+     * 父消息ID，用于在历史节点上分叉
+     */
+    @Schema(description = "父消息ID（可选）")
+    private Long parentId;
 }

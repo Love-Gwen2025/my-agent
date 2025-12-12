@@ -29,12 +29,20 @@ public class MessageVo {
     @Schema(description = "发送者用户ID")
     private Long senderId;
 
+    @Schema(description = "消息角色：user/assistant/system")
+    private String role;
+
     @Schema(description = "消息内容")
     private String content;
 
     @Schema(description = "消息类型")
     private String contentType;
 
+    @Schema(description = "使用的模型编码")
+    private String modelCode;
+
+    @Schema(description = "Token 计数")
+    private Integer tokenCount;
 
     @Schema(description = "父节点id，没有则为空")
     private Long parentId;

@@ -8,14 +8,14 @@ import com.couple.agent.model.domain.Message;
 import com.couple.agent.model.domain.User;
 import com.couple.agent.model.param.ConversationParam;
 import com.couple.agent.model.param.MessageSendParam;
-import com.couple.agent.model.vo.ChatReplyVo;
 import com.couple.agent.model.vo.ConversationVo;
-import com.couple.agent.model.vo.HistoryMessageVo;
+import com.couple.agent.model.vo.ConversationHistoryVo;
 import com.couple.agent.model.vo.MessageVo;
 import com.couple.agent.model.vo.SessionVo;
 import com.couple.agent.service.BaseService;
 import com.couple.agent.service.ConversationService;
 import com.couple.agent.utils.SessionUtil;
+import com.couple.agent.utils.TreeBuildUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -70,20 +71,62 @@ public class ConversationServiceImpl extends BaseService implements Conversation
     }
 
     /**
-     *  查询会话消息历史
+     *  查询会话消息历史（树形分支）
      */
     @Override
-    public List<MessageVo> history(Long conversationId) {
-
-
-
+    public ConversationHistoryVo history(Long conversationId) {
+        // 1. 拉取会话与消息列表
+        Conversation conversation = conversationManager.selectById(conversationId);
         List<Message> messages = messageManager.listByConversation(conversationId);
         if (CollectionUtils.isEmpty(messages)) {
-            return Collections.emptyList();
+            Long pointer = Objects.nonNull(conversation) ? conversation.getCurrentMessageId() : null;
+            return ConversationHistoryVo.builder()
+                    .currentMessageId(pointer)
+                    .messages(Collections.emptyList())
+                    .build();
         }
-        List<MessageVo> collect = messages.stream()
+
+        // 2. 转换为 VO 并构建树形结构
+        List<MessageVo> messageVos = messages.stream()
                 .map(Message::toMessageVo)
                 .collect(Collectors.toList());
+        List<MessageVo> tree = TreeBuildUtil.buildRecursiveTree(
+                messageVos,
+                MessageVo::getId,
+                MessageVo::getParentId,
+                (node, children) -> node.setChildList(children),
+                null
+        );
+        sortMessageTree(tree);
+
+        // 3. 计算当前指针，缺省则回退为最新消息
+        Long currentPointer = Objects.nonNull(conversation) ? conversation.getCurrentMessageId() : null;
+        if (Objects.isNull(currentPointer)) {
+            Message lastMessage = messages.get(messages.size() - 1);
+            currentPointer = lastMessage.getId();
+        }
+
+        return ConversationHistoryVo.builder()
+                .currentMessageId(currentPointer)
+                .messages(tree)
+                .build();
+    }
+
+    /**
+     * 递归排序树形消息，保证子节点按时间与ID有序
+     *
+     * @param nodes 当前层节点
+     */
+    private void sortMessageTree(List<MessageVo> nodes) {
+        if (CollectionUtils.isEmpty(nodes)) {
+            return;
+        }
+        // 1. 当前层排序
+        nodes.sort(Comparator
+                .comparing(MessageVo::getCreateTime, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(MessageVo::getId, Comparator.nullsLast(Comparator.naturalOrder())));
+        // 2. 递归对子节点排序
+        nodes.forEach(node -> sortMessageTree(node.getChildList()));
     }
     /**
      * 查询单个会话视图

@@ -38,12 +38,13 @@ public class AIChatController extends BaseController {
     public Flux<ServerSentEvent<StreamChatEvent>> streamChat(@Valid @RequestBody StreamChatParam streamChatParam) {
         Long userId = SessionUtil.get().getId();
         Long conversationId = streamChatParam.getConversationId();
+        Long parentId = streamChatParam.getParentId();
         String content = streamChatParam.getContent();
         String modelCode = streamChatParam.getModelCode();
         String systemPrompt = streamChatParam.getSystemPrompt();
         log.info("开始流式对话，用户: {}, 会话: {}, 模型: {}", userId, conversationId, modelCode);
         // 调用 AI 聊天服务获取流式响应
-        return aiChatService.streamChat(userId, conversationId, content, modelCode, systemPrompt)
+        return aiChatService.streamChat(userId, conversationId, parentId, content, modelCode, systemPrompt)
                 .map(this::createEvent)
                 .onErrorResume(error -> {
                     log.error("流式对话发生错误", error);
@@ -63,11 +64,12 @@ public class AIChatController extends BaseController {
 
         Long userId = SessionUtil.get().getId();
         Long conversationId = request.getConversationId();
+        Long parentId = request.getParentId();
         String content = request.getContent();
         String modelCode = request.getModelCode();
         log.info("同步对话，用户: {}, 会话: {}", userId, conversationId);
         try {
-            String reply = aiChatService.chat(userId, conversationId, content, modelCode);
+            String reply = aiChatService.chat(userId, conversationId, parentId, content, modelCode);
             return Result.ok(reply);
         } catch (Exception e) {
             log.error("同步对话失败", e);

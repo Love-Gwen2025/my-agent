@@ -69,35 +69,30 @@ function CodeBlock({
  */
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  // AI 模型的闪光图标
+  const SparkleIcon = () => (
+     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 mt-1">
+         <Bot className="w-5 h-5 text-white" />
+     </div>
+  );
 
   return (
     <div
       className={clsx(
-        'flex gap-3 p-4',
+        'flex gap-4 p-4 w-full mx-auto max-w-3xl', // Limit width for readability
         isUser ? 'flex-row-reverse' : 'flex-row'
       )}
     >
-      {/* 头像 */}
-      <div
-        className={clsx(
-          'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-          isUser ? 'bg-blue-500' : 'bg-[var(--accent-primary)]'
-        )}
-      >
-        {isUser ? (
-          <User className="w-5 h-5 text-white" />
-        ) : (
-          <Bot className="w-5 h-5 text-white" />
-        )}
-      </div>
+      {/* AI 头像 (User 不显示头像，更像短信/IM) */}
+      {!isUser && <SparkleIcon />}
 
       {/* 消息内容 */}
       <div
         className={clsx(
-          'max-w-[80%] rounded-2xl px-4 py-2',
+          'relative px-5 py-3.5 text-[0.95rem] leading-7', // Better typography
           isUser
-            ? 'bg-blue-500 text-white'
-            : 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+            ? 'bg-[#f4f4f5] text-[#18181b] rounded-[2rem] rounded-tr-sm max-w-[85%]' // User: Light gray bubble
+            : 'bg-transparent text-[#18181b] w-full' // AI: Transparent, full width
         )}
       >
         {isUser ? (
@@ -125,7 +120,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
               {message.content}
             </ReactMarkdown>
             {isStreaming && (
-              <span className="inline-block w-2 h-4 bg-[var(--accent-primary)] animate-pulse ml-1" />
+              <span className="inline-block w-2.5 h-5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse ml-1 align-middle" />
             )}
           </div>
         )}

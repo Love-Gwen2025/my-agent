@@ -75,6 +75,13 @@ public class Conversation extends BasePo {
     @TableField("ext")
     private String ext;
 
+    /**
+     * 当前活跃消息的 ID
+     * 用于标记默认续写的分支叶子节点
+     */
+    @TableField("current_message_id")
+    private Long currentMessageId;
+
     public static ConversationVo toConversationVo(Conversation conversation) {
         if (Objects.isNull(conversation)) {
             return null;
