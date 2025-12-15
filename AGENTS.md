@@ -16,6 +16,7 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
+
 # Other
 - 代码需要加上详尽清晰详细易懂的中文注释，方法内部也要有注释，不能使用行尾注释
 - 避免"=="号的使用，应使用工具类
