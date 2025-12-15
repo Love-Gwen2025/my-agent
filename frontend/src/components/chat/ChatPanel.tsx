@@ -1,10 +1,10 @@
 /**
  * 聊天面板组件
  *
- * 显示消息列表和输入框
+ * Main chat interface with modern styling
  */
 import { useEffect, useRef, useCallback } from 'react';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Sparkles } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { useSSEChat } from '../../hooks';
 import { getConversationHistory } from '../../api';
@@ -18,10 +18,17 @@ import type { Message } from '../../types';
  */
 function EmptyState() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-secondary)]">
-      <MessageSquare className="w-16 h-16 mb-4 opacity-50" />
-      <h2 className="text-xl font-semibold mb-2">开始新对话</h2>
-      <p className="text-sm">选择一个会话或创建新对话开始聊天</p>
+    <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-secondary)] p-8">
+      <div
+        className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6 animate-float"
+        style={{ background: 'var(--accent-gradient)' }}
+      >
+        <Sparkles className="w-10 h-10 text-white" />
+      </div>
+      <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">开始对话</h2>
+      <p className="text-center max-w-md">
+        选择一个会话或创建新对话，开始与 AI 助手交流
+      </p>
     </div>
   );
 }
@@ -46,14 +53,11 @@ export function ChatPanel() {
   const latestStreamingRef = useRef<string>('');
   const latestMessageIdRef = useRef<number | null>(null);
 
-  /** SSE 聊天 Hook */
   const { isLoading, sendMessage, abort } = useSSEChat({
-    // 1. 增量回调：使用 ref 累积，避免闭包旧状态导致闪烁或丢字
     onChunk: (chunk) => {
       latestStreamingRef.current = `${latestStreamingRef.current}${chunk}`;
       setStreamingContent(latestStreamingRef.current);
     },
-    // 2. 完成回调：无论是否有 messageId，都将最终内容落入消息列表
     onComplete: (event, finalContent) => {
       const contentToSave = finalContent || latestStreamingRef.current;
       if (contentToSave) {
@@ -82,7 +86,6 @@ export function ChatPanel() {
     },
   });
 
-  /** 加载历史消息 */
   useEffect(() => {
     if (currentConversationId) {
       loadHistory();
@@ -99,17 +102,14 @@ export function ChatPanel() {
     }
   }
 
-  /** 滚动到底部 */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
-  /** 发送消息 */
   const handleSend = useCallback(
     (content: string) => {
       if (!currentConversationId || !user) return;
 
-      // 添加用户消息到列表
       const userMessage: Message = {
         id: Date.now(),
         conversationId: currentConversationId,
@@ -124,7 +124,6 @@ export function ChatPanel() {
       latestMessageIdRef.current = null;
       clearStreamingContent();
 
-      // 发送 SSE 请求
       sendMessage({
         conversationId: currentConversationId,
         content,
@@ -139,25 +138,35 @@ export function ChatPanel() {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
-      {/* 头部 */}
-      <div className="px-4 py-3 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)]">
-        <h2 className="font-semibold">对话</h2>
+    <div className="flex-1 flex flex-col h-full bg-[var(--bg-primary)]">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)]">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: 'var(--accent-gradient)' }}
+          >
+            <MessageSquare className="w-4 h-4 text-white" />
+          </div>
+          <h2 className="font-semibold text-[var(--text-primary)]">对话</h2>
+        </div>
         <ModelSelector />
       </div>
 
-      {/* 消息列表 */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 && !streamingContent ? (
-          <div className="h-full flex items-center justify-center text-[var(--text-secondary)]">
-            <p>发送消息开始对话</p>
+          <div className="h-full flex flex-col items-center justify-center text-[var(--text-secondary)] p-8">
+            <div className="w-16 h-16 rounded-2xl glass-effect flex items-center justify-center mb-4">
+              <MessageSquare className="w-8 h-8 opacity-50" />
+            </div>
+            <p className="text-center">发送消息开始对话</p>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto py-4">
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
-            {/* 流式响应 */}
             {streamingContent && (
               <MessageBubble
                 message={{
@@ -177,7 +186,7 @@ export function ChatPanel() {
         )}
       </div>
 
-      {/* 输入框 */}
+      {/* Input */}
       <ChatInput
         isLoading={isLoading}
         onSend={handleSend}

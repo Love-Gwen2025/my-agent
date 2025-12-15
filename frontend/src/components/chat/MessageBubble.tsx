@@ -1,13 +1,13 @@
 /**
  * 消息气泡组件
  *
- * 显示单条聊天消息，支持 Markdown 渲染
+ * Modern design with gradient user messages and glass AI messages
  */
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Bot, Copy, Check } from 'lucide-react';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { User, Bot, Copy, Check, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import clsx from 'clsx';
 import type { Message } from '../../types';
@@ -36,26 +36,32 @@ function CodeBlock({
   };
 
   return (
-    <div className="relative group">
-      <button
-        className="absolute right-2 top-2 p-1.5 rounded bg-[var(--bg-secondary)] opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={handleCopy}
-        title="复制代码"
-      >
-        {copied ? (
-          <Check className="w-4 h-4 text-green-400" />
-        ) : (
-          <Copy className="w-4 h-4" />
-        )}
-      </button>
+    <div className="relative group rounded-xl overflow-hidden my-3">
+      {/* Language label */}
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-color)]">
+        <span className="text-xs font-medium text-[var(--text-secondary)]">{language}</span>
+        <button
+          className="p-1.5 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors"
+          onClick={handleCopy}
+          title="复制代码"
+        >
+          {copied ? (
+            <Check className="w-4 h-4 text-green-400" />
+          ) : (
+            <Copy className="w-4 h-4 text-[var(--text-secondary)]" />
+          )}
+        </button>
+      </div>
       <SyntaxHighlighter
-        style={vscDarkPlus}
+        style={oneDark}
         language={language}
         PreTag="div"
         customStyle={{
           margin: 0,
-          borderRadius: '0.5rem',
+          paddingTop: '3rem',
+          borderRadius: '0.75rem',
           fontSize: '0.875rem',
+          background: 'var(--bg-tertiary)',
         }}
       >
         {children}
@@ -73,35 +79,38 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   return (
     <div
       className={clsx(
-        'flex gap-3 p-4',
+        'flex gap-4 p-4 animate-fade-in-up',
         isUser ? 'flex-row-reverse' : 'flex-row'
       )}
     >
-      {/* 头像 */}
+      {/* Avatar */}
       <div
         className={clsx(
-          'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
-          isUser ? 'bg-blue-500' : 'bg-[var(--accent-primary)]'
+          'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg',
+          isUser
+            ? 'bg-gradient-to-br from-blue-500 to-purple-600'
+            : 'bg-gradient-to-br from-cyan-400 to-purple-600'
         )}
       >
         {isUser ? (
           <User className="w-5 h-5 text-white" />
         ) : (
-          <Bot className="w-5 h-5 text-white" />
+          <Sparkles className="w-5 h-5 text-white" />
         )}
       </div>
 
-      {/* 消息内容 */}
+      {/* Message content */}
       <div
         className={clsx(
-          'max-w-[80%] rounded-2xl px-4 py-2',
+          'max-w-[80%] rounded-2xl px-5 py-3 shadow-md',
           isUser
-            ? 'bg-blue-500 text-white'
-            : 'bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+            ? 'text-white'
+            : 'glass-effect text-[var(--text-primary)]'
         )}
+        style={isUser ? { background: 'var(--user-bubble-bg)' } : undefined}
       >
         {isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
         ) : (
           <div className="markdown-body">
             <ReactMarkdown
@@ -125,7 +134,11 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
               {message.content}
             </ReactMarkdown>
             {isStreaming && (
-              <span className="inline-block w-2 h-4 bg-[var(--accent-primary)] animate-pulse ml-1" />
+              <span className="inline-flex items-center gap-1 ml-1">
+                <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" style={{ animationDelay: '0.2s' }} />
+                <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" style={{ animationDelay: '0.4s' }} />
+              </span>
             )}
           </div>
         )}

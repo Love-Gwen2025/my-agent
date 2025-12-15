@@ -1,20 +1,96 @@
 @import "tailwindcss";
 
+/* ============================================
+   Theme System - Dual Theme Support
+   ============================================ */
+
 :root {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-tertiary: #0f3460;
-  --text-primary: #eaeaea;
-  --text-secondary: #a0a0a0;
-  --accent-primary: #00adb5;
-  --accent-secondary: #00adb5;
-  --border-color: #2a2a4a;
+  /* Light Theme (Default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  
+  /* Accent Colors - Vibrant Gradient */
+  --accent-primary: #8b5cf6;
+  --accent-secondary: #06b6d4;
+  --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  
+  /* Message Colors */
+  --user-bubble-bg: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --ai-bubble-bg: rgba(248, 250, 252, 0.8);
+  --ai-bubble-border: rgba(226, 232, 240, 0.8);
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+/* Dark Theme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #0f0f1a;
+    --bg-secondary: #1a1a2e;
+    --bg-tertiary: #252547;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --border-color: #334155;
+    
+    /* Accent - Vibrant for dark mode */
+    --accent-primary: #a78bfa;
+    --accent-secondary: #22d3ee;
+    --accent-gradient: linear-gradient(135deg, #00d4ff 0%, #a855f7 100%);
+    --accent-gradient-hover: linear-gradient(135deg, #a855f7 0%, #00d4ff 100%);
+    
+    /* Message Colors */
+    --user-bubble-bg: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    --ai-bubble-bg: rgba(26, 26, 46, 0.9);
+    --ai-bubble-border: rgba(51, 65, 85, 0.8);
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 30px rgba(168, 85, 247, 0.4);
+  }
+}
+
+/* Force dark theme class */
+.dark {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #252547;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+  --accent-primary: #a78bfa;
+  --accent-secondary: #22d3ee;
+  --accent-gradient: linear-gradient(135deg, #00d4ff 0%, #a855f7 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #a855f7 0%, #00d4ff 100%);
+  --user-bubble-bg: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  --ai-bubble-bg: rgba(26, 26, 46, 0.9);
+  --ai-bubble-border: rgba(51, 65, 85, 0.8);
+  --shadow-glow: 0 0 30px rgba(168, 85, 247, 0.4);
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
+* {
+  box-sizing: border-box;
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
     Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -22,18 +98,17 @@ body {
   color: var(--text-primary);
 }
 
-* {
-  box-sizing: border-box;
-}
+/* ============================================
+   Custom Scrollbar
+   ============================================ */
 
-/* 滚动条样式 */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -45,28 +120,120 @@ body {
   background: var(--accent-primary);
 }
 
-/* Markdown 样式 */
+/* ============================================
+   Animation Keyframes
+   ============================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.5); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.gradient-bg {
+  background: var(--accent-gradient);
+}
+
+.gradient-text {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass-effect {
+  background: var(--ai-bubble-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--ai-bubble-border);
+}
+
+.btn-gradient {
+  background: var(--accent-gradient);
+  background-size: 200% 200%;
+  transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+  background: var(--accent-gradient-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-gradient:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   Markdown Styles
+   ============================================ */
+
 .markdown-body {
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .markdown-body pre {
   background-color: var(--bg-tertiary);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1rem;
   overflow-x: auto;
   margin: 1rem 0;
+  border: 1px solid var(--border-color);
 }
 
 .markdown-body code {
-  font-family: 'Fira Code', 'Consolas', monospace;
+  font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
   font-size: 0.875rem;
 }
 
 .markdown-body p code {
   background-color: var(--bg-tertiary);
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.85em;
+  color: var(--accent-primary);
 }
 
 .markdown-body ul, .markdown-body ol {
@@ -79,4 +246,34 @@ body {
   padding-left: 1rem;
   margin: 1rem 0;
   color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: 0 8px 8px 0;
+  padding: 0.75rem 1rem;
+}
+
+.markdown-body a {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
 }

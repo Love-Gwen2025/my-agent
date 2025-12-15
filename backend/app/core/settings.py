@@ -56,6 +56,19 @@ class Settings(BaseSettings):
     enable_sse_streaming: bool = Field(default=True, description="是否启用 SSE 流式输出")
     enable_websocket: bool = Field(default=True, description="是否启用 WebSocket")
 
+    # Embedding 配置
+    ai_embedding_provider: str = Field(default="openai", description="Embedding 提供商: openai / deepseek")
+    ai_embedding_model: str = Field(default="text-embedding-3-small", description="Embedding 模型名称")
+    ai_embedding_dimension: int = Field(default=1536, description="Embedding 向量维度")
+    ai_embedding_api_key: str | None = Field(default=None, description="Embedding API Key (默认复用 OpenAI key)")
+    ai_embedding_base_url: str | None = Field(default=None, description="Embedding API Base URL")
+
+    # 对话上下文配置
+    conversation_cache_ttl: int = Field(default=3600, description="Redis 对话缓存 TTL (秒)")
+    conversation_cache_max_messages: int = Field(default=20, description="缓存最近消息数量")
+    rag_enabled: bool = Field(default=True, description="是否启用 RAG 检索")
+    rag_top_k: int = Field(default=5, description="RAG 检索返回数量")
+
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).resolve().parents[3] / ".env"),
         env_file_encoding="utf-8",

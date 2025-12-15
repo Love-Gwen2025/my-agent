@@ -1,8 +1,10 @@
 /**
  * 登录页面组件
+ * 
+ * Modern glassmorphism design with gradient background
  */
 import { useState } from 'react';
-import { MessageSquare, Loader2 } from 'lucide-react';
+import { MessageSquare, Loader2, Sparkles } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { login } from '../../api';
 
@@ -30,7 +32,6 @@ export function LoginPage() {
     try {
       const token = await login({ userCode: username, userPassword: password });
       setToken(token);
-      // 后端登录只返回 token，这里以登录名构造本地用户占位
       setUser({ id: 0, userCode: username, userName: username });
     } catch (err) {
       setError('登录失败，请检查用户名和密码');
@@ -40,39 +41,73 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated gradient background */}
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{
+          background: 'linear-gradient(-45deg, #667eea, #764ba2, #00d4ff, #a855f7)',
+          backgroundSize: '400% 400%',
+          animation: 'gradient-shift 15s ease infinite',
+        }}
+      />
+
+      {/* Floating orbs */}
+      <div
+        className="absolute w-72 h-72 rounded-full opacity-20 blur-3xl"
+        style={{
+          background: 'var(--accent-gradient)',
+          top: '10%',
+          left: '10%',
+          animation: 'float 6s ease-in-out infinite',
+        }}
+      />
+      <div
+        className="absolute w-96 h-96 rounded-full opacity-15 blur-3xl"
+        style={{
+          background: 'linear-gradient(135deg, #00d4ff 0%, #a855f7 100%)',
+          bottom: '10%',
+          right: '10%',
+          animation: 'float 8s ease-in-out infinite reverse',
+        }}
+      />
+
+      <div className="w-full max-w-md relative z-10 animate-fade-in-up">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[var(--accent-primary)] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <MessageSquare className="w-8 h-8 text-white" />
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg animate-float"
+            style={{ background: 'var(--accent-gradient)' }}
+          >
+            <Sparkles className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+          <h1 className="text-3xl font-bold gradient-text">
             AI Chat
           </h1>
-          <p className="text-[var(--text-secondary)] mt-2">
+          <p className="text-[var(--text-secondary)] mt-2 text-lg">
             智能对话助手
           </p>
         </div>
 
-        {/* 登录表单 */}
+        {/* Login form - Glass effect */}
         <form
           onSubmit={handleLogin}
-          className="bg-[var(--bg-secondary)] rounded-2xl p-6 border border-[var(--border-color)]"
+          className="glass-effect rounded-3xl p-8 shadow-lg"
         >
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center gap-2">
+              <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
               {error}
             </div>
           )}
 
-          <div className="mb-4">
-            <label className="block text-sm text-[var(--text-secondary)] mb-2">
+          <div className="mb-5">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
               用户名
             </label>
             <input
               type="text"
-              className="w-full px-4 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] transition-colors"
+              className="w-full px-4 py-3 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-xl text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:shadow-lg transition-all duration-300 placeholder:text-[var(--text-secondary)]"
               placeholder="请输入用户名"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -80,13 +115,13 @@ export function LoginPage() {
             />
           </div>
 
-          <div className="mb-6">
-            <label className="block text-sm text-[var(--text-secondary)] mb-2">
+          <div className="mb-8">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
               密码
             </label>
             <input
               type="password"
-              className="w-full px-4 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] transition-colors"
+              className="w-full px-4 py-3 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-xl text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:shadow-lg transition-all duration-300 placeholder:text-[var(--text-secondary)]"
               placeholder="请输入密码"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -96,18 +131,25 @@ export function LoginPage() {
 
           <button
             type="submit"
-            className="w-full py-2 bg-[var(--accent-primary)] text-white rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 text-white rounded-xl font-medium text-lg btn-gradient flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading}
           >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin" />
                 登录中...
               </>
             ) : (
-              '登录'
+              <>
+                <Sparkles className="w-5 h-5" />
+                开始体验
+              </>
             )}
           </button>
+
+          <p className="text-center text-[var(--text-secondary)] text-sm mt-6">
+            首次使用？系统将自动为您创建账号
+          </p>
         </form>
       </div>
     </div>

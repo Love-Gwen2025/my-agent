@@ -1,10 +1,10 @@
 /**
  * 侧边栏组件
  *
- * 显示会话列表和操作按钮
+ * Modern sidebar with gradient buttons and hover effects
  */
 import { useEffect } from 'react';
-import { Plus, MessageSquare, Trash2, ChevronLeft } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, ChevronLeft, Sparkles, LogOut } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { getConversations, createConversation, deleteConversation } from '../../api';
 import type { Conversation } from '../../types';
@@ -18,7 +18,6 @@ function formatTime(dateStr: string): string {
   const now = new Date();
   const diff = now.getTime() - date.getTime();
 
-  // 一天内显示时间
   if (diff < 24 * 60 * 60 * 1000) {
     return date.toLocaleTimeString('zh-CN', {
       hour: '2-digit',
@@ -26,13 +25,11 @@ function formatTime(dateStr: string): string {
     });
   }
 
-  // 一周内显示星期
   if (diff < 7 * 24 * 60 * 60 * 1000) {
     const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     return days[date.getDay()];
   }
 
-  // 其他显示日期
   return date.toLocaleDateString('zh-CN', {
     month: '2-digit',
     day: '2-digit',
@@ -56,24 +53,29 @@ function ConversationItem({
   return (
     <div
       className={clsx(
-        'group flex items-center px-3 py-2 rounded-lg cursor-pointer transition-colors',
+        'group flex items-center px-3 py-3 rounded-xl cursor-pointer transition-all duration-200',
         isActive
-          ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
-          : 'hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
+          ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
+          : 'hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
       )}
       onClick={onClick}
     >
-      <MessageSquare className="w-4 h-4 mr-3 flex-shrink-0" />
+      <div className={clsx(
+        'w-8 h-8 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 transition-colors',
+        isActive ? 'bg-[var(--accent-primary)]/20' : 'bg-[var(--bg-tertiary)]'
+      )}>
+        <MessageSquare className="w-4 h-4" />
+      </div>
       <div className="flex-1 min-w-0">
-        <div className="truncate text-sm">{conversation.title || '新对话'}</div>
+        <div className="truncate text-sm font-medium">{conversation.title || '新对话'}</div>
         {conversation.lastMessageAt && (
-          <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+          <div className="text-xs text-[var(--text-secondary)] mt-0.5 opacity-70">
             {formatTime(conversation.lastMessageAt)}
           </div>
         )}
       </div>
       <button
-        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity"
+        className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-all"
         onClick={(e) => {
           e.stopPropagation();
           onDelete();
@@ -99,9 +101,10 @@ export function Sidebar() {
     setCurrentConversationId,
     toggleSidebar,
     token,
+    logout,
+    user,
   } = useAppStore();
 
-  /** 加载会话列表 */
   useEffect(() => {
     if (token) {
       loadConversations();
@@ -117,7 +120,6 @@ export function Sidebar() {
     }
   }
 
-  /** 创建新会话 */
   async function handleCreateConversation() {
     try {
       const newConversation = await createConversation({
@@ -130,7 +132,6 @@ export function Sidebar() {
     }
   }
 
-  /** 删除会话 */
   async function handleDeleteConversation(id: number) {
     try {
       await deleteConversation(id);
@@ -143,59 +144,94 @@ export function Sidebar() {
   if (!sidebarOpen) {
     return (
       <button
-        className="fixed left-4 top-4 p-2 bg-[var(--bg-secondary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors z-10"
+        className="fixed left-4 top-4 p-3 glass-effect rounded-xl hover:bg-[var(--bg-tertiary)] transition-all z-10 shadow-lg"
         onClick={toggleSidebar}
       >
-        <ChevronLeft className="w-5 h-5 rotate-180" />
+        <ChevronLeft className="w-5 h-5 rotate-180 text-[var(--text-primary)]" />
       </button>
     );
   }
 
   return (
-    <div className="w-64 h-full bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col">
-      {/* 头部 */}
+    <div className="w-72 h-full bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col">
+      {/* Header */}
       <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-[var(--accent-primary)]">
-          AI Chat
-        </h1>
+        <div className="flex items-center gap-2">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: 'var(--accent-gradient)' }}
+          >
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <h1 className="text-lg font-bold gradient-text">
+            AI Chat
+          </h1>
+        </div>
         <button
-          className="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+          className="p-2 hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
           onClick={toggleSidebar}
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5 text-[var(--text-secondary)]" />
         </button>
       </div>
 
-      {/* 新建会话按钮 */}
+      {/* New chat button */}
       <div className="p-3">
         <button
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[var(--accent-primary)] text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium btn-gradient shadow-lg"
           onClick={handleCreateConversation}
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-5 h-5" />
           新建对话
         </button>
       </div>
 
-      {/* 会话列表 */}
-      <div className="flex-1 overflow-y-auto p-2">
+      {/* Conversation list */}
+      <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {conversations.length === 0 ? (
-          <div className="text-center text-[var(--text-secondary)] py-8 text-sm">
-            暂无对话，点击上方按钮创建
+          <div className="text-center text-[var(--text-secondary)] py-12 px-4">
+            <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">暂无对话</p>
+            <p className="text-xs mt-1 opacity-70">点击上方按钮开始</p>
           </div>
         ) : (
-          <div className="space-y-1">
-            {conversations.map((conversation) => (
-              <ConversationItem
-                key={conversation.id}
-                conversation={conversation}
-                isActive={conversation.id === currentConversationId}
-                onClick={() => setCurrentConversationId(conversation.id)}
-                onDelete={() => handleDeleteConversation(conversation.id)}
-              />
-            ))}
-          </div>
+          conversations.map((conversation) => (
+            <ConversationItem
+              key={conversation.id}
+              conversation={conversation}
+              isActive={conversation.id === currentConversationId}
+              onClick={() => setCurrentConversationId(conversation.id)}
+              onDelete={() => handleDeleteConversation(conversation.id)}
+            />
+          ))
         )}
+      </div>
+
+      {/* User section */}
+      <div className="p-3 border-t border-[var(--border-color)]">
+        <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer group">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-medium"
+            style={{ background: 'var(--accent-gradient)' }}
+          >
+            {user?.userName?.charAt(0).toUpperCase() || 'U'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-[var(--text-primary)] truncate">
+              {user?.userName || '用户'}
+            </div>
+            <div className="text-xs text-[var(--text-secondary)]">
+              {user?.userCode || ''}
+            </div>
+          </div>
+          <button
+            className="p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-400 rounded-lg transition-all"
+            onClick={logout}
+            title="退出登录"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

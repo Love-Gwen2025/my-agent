@@ -1,18 +1,16 @@
 /**
  * 消息输入框组件
+ * 
+ * Modern input with glass effect and gradient send button
  */
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, StopCircle } from 'lucide-react';
+import { Send, Loader2, StopCircle, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 
 interface ChatInputProps {
-  /** 是否正在加载 */
   isLoading?: boolean;
-  /** 是否禁用 */
   disabled?: boolean;
-  /** 发送消息回调 */
   onSend: (content: string) => void;
-  /** 中止请求回调 */
   onAbort?: () => void;
 }
 
@@ -26,9 +24,9 @@ export function ChatInput({
   onAbort,
 }: ChatInputProps) {
   const [input, setInput] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  /** 自动调整高度 */
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -37,7 +35,6 @@ export function ChatInput({
     }
   }, [input]);
 
-  /** 处理发送 */
   const handleSend = () => {
     const content = input.trim();
     if (!content || isLoading || disabled) return;
@@ -45,7 +42,6 @@ export function ChatInput({
     setInput('');
   };
 
-  /** 处理键盘事件 */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -56,25 +52,32 @@ export function ChatInput({
   return (
     <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
       <div className="max-w-4xl mx-auto">
-        <div className="relative flex items-end gap-2 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-2">
+        <div
+          className={clsx(
+            'relative flex items-end gap-3 glass-effect rounded-2xl p-3 transition-all duration-300',
+            isFocused && 'ring-2 ring-[var(--accent-primary)]/50 shadow-lg'
+          )}
+        >
           <textarea
             ref={textareaRef}
-            className="flex-1 bg-transparent text-[var(--text-primary)] resize-none outline-none px-2 py-1 max-h-[200px] placeholder:text-[var(--text-secondary)]"
-            placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+            className="flex-1 bg-transparent text-[var(--text-primary)] resize-none outline-none px-2 py-1 max-h-[200px] placeholder:text-[var(--text-secondary)] text-base"
+            placeholder="输入消息，Enter 发送，Shift+Enter 换行..."
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             disabled={disabled}
           />
           <button
             className={clsx(
-              'p-2 rounded-xl transition-colors',
+              'p-3 rounded-xl transition-all duration-300 flex-shrink-0',
               isLoading
-                ? 'bg-red-500 hover:bg-red-600'
+                ? 'bg-red-500 hover:bg-red-600 shadow-lg'
                 : input.trim() && !disabled
-                ? 'bg-[var(--accent-primary)] hover:opacity-90'
-                : 'bg-[var(--bg-tertiary)] cursor-not-allowed'
+                  ? 'btn-gradient shadow-lg'
+                  : 'bg-[var(--bg-tertiary)] cursor-not-allowed opacity-50'
             )}
             onClick={isLoading ? onAbort : handleSend}
             disabled={!isLoading && (!input.trim() || disabled)}
@@ -90,8 +93,9 @@ export function ChatInput({
             )}
           </button>
         </div>
-        <div className="text-xs text-[var(--text-secondary)] text-center mt-2">
-          AI 生成内容仅供参考，请核实重要信息
+        <div className="flex items-center justify-center gap-1 text-xs text-[var(--text-secondary)] mt-3 opacity-70">
+          <Sparkles className="w-3 h-3" />
+          <span>AI 生成内容仅供参考，请核实重要信息</span>
         </div>
       </div>
     </div>
