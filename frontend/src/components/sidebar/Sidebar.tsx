@@ -56,29 +56,31 @@ function ConversationItem({
   return (
     <div
       className={clsx(
-        'group flex items-center px-3 py-2 rounded-full cursor-pointer transition-colors text-sm',
+        'group flex items-center px-3 py-2 rounded-lg cursor-pointer transition-colors',
         isActive
-          ? 'bg-[#dbeafe] text-[#1e40af] font-medium' // Light blue bg, dark blue text
-          : 'hover:bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
+          ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
+          : 'hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
       )}
       onClick={onClick}
     >
-      <MessageSquare className={clsx("w-4 h-4 mr-3 flex-shrink-0", isActive ? "text-[#3b82f6]" : "text-gray-400")} />
+      <MessageSquare className="w-4 h-4 mr-3 flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <div className="truncate">{conversation.title || 'New Chat'}</div>
+        <div className="truncate text-sm">{conversation.title || '新对话'}</div>
+        {conversation.lastMessageAt && (
+          <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+            {formatTime(conversation.lastMessageAt)}
+          </div>
+        )}
       </div>
-      {/* 只有在 hover 时才显示删除按钮，且不干扰布局 */}
-      <div className="w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          className="p-1 hover:text-red-500 hover:bg-gray-200 rounded-full"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      <button
+        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
     </div>
   );
 }
@@ -119,7 +121,7 @@ export function Sidebar() {
   async function handleCreateConversation() {
     try {
       const newConversation = await createConversation({
-        title: 'New Chat',
+        title: '新对话',
       });
       addConversation(newConversation);
       setCurrentConversationId(newConversation.id);
@@ -141,77 +143,60 @@ export function Sidebar() {
   if (!sidebarOpen) {
     return (
       <button
-        className="fixed left-4 top-4 p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors z-20"
+        className="fixed left-4 top-4 p-2 bg-[var(--bg-secondary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors z-10"
         onClick={toggleSidebar}
       >
-        <div className="w-5 h-5 flex flex-col gap-1 justify-center items-center">
-            <span className="block w-4 h-0.5 bg-current rounded-full"></span>
-            <span className="block w-4 h-0.5 bg-current rounded-full"></span>
-            <span className="block w-4 h-0.5 bg-current rounded-full"></span>
-        </div>
+        <ChevronLeft className="w-5 h-5 rotate-180" />
       </button>
     );
   }
 
   return (
-    <div className="w-[280px] h-full bg-[var(--bg-secondary)] flex flex-col transition-all duration-300 ease-in-out">
-      {/* 头部 - 极简 */}
-      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-         <button
-          className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition-colors"
+    <div className="w-64 h-full bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col">
+      {/* 头部 */}
+      <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-[var(--accent-primary)]">
+          AI Chat
+        </h1>
+        <button
+          className="p-1 hover:bg-[var(--bg-tertiary)] rounded transition-colors"
           onClick={toggleSidebar}
         >
-          <div className="w-5 h-5 flex flex-col gap-1 justify-center items-center">
-            <span className="block w-4 h-0.5 bg-current rounded-full"></span>
-            <span className="block w-4 h-0.5 bg-current rounded-full"></span>
-            <span className="block w-4 h-0.5 bg-current rounded-full"></span>
-          </div>
+          <ChevronLeft className="w-5 h-5" />
         </button>
       </div>
 
-      {/* 新建会话按钮 - 胶囊状 */}
-      <div className="px-4 py-4">
+      {/* 新建会话按钮 */}
+      <div className="p-3">
         <button
-          className="w-full sm:w-auto flex items-center gap-3 px-4 py-3 bg-[var(--bg-tertiary)] hover:bg-gray-300 text-[var(--text-primary)] rounded-full transition-all duration-200 shadow-sm"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[var(--accent-primary)] text-white rounded-lg hover:opacity-90 transition-opacity"
           onClick={handleCreateConversation}
         >
-          <Plus className="w-5 h-5 text-gray-500" />
-          <span className="text-sm font-medium">New chat</span>
+          <Plus className="w-4 h-4" />
+          新建对话
         </button>
-      </div>
-
-      {/* 会话列表标题 */}
-      <div className="px-6 py-2">
-        <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Recent</h3>
       </div>
 
       {/* 会话列表 */}
-      <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
+      <div className="flex-1 overflow-y-auto p-2">
         {conversations.length === 0 ? (
           <div className="text-center text-[var(--text-secondary)] py-8 text-sm">
-            No recent chats
+            暂无对话，点击上方按钮创建
           </div>
         ) : (
-          conversations.map((conversation) => (
-            <ConversationItem
-              key={conversation.id}
-              conversation={conversation}
-              isActive={conversation.id === currentConversationId}
-              onClick={() => setCurrentConversationId(conversation.id)}
-              onDelete={() => handleDeleteConversation(conversation.id)}
-            />
-          ))
-        )}
-      </div>
-      
-      {/* 底部用户信息区域 (可选，占位) */}
-      <div className="p-4 mt-auto border-t border-[var(--bg-tertiary)]">
-          <div className="flex items-center gap-3 text-sm text-[var(--text-primary)] cursor-pointer hover:bg-[var(--bg-tertiary)] p-2 rounded-lg transition-colors">
-             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-purple-500"></div>
-             <div className="font-medium">Settings</div>
+          <div className="space-y-1">
+            {conversations.map((conversation) => (
+              <ConversationItem
+                key={conversation.id}
+                conversation={conversation}
+                isActive={conversation.id === currentConversationId}
+                onClick={() => setCurrentConversationId(conversation.id)}
+                onDelete={() => handleDeleteConversation(conversation.id)}
+              />
+            ))}
           </div>
+        )}
       </div>
     </div>
   );
 }
-

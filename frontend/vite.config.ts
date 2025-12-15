@@ -12,13 +12,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    proxy: {
-      // 将所有后端接口代理到包含 context-path 的目标，避免浏览器跨域
-      '/couple-agent': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        // 保持路径前缀，直接转发 /couple-agent/xxx
-      },
-    },
+    // 后端直接运行在 localhost:8080，前端通过 VITE_API_BASE_URL 环境变量配置
+    // 开发时前端默认连接 http://localhost:8080
   },
 });

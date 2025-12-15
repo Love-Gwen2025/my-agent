@@ -31,7 +31,7 @@ export async function logout(): Promise<void> {
  * @returns 用户信息
  */
 export async function getCurrentUser(): Promise<User> {
-  const response = await apiClient.get<ApiResponse<User>>('/user/detail/0');
+  const response = await apiClient.get<ApiResponse<User>>('/user/me');
   return response.data.data;
 }
 

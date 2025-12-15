@@ -25,6 +25,11 @@ export type LoginResponse = string;
 export interface Conversation {
   id: number;
   title: string;
+  userId?: number;
+  modelCode?: string;
+  lastMessageId?: number;
+  lastMessageAt?: string;
+  avatar?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -39,7 +44,7 @@ export interface Message {
   contentType: string;
   modelCode?: string;
   tokenCount?: number;
-  sendTime: string;
+  createTime: string;
 }
 
 /** 会话历史消息视图（后端 history 接口返回） */

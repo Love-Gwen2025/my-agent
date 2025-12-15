@@ -54,54 +54,46 @@ export function ChatInput({
   };
 
   return (
-    <div className="max-w-3xl mx-auto w-full relative">
-        <div className={clsx(
-            "flex items-end gap-2 bg-[#f4f4f5] rounded-3xl p-3 transition-all duration-200",
-            "focus-within:bg-white focus-within:shadow-[0_0_15px_rgba(0,0,0,0.1)] focus-within:ring-1 focus-within:ring-gray-100"
-        )}>
-            {/* 这里的 Plus 按钮可以用来上传文件，先占位 */}
-            <button className="p-2 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors">
-                <div className="w-5 h-5 flex items-center justify-center border-2 border-current rounded-full">
-                    <span className="text-lg leading-none mb-0.5">+</span>
-                </div>
-            </button>
-
+    <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
+      <div className="max-w-4xl mx-auto">
+        <div className="relative flex items-end gap-2 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-2">
           <textarea
             ref={textareaRef}
-            className="flex-1 bg-transparent text-[var(--text-primary)] resize-none outline-none px-2 py-2 max-h-[200px] placeholder:text-gray-400 leading-6"
-            placeholder="Ask Gemini..."
+            className="flex-1 bg-transparent text-[var(--text-primary)] resize-none outline-none px-2 py-1 max-h-[200px] placeholder:text-[var(--text-secondary)]"
+            placeholder="输入消息，Enter 发送，Shift+Enter 换行"
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={disabled}
           />
-          
-          {isLoading ? (
-             <button
-                className="p-2 rounded-full bg-black text-white hover:opacity-80 transition-opacity"
-                onClick={onAbort}
-             >
-                <StopCircle className="w-5 h-5" />
-             </button>
-          ) : (
-            <button
-                className={clsx(
-                'p-2 rounded-full transition-all duration-200',
-                input.trim() 
-                    ? 'bg-[#3b82f6] text-white rotate-0 opacity-100' 
-                    : 'bg-transparent text-gray-300 rotate-90 opacity-0 cursor-default'
-                )}
-                onClick={handleSend}
-                disabled={!input.trim() || disabled}
-            >
-                <Send className="w-5 h-5" />
-            </button>
-          )}
+          <button
+            className={clsx(
+              'p-2 rounded-xl transition-colors',
+              isLoading
+                ? 'bg-red-500 hover:bg-red-600'
+                : input.trim() && !disabled
+                ? 'bg-[var(--accent-primary)] hover:opacity-90'
+                : 'bg-[var(--bg-tertiary)] cursor-not-allowed'
+            )}
+            onClick={isLoading ? onAbort : handleSend}
+            disabled={!isLoading && (!input.trim() || disabled)}
+          >
+            {isLoading ? (
+              onAbort ? (
+                <StopCircle className="w-5 h-5 text-white" />
+              ) : (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              )
+            ) : (
+              <Send className="w-5 h-5 text-white" />
+            )}
+          </button>
         </div>
-        <div className="text-[11px] text-[#9ca3af] text-center mt-3">
-          Gemini may display inaccurate info, including about people, so double-check its responses.
+        <div className="text-xs text-[var(--text-secondary)] text-center mt-2">
+          AI 生成内容仅供参考，请核实重要信息
         </div>
+      </div>
     </div>
   );
 }

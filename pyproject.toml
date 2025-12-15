@@ -1,0 +1,11 @@
+[project]
+name = "py-app"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.124.4",
+    "myapplication>=0.1.0",
+    "oci-cli>=3.71.1",
+    "sqlalchemy>=2.0.45",
+]

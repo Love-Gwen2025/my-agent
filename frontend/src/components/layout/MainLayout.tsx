@@ -11,9 +11,9 @@ import { ChatPanel } from '../chat';
  */
 export function MainLayout() {
   return (
-    <div className="h-screen flex bg-[var(--bg-primary)] overflow-hidden">
+    <div className="h-screen flex bg-[var(--bg-primary)]">
       <Sidebar />
-      <main className="flex-1 flex flex-col relative h-full">
+      <main className="flex-1 flex flex-col overflow-hidden">
         <ChatPanel />
       </main>
     </div>
