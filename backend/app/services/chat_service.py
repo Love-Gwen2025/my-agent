@@ -1,5 +1,10 @@
 """
-聊天服务 - 集成 RAG 和对话缓存
+聊天服务 - 使用 LangGraph 自动状态管理
+
+本服务集成 LangGraph RedisSaver 实现对话记忆自动持久化：
+1. 每次对话通过 thread_id 自动加载历史状态
+2. 对话结束后自动保存到 Redis
+3. 保留 RAG 检索能力（pgvector）
 """
 
 import asyncio
@@ -9,8 +14,9 @@ from collections.abc import AsyncIterator
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.graph import AgentState, create_agent_graph
+from app.core.checkpointer import create_redis_checkpointer
 from app.core.settings import Settings
-from app.services.conversation_cache_service import ConversationCacheService
 from app.services.conversation_service import ConversationService
 from app.services.embedding_service import EmbeddingService
 from app.services.model_service import ModelService
@@ -21,8 +27,12 @@ SYSTEM_PROMPT = """你是一个智能助手。请基于对话历史和相关上�
 
 class ChatService:
     """
-    1. 处理同步与流式对话
-    2. 集成 Redis 短期缓存和 pgvector RAG 检索
+    聊天服务 - 使用 LangGraph 自动状态管理
+
+    特性：
+    1. 自动对话记忆：通过 RedisSaver 自动保存/恢复对话状态
+    2. RAG 检索：使用 pgvector 进行语义相关消息检索
+    3. 流式输出：支持逐 token 推送到客户端
     """
 
     def __init__(
@@ -30,53 +40,48 @@ class ChatService:
         conversation_service: ConversationService,
         model_service: ModelService | None = None,
         embedding_service: EmbeddingService | None = None,
-        cache_service: ConversationCacheService | None = None,
         settings: Settings | None = None,
     ):
         self.conversation_service = conversation_service
         self.model_service = model_service
         self.embedding_service = embedding_service
-        self.cache_service = cache_service
         self.settings = settings
         self.rag_enabled = settings.rag_enabled if settings else False
         self.rag_top_k = settings.rag_top_k if settings else 5
 
-    def _build_context_prompt(
-        self,
-        recent_messages: list[dict],
-        relevant_messages: list[dict],
-        current_message: str,
-    ) -> list:
-        """
-        构建带上下文的消息列表
-        """
-        messages = [SystemMessage(content=SYSTEM_PROMPT)]
+        # 初始化 LangGraph 组件
+        self._graph = None
+        self._checkpointer = None
 
-        # 添加 RAG 检索到的相关历史 (作为系统上下文)
-        if relevant_messages:
-            context_parts = []
-            for msg in relevant_messages:
-                role_label = "用户" if msg["role"] == "user" else "助手"
-                context_parts.append(f"{role_label}: {msg['content']}")
-
-            context_text = "\n".join(context_parts)
-            messages.append(
-                SystemMessage(
-                    content=f"以下是与当前话题相关的历史对话片段，可作为参考：\n{context_text}"
-                )
+    async def _get_graph(self):
+        """
+        延迟初始化 LangGraph 图（带 Redis checkpointer）
+        """
+        if self._graph is None and self.model_service:
+            # 创建 checkpointer
+            self._checkpointer = await create_redis_checkpointer(self.settings)
+            # 创建图
+            model = self.model_service.get_model()
+            self._graph = create_agent_graph(
+                model=model,
+                tools=[],  # 暂无工具
+                checkpointer=self._checkpointer,
             )
+        return self._graph
 
-        # 添加最近的对话历史 (短期记忆)
-        for msg in recent_messages:
-            if msg["role"] == "user":
-                messages.append(HumanMessage(content=msg["content"]))
-            else:
-                messages.append(AIMessage(content=msg["content"]))
+    def _build_rag_context(self, relevant_messages: list[dict]) -> str | None:
+        """
+        构建 RAG 检索上下文
+        """
+        if not relevant_messages:
+            return None
 
-        # 添加当前用户消息
-        messages.append(HumanMessage(content=current_message))
+        context_parts = []
+        for msg in relevant_messages:
+            role_label = "用户" if msg["role"] == "user" else "助手"
+            context_parts.append(f"{role_label}: {msg['content']}")
 
-        return messages
+        return "\n".join(context_parts)
 
     async def chat(
         self,
@@ -87,12 +92,19 @@ class ChatService:
         db: AsyncSession | None = None,
     ) -> tuple[str, int]:
         """
-        同步对话：集成 RAG 检索和缓存
+        同步对话：使用 LangGraph 自动管理对话历史
+
+        流程：
+        1. 校验会话归属
+        2. 持久化用户消息
+        3. 可选：RAG 检索相关上下文
+        4. 调用 LangGraph graph（自动加载/保存状态）
+        5. 持久化助手消息
         """
         # 1. 校验会话归属
         await self.conversation_service.ensure_owner(conversation_id, user_id)
 
-        # 2. 记录用户消息
+        # 2. 持久化用户消息到数据库
         user_message = await self.conversation_service.persist_message(
             conversation_id=conversation_id,
             sender_id=user_id,
@@ -102,15 +114,8 @@ class ChatService:
             model_code=model_code,
         )
 
-        # 3. 获取上下文
-        recent_messages = []
-        relevant_messages = []
-
-        # 3.1 从 Redis 获取最近消息 (短期记忆)
-        if self.cache_service:
-            recent_messages = await self.cache_service.get_messages_for_llm(conversation_id)
-
-        # 3.2 从 pgvector 检索相关消息 (长期记忆 - RAG)
+        # 3. 可选：RAG 检索相关上下文
+        rag_context = None
         if self.rag_enabled and self.embedding_service and db:
             try:
                 relevant_messages = await self.embedding_service.search_similar(
@@ -119,18 +124,33 @@ class ChatService:
                     conversation_id=conversation_id,
                     top_k=self.rag_top_k,
                 )
+                rag_context = self._build_rag_context(relevant_messages)
             except Exception as e:
-                # RAG 失败不影响主流程
                 print(f"RAG search failed: {e}")
 
-        # 4. 构建 prompt 并调用模型
-        if self.model_service:
-            messages = self._build_context_prompt(recent_messages, relevant_messages, content)
-            reply = await self.model_service.chat_with_messages(messages)
+        # 4. 调用 LangGraph
+        graph = await self._get_graph()
+
+        if graph:
+            # 构建消息列表
+            messages = [SystemMessage(content=SYSTEM_PROMPT)]
+            if rag_context:
+                messages.append(
+                    SystemMessage(content=f"以下是与当前话题相关的历史对话片段，可作为参考：\n{rag_context}")
+                )
+            messages.append(HumanMessage(content=content))
+
+            # 调用 graph (thread_id 用于自动 checkpoint)
+            config = {"configurable": {"thread_id": str(conversation_id)}}
+            result = await graph.ainvoke({"messages": messages}, config=config)
+
+            # 提取回复
+            last_message = result["messages"][-1]
+            reply = last_message.content if isinstance(last_message, AIMessage) else str(last_message)
         else:
             reply = f"暂未接入模型，回显: {content}"
 
-        # 5. 记录助手回复
+        # 5. 持久化助手消息
         assistant_message = await self.conversation_service.persist_message(
             conversation_id=conversation_id,
             sender_id=-1,
@@ -141,15 +161,8 @@ class ChatService:
             token_count=len(reply),
         )
 
-        # 6. 异步更新缓存和 embedding
-        if self.cache_service:
-            await self.cache_service.add_message(conversation_id, "user", content, user_message.id)
-            await self.cache_service.add_message(
-                conversation_id, "assistant", reply, assistant_message.id
-            )
-
+        # 6. 异步存储 embedding（不阻塞）
         if self.embedding_service and db:
-            # 异步存储 embedding，不阻塞响应
             asyncio.create_task(
                 self._store_embeddings_async(
                     db,
@@ -205,20 +218,20 @@ class ChatService:
         db: AsyncSession | None = None,
     ) -> AsyncIterator[str]:
         """
-        流式对话：真正的流式输出，逐 token 从 LLM 推送到客户端。
+        流式对话：使用 LangGraph 自动管理对话历史，逐 token 输出
 
         流程：
         1. 校验会话归属
-        2. 记录用户消息
-        3. 获取上下文 (Redis 短期记忆 + RAG 长期记忆)
-        4. 构建 prompt 并流式调用模型
+        2. 持久化用户消息
+        3. 可选：RAG 检索相关上下文
+        4. 流式调用 LangGraph graph
         5. 逐 token yield 给客户端
-        6. 流结束后：记录助手消息、更新缓存和 embedding
+        6. 流结束后持久化助手消息
         """
         # 1. 校验会话归属
         await self.conversation_service.ensure_owner(conversation_id, user_id)
 
-        # 2. 记录用户消息 (先持久化用户输入)
+        # 2. 持久化用户消息
         user_message = await self.conversation_service.persist_message(
             conversation_id=conversation_id,
             sender_id=user_id,
@@ -228,15 +241,8 @@ class ChatService:
             model_code=model_code,
         )
 
-        # 3. 获取上下文
-        recent_messages = []
-        relevant_messages = []
-
-        # 3.1 从 Redis 获取最近消息 (短期记忆)
-        if self.cache_service:
-            recent_messages = await self.cache_service.get_messages_for_llm(conversation_id)
-
-        # 3.2 从 pgvector 检索相关消息 (长期记忆 - RAG)
+        # 3. 可选：RAG 检索
+        rag_context = None
         if self.rag_enabled and self.embedding_service and db:
             try:
                 relevant_messages = await self.embedding_service.search_similar(
@@ -245,32 +251,47 @@ class ChatService:
                     conversation_id=conversation_id,
                     top_k=self.rag_top_k,
                 )
+                rag_context = self._build_rag_context(relevant_messages)
             except Exception as e:
-                # RAG 失败不影响主流程
                 print(f"RAG search failed: {e}")
 
-        # 4. 构建 prompt
-        messages = self._build_context_prompt(recent_messages, relevant_messages, content)
+        # 4. 构建消息并流式调用
+        messages = [SystemMessage(content=SYSTEM_PROMPT)]
+        if rag_context:
+            messages.append(
+                SystemMessage(content=f"以下是与当前话题相关的历史对话片段，可作为参考：\n{rag_context}")
+            )
+        messages.append(HumanMessage(content=content))
 
-        # 5. 流式调用模型，逐 token yield
-        # 预先生成占位 message_id 用于客户端 (后续会更新)
-        # 注意：这里我们先不知道完整 reply，所以用 -1 占位
+        full_reply = []
         placeholder_message_id = -1
-        full_reply = []  # 用于累积完整回复
+        config = {"configurable": {"thread_id": str(conversation_id)}}
 
-        if self.model_service:
-            # 真正的流式输出：从 LLM 获取每个 token
-            async for token in self.model_service.stream_with_messages(messages):
-                full_reply.append(token)
-                yield json.dumps(
-                    {
-                        "type": "chunk",
-                        "content": token,
-                        "conversationId": conversation_id,
-                        "messageId": placeholder_message_id,
-                    },
-                    ensure_ascii=False,
-                )
+        graph = await self._get_graph()
+
+        if graph:
+            # 使用 astream 实现流式输出
+            async for event in graph.astream({"messages": messages}, config=config, stream_mode="values"):
+                # 获取最后一条消息
+                if "messages" in event and event["messages"]:
+                    last_msg = event["messages"][-1]
+                    if isinstance(last_msg, AIMessage) and last_msg.content:
+                        # 计算增量 (新增的内容)
+                        current_content = last_msg.content
+                        previous_len = len("".join(full_reply))
+                        if len(current_content) > previous_len:
+                            delta = current_content[previous_len:]
+                            full_reply.clear()
+                            full_reply.append(current_content)
+                            yield json.dumps(
+                                {
+                                    "type": "chunk",
+                                    "content": delta,
+                                    "conversationId": conversation_id,
+                                    "messageId": placeholder_message_id,
+                                },
+                                ensure_ascii=False,
+                            )
         else:
             # 未接入模型时的回退
             fallback = f"暂未接入模型，回显: {content}"
@@ -285,8 +306,8 @@ class ChatService:
                 ensure_ascii=False,
             )
 
-        # 6. 流结束后：记录助手消息
-        reply_text = "".join(full_reply)
+        # 5. 流结束后：持久化助手消息
+        reply_text = "".join(full_reply) if full_reply else ""
         assistant_message = await self.conversation_service.persist_message(
             conversation_id=conversation_id,
             sender_id=-1,
@@ -297,14 +318,7 @@ class ChatService:
             token_count=len(reply_text),
         )
 
-        # 7. 更新缓存
-        if self.cache_service:
-            await self.cache_service.add_message(conversation_id, "user", content, user_message.id)
-            await self.cache_service.add_message(
-                conversation_id, "assistant", reply_text, assistant_message.id
-            )
-
-        # 8. 异步存储 embedding (不阻塞响应)
+        # 6. 异步存储 embedding
         if self.embedding_service and db:
             asyncio.create_task(
                 self._store_embeddings_async(
@@ -318,7 +332,7 @@ class ChatService:
                 )
             )
 
-        # 9. 发送完成信号，包含真实的 message_id
+        # 7. 发送完成信号
         yield json.dumps(
             {
                 "type": "done",

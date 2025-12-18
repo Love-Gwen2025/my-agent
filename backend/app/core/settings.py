@@ -102,14 +102,14 @@ class Settings(BaseSettings):
 
     # Embedding 配置
     ai_embedding_provider: str = Field(
-        default="openai", description="Embedding 提供商: openai / deepseek"
+        default="local", description="Embedding 提供商: local / openai / deepseek"
     )
     ai_embedding_model: str = Field(
-        default="text-embedding-3-small", description="Embedding 模型名称"
+        default="BAAI/bge-small-zh-v1.5", description="Embedding 模型名称 (本地或远程)"
     )
-    ai_embedding_dimension: int = Field(default=1536, description="Embedding 向量维度")
+    ai_embedding_dimension: int = Field(default=512, description="Embedding 向量维度 (bge-small-zh: 512)")
     ai_embedding_api_key: str | None = Field(
-        default=None, description="Embedding API Key (默认复用 OpenAI key)"
+        default=None, description="Embedding API Key (远程模式使用)"
     )
     ai_embedding_base_url: str | None = Field(default=None, description="Embedding API Base URL")
 

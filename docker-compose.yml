@@ -34,11 +34,11 @@ services:
       # Redis 配置
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-123456}
       - REDIS_DB=${REDIS_DB:-0}
       
       # JWT 配置
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-123456}
       - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES:-60}
       - JWT_ISSUER=${JWT_ISSUER:-couple-agent}
       

@@ -82,6 +82,7 @@ def tools_condition(state: AgentState) -> Literal["tools", "__end__"]:
 def create_agent_graph(
     model: ChatOpenAI,
     tools: list[BaseTool],
+    checkpointer=None,
 ) -> StateGraph:
     r"""
     创建 LangGraph Agent 工作流。
@@ -109,6 +110,7 @@ def create_agent_graph(
     Args:
         model: 已绑定工具的 LLM 实例 (model.bind_tools(tools))
         tools: 工具列表
+        checkpointer: 可选的 checkpointer 实例 (如 RedisSaver)，用于状态持久化
 
     Returns:
         编译后的 CompiledStateGraph，可直接调用 ainvoke/astream
@@ -159,8 +161,8 @@ def create_agent_graph(
     # tools -> chatbot (执行完工具后回到 chatbot 继续对话)
     workflow.add_edge("tools", "chatbot")
 
-    # 3.7 编译并返回
-    return workflow.compile()
+    # 3.7 编译并返回 (传入 checkpointer 实现状态持久化)
+    return workflow.compile(checkpointer=checkpointer)
 
 
 # ========== 4. 便捷工厂函数 ==========

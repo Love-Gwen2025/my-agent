@@ -1,10 +1,13 @@
 """
-Embedding 服务 - 生成向量并管理存储
+Embedding 服务 - 支持本地模型和远程 API
+
+支持两种模式：
+1. 本地模型 (bge-small-zh-v1.5) - 免费、隐私安全、无网络延迟
+2. 远程 API (OpenAI/DeepSeek) - 效果好，需要 API Key
 """
 
 from typing import Any
 
-from langchain_openai import OpenAIEmbeddings
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,28 +24,73 @@ class EmbeddingService:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        # 使用 OpenAI embedding (兼容 DeepSeek)
-        api_key = settings.ai_embedding_api_key or settings.ai_openai_api_key
-        base_url = settings.ai_embedding_base_url or settings.ai_openai_base_url
-
-        self.embeddings = OpenAIEmbeddings(
-            model=settings.ai_embedding_model,
-            api_key=api_key,
-            base_url=base_url,
-        )
         self.dimension = settings.ai_embedding_dimension
+        self._model = None
+        self._embeddings = None
+
+        # 根据配置选择模型类型
+        self.use_local = settings.ai_embedding_provider == "local"
+
+    def _get_local_model(self):
+        """
+        延迟加载本地 Embedding 模型
+        """
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+
+            model_name = self.settings.ai_embedding_model
+            # 默认使用轻量中文模型
+            if model_name == "text-embedding-3-small":
+                model_name = "BAAI/bge-small-zh-v1.5"
+
+            print(f"📥 Loading local embedding model: {model_name}")
+            self._model = SentenceTransformer(model_name)
+            print(f"✅ Model loaded successfully")
+
+        return self._model
+
+    def _get_remote_embeddings(self):
+        """
+        获取远程 Embedding 客户端
+        """
+        if self._embeddings is None:
+            from langchain_openai import OpenAIEmbeddings
+
+            api_key = self.settings.ai_embedding_api_key or self.settings.ai_openai_api_key
+            base_url = self.settings.ai_embedding_base_url or self.settings.ai_openai_base_url
+
+            self._embeddings = OpenAIEmbeddings(
+                model=self.settings.ai_embedding_model,
+                api_key=api_key,
+                base_url=base_url,
+            )
+
+        return self._embeddings
 
     async def embed_text(self, text: str) -> list[float]:
         """
         生成文本的 embedding 向量
         """
-        return await self.embeddings.aembed_query(text)
+        if self.use_local:
+            model = self._get_local_model()
+            # SentenceTransformer 是同步的，但很快
+            vector = model.encode(text, normalize_embeddings=True)
+            return vector.tolist()
+        else:
+            embeddings = self._get_remote_embeddings()
+            return await embeddings.aembed_query(text)
 
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """
         批量生成 embedding
         """
-        return await self.embeddings.aembed_documents(texts)
+        if self.use_local:
+            model = self._get_local_model()
+            vectors = model.encode(texts, normalize_embeddings=True)
+            return vectors.tolist()
+        else:
+            embeddings = self._get_remote_embeddings()
+            return await embeddings.aembed_documents(texts)
 
     async def store_message_embedding(
         self,

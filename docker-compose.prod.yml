@@ -1,0 +1,111 @@
+# ============================================
+# 生产环境 Docker Compose 配置
+# ============================================
+# 使用 GHCR 镜像 + Watchtower 自动更新
+# 与已有的 postgres/redis 服务集成
+# ============================================
+
+services:
+  # ----------------------------------------------------------------
+  # 1. Backend 服务 (使用 GHCR 镜像)
+  # ----------------------------------------------------------------
+  couple-agent-backend:
+    image: ghcr.io/love-gwen2025/couple-agent/backend:latest
+    container_name: couple-agent-backend
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - APP_ENV=prod
+      - APP_NAME=couple-agent-py
+      - APP_LOG_LEVEL=warning
+
+      # 连接已有的 postgres 容器 (你的配置)
+      - DB_HOST=pg_vector
+      - DB_PORT=5432
+      - DB_NAME=couple_agent
+      - DB_USER=postgres
+      - DB_PASSWORD=123456
+      - DB_POOL_SIZE=10
+
+      # 连接已有的 redis 容器 (你的配置)
+      - REDIS_HOST=redis_cache
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=123456
+      - REDIS_DB=0
+
+      # JWT 配置 (请修改为安全的密钥!)
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - JWT_EXPIRE_MINUTES=60
+
+      # AI 配置
+      - AI_DEEPSEEK_API_KEY=${AI_DEEPSEEK_API_KEY}
+      - AI_DEEPSEEK_BASE_URL=https://api.deepseek.com
+      - AI_DEEPSEEK_MODEL_NAME=deepseek-chat
+
+      # 功能开关
+      - ENABLE_SSE_STREAMING=true
+      - ENABLE_WEBSOCKET=true
+    labels:
+      # Watchtower 标签 - 启用自动更新
+      - "com.centurylinklabs.watchtower.enable=true"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - 1panel-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # ----------------------------------------------------------------
+  # 2. Frontend 服务 (使用 GHCR 镜像)
+  # ----------------------------------------------------------------
+  couple-agent-frontend:
+    image: ghcr.io/love-gwen2025/couple-agent/frontend:latest
+    container_name: couple-agent-frontend
+    restart: always
+    ports:
+      - "127.0.0.1:3001:80"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    depends_on:
+      - couple-agent-backend
+    networks:
+      - 1panel-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ----------------------------------------------------------------
+  # 3. Watchtower - 自动更新容器
+  # ----------------------------------------------------------------
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: always
+    environment:
+      # 每 5 分钟检查一次更新 (300秒)
+      - WATCHTOWER_POLL_INTERVAL=300
+      # 只更新有 watchtower.enable=true 标签的容器
+      - WATCHTOWER_LABEL_ENABLE=true
+      # 更新后清理旧镜像
+      - WATCHTOWER_CLEANUP=true
+      # 发送通知 (可选: 配置 Slack/Telegram 等)
+      # - WATCHTOWER_NOTIFICATIONS=slack
+      # - WATCHTOWER_NOTIFICATION_SLACK_HOOK_URL=https://hooks.slack.com/...
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # GHCR 认证配置 (如果是 private 仓库需要)
+      - ~/.docker/config.json:/config.json:ro
+    command: --interval 300
+    networks:
+      - 1panel-network
+
+networks:
+  1panel-network:
+    external: true
