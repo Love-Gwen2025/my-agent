@@ -1,0 +1,48 @@
+# ============================================
+# Python Backend Dockerfile
+# 使用 uv 作为包管理器的多阶段构建
+# ============================================
+
+# ---------- 构建阶段 ----------
+FROM python:3.12-slim AS builder
+
+# 安装 uv（快速的 Python 包管理器）
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+# 复制依赖文件
+COPY backend/pyproject.toml backend/uv.lock* ./
+
+# 安装依赖到虚拟环境（不包含 dev 依赖）
+RUN uv sync --frozen --no-dev --no-install-project
+
+# ---------- 运行阶段 ----------
+FROM python:3.12-slim AS runner
+
+WORKDIR /app
+
+# 复制虚拟环境
+COPY --from=builder /app/.venv /app/.venv
+
+# 复制应用代码
+COPY backend/app ./app
+COPY backend/alembic ./alembic
+COPY backend/alembic.ini ./
+
+# 设置环境变量
+ENV PATH="/app/.venv/bin:$PATH"
+# 禁用 Python 输出缓冲，便于查看日志
+ENV PYTHONUNBUFFERED=1
+# 默认环境标识
+ENV APP_ENV=prod
+
+# 暴露端口
+EXPOSE 8080
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import httpx; httpx.get('http://localhost:8080/health')" || exit 1
+
+# 启动命令
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

@@ -1,6 +1,7 @@
 """
 对话缓存服务 - Redis 短期记忆管理
 """
+
 import json
 from typing import Any
 
@@ -35,12 +36,15 @@ class ConversationCacheService:
         添加消息到缓存，保持最近 N 条
         """
         key = self._cache_key(conversation_id)
-        message = json.dumps({
-            "id": message_id,
-            "role": role,
-            "content": content,
-        }, ensure_ascii=False)
-        
+        message = json.dumps(
+            {
+                "id": message_id,
+                "role": role,
+                "content": content,
+            },
+            ensure_ascii=False,
+        )
+
         # LPUSH + LTRIM 保持固定长度
         await self.redis.lpush(key, message)
         await self.redis.ltrim(key, 0, self.max_messages - 1)
@@ -56,17 +60,17 @@ class ConversationCacheService:
         """
         key = self._cache_key(conversation_id)
         count = limit or self.max_messages
-        
+
         # LRANGE 返回的是倒序 (最新在前)，需要反转
         messages = await self.redis.lrange(key, 0, count - 1)
-        
+
         result = []
         for msg in reversed(messages):  # 反转为正序
             try:
                 result.append(json.loads(msg))
             except json.JSONDecodeError:
                 continue
-        
+
         return result
 
     async def get_messages_for_llm(
@@ -76,14 +80,11 @@ class ConversationCacheService:
     ) -> list[dict[str, str]]:
         """
         获取适用于 LLM 的消息格式
-        
+
         返回: [{"role": "user", "content": "..."}, ...]
         """
         messages = await self.get_recent_messages(conversation_id, limit)
-        return [
-            {"role": msg["role"], "content": msg["content"]}
-            for msg in messages
-        ]
+        return [{"role": msg["role"], "content": msg["content"]} for msg in messages]
 
     async def clear_cache(self, conversation_id: int) -> None:
         """

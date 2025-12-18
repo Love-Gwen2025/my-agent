@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, File, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db_session
+from app.core.redis import get_redis
 from app.core.settings import get_settings
 from app.dependencies.auth import CurrentUser, get_current_user
-from app.core.redis import get_redis
 from app.models.user import User
 from app.schema.base import ApiResult
 from app.schema.user import UserLoginPayload, UserParamPayload, UserVo

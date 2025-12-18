@@ -1,0 +1,133 @@
+# ============================================
+# Docker Compose - 多环境部署配置
+# ============================================
+# 使用方式：
+#   开发环境: docker compose up
+#   生产环境: docker compose --env-file .env.prod up
+# ============================================
+
+services:
+  # ---------- 后端服务 ----------
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: couple-agent-backend
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      # 环境标识（控制日志级别等）
+      - APP_ENV=${APP_ENV:-prod}
+      - APP_NAME=${APP_NAME:-couple-agent-py}
+      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-info}
+      
+      # 数据库配置
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-couple_agent}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-5}
+      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-5}
+      
+      # Redis 配置
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB:-0}
+      
+      # JWT 配置
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES:-60}
+      - JWT_ISSUER=${JWT_ISSUER:-couple-agent}
+      
+      # AI 配置
+      - AI_DEEPSEEK_API_KEY=${AI_DEEPSEEK_API_KEY}
+      - AI_DEEPSEEK_BASE_URL=${AI_DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      - AI_DEEPSEEK_MODEL_NAME=${AI_DEEPSEEK_MODEL_NAME:-deepseek-chat}
+      
+      # OSS 配置
+      - OSS_BUCKET=${OSS_BUCKET}
+      - OSS_REGION=${OSS_REGION:-cn-hangzhou}
+      - OSS_ENDPOINT=${OSS_ENDPOINT}
+      
+      # 功能开关
+      - ENABLE_SSE_STREAMING=${ENABLE_SSE_STREAMING:-true}
+      - ENABLE_WEBSOCKET=${ENABLE_WEBSOCKET:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - couple-agent-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ---------- 前端服务 ----------
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: couple-agent-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    networks:
+      - couple-agent-network
+
+  # ---------- PostgreSQL 数据库 ----------
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: couple-agent-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME:-couple_agent}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks:
+      - couple-agent-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- Redis 缓存 ----------
+  redis:
+    image: redis:7-alpine
+    container_name: couple-agent-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - couple-agent-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ---------- 数据卷 ----------
+volumes:
+  postgres_data:
+  redis_data:
+
+# ---------- 网络 ----------
+networks:
+  couple-agent-network:
+    driver: bridge

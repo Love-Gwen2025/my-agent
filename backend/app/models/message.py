@@ -37,5 +37,7 @@ class Message(Base):
             "contentType": self.content_type,
             "modelCode": self.model_code,
             "tokenCount": self.token_count,
-            "createTime": self.create_time.isoformat() if isinstance(self.create_time, datetime) else None,
+            "createTime": self.create_time.isoformat()
+            if isinstance(self.create_time, datetime)
+            else None,
         }

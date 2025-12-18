@@ -4,78 +4,169 @@
    Theme System - Dual Theme Support
    ============================================ */
 
+/* 
+ * 双维度主题系统：
+ * 1. data-theme: 控制明暗模式 (light/dark)
+ * 2. data-accent: 控制强调色 (blue/purple/teal/orange/pink)
+ */
+
 :root {
-  /* Light Theme (Default) */
+  /* ===== 默认亮色主题背景色 ===== */
   --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --border-color: #e2e8f0;
-  
-  /* Accent Colors - Vibrant Gradient */
-  --accent-primary: #8b5cf6;
-  --accent-secondary: #06b6d4;
-  --accent-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --accent-gradient-hover: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  
-  /* Message Colors */
-  --user-bubble-bg: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  --ai-bubble-bg: rgba(248, 250, 252, 0.8);
-  --ai-bubble-border: rgba(226, 232, 240, 0.8);
-  
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.3);
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #e8eaed;
+  --text-primary: #202124;
+  --text-secondary: #5f6368;
+  --border-color: #dadce0;
+
+  /* ===== 默认蓝色强调色 ===== */
+  --accent-primary: #1a73e8;
+  --accent-secondary: #34a853;
+  --accent-gradient: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+
+  /* ===== 消息气泡颜色 ===== */
+  --user-bubble-bg: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+  --ai-bubble-bg: rgba(248, 249, 250, 0.95);
+  --ai-bubble-border: rgba(218, 220, 224, 0.8);
+
+  /* ===== 阴影效果 ===== */
+  --shadow-sm: 0 1px 2px 0 rgba(60, 64, 67, 0.1);
+  --shadow-md: 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --shadow-lg: 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+  --shadow-glow: 0 0 20px rgba(26, 115, 232, 0.25);
 }
 
-/* Dark Theme */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary: #0f0f1a;
-    --bg-secondary: #1a1a2e;
-    --bg-tertiary: #252547;
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --border-color: #334155;
-    
-    /* Accent - Vibrant for dark mode */
-    --accent-primary: #a78bfa;
-    --accent-secondary: #22d3ee;
-    --accent-gradient: linear-gradient(135deg, #00d4ff 0%, #a855f7 100%);
-    --accent-gradient-hover: linear-gradient(135deg, #a855f7 0%, #00d4ff 100%);
-    
-    /* Message Colors */
-    --user-bubble-bg: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-    --ai-bubble-bg: rgba(26, 26, 46, 0.9);
-    --ai-bubble-border: rgba(51, 65, 85, 0.8);
-    
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-    --shadow-glow: 0 0 30px rgba(168, 85, 247, 0.4);
-  }
+/* ============================================
+   明暗模式主题
+   ============================================ */
+
+/* 暗色模式 */
+[data-theme="dark"] {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #282828;
+  --bg-tertiary: #333333;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --border-color: #3c4043;
+  --ai-bubble-bg: rgba(40, 40, 40, 0.95);
+  --ai-bubble-border: rgba(60, 64, 67, 0.8);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 1px 3px 1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 8px 3px rgba(0, 0, 0, 0.4);
 }
 
-/* Force dark theme class */
-.dark {
-  --bg-primary: #0f0f1a;
-  --bg-secondary: #1a1a2e;
-  --bg-tertiary: #252547;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --border-color: #334155;
-  --accent-primary: #a78bfa;
-  --accent-secondary: #22d3ee;
-  --accent-gradient: linear-gradient(135deg, #00d4ff 0%, #a855f7 100%);
-  --accent-gradient-hover: linear-gradient(135deg, #a855f7 0%, #00d4ff 100%);
-  --user-bubble-bg: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-  --ai-bubble-bg: rgba(26, 26, 46, 0.9);
-  --ai-bubble-border: rgba(51, 65, 85, 0.8);
-  --shadow-glow: 0 0 30px rgba(168, 85, 247, 0.4);
+/* ============================================
+   彩色强调主题 - 亮色模式
+   ============================================ */
+
+/* 蓝色主题 (默认) */
+[data-theme="light"][data-accent="blue"],
+[data-accent="blue"]:not([data-theme="dark"]) {
+  --accent-primary: #1a73e8;
+  --accent-secondary: #34a853;
+  --accent-gradient: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+  --user-bubble-bg: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+  --shadow-glow: 0 0 20px rgba(26, 115, 232, 0.25);
+}
+
+/* 紫色主题 - 亮色 */
+[data-theme="light"][data-accent="purple"],
+[data-accent="purple"]:not([data-theme="dark"]) {
+  --accent-primary: #9334e6;
+  --accent-secondary: #7c3aed;
+  --accent-gradient: linear-gradient(135deg, #a855f7 0%, #9334e6 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #9334e6 0%, #a855f7 100%);
+  --user-bubble-bg: linear-gradient(135deg, #9334e6 0%, #a855f7 100%);
+  --shadow-glow: 0 0 20px rgba(147, 52, 230, 0.25);
+}
+
+/* 青绿主题 - 亮色 */
+[data-theme="light"][data-accent="teal"],
+[data-accent="teal"]:not([data-theme="dark"]) {
+  --accent-primary: #009688;
+  --accent-secondary: #00897b;
+  --accent-gradient: linear-gradient(135deg, #26a69a 0%, #009688 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #009688 0%, #26a69a 100%);
+  --user-bubble-bg: linear-gradient(135deg, #009688 0%, #26a69a 100%);
+  --shadow-glow: 0 0 20px rgba(0, 150, 136, 0.25);
+}
+
+/* 橙色主题 - 亮色 */
+[data-theme="light"][data-accent="orange"],
+[data-accent="orange"]:not([data-theme="dark"]) {
+  --accent-primary: #f57c00;
+  --accent-secondary: #ff9800;
+  --accent-gradient: linear-gradient(135deg, #ffa726 0%, #f57c00 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #f57c00 0%, #ffa726 100%);
+  --user-bubble-bg: linear-gradient(135deg, #f57c00 0%, #ffa726 100%);
+  --shadow-glow: 0 0 20px rgba(245, 124, 0, 0.25);
+}
+
+/* 粉色主题 - 亮色 */
+[data-theme="light"][data-accent="pink"],
+[data-accent="pink"]:not([data-theme="dark"]) {
+  --accent-primary: #e91e63;
+  --accent-secondary: #f06292;
+  --accent-gradient: linear-gradient(135deg, #f06292 0%, #e91e63 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
+  --user-bubble-bg: linear-gradient(135deg, #e91e63 0%, #f06292 100%);
+  --shadow-glow: 0 0 20px rgba(233, 30, 99, 0.25);
+}
+
+/* ============================================
+   彩色强调主题 - 暗色模式
+   ============================================ */
+
+/* 蓝色主题 - 暗色 */
+[data-theme="dark"][data-accent="blue"] {
+  --accent-primary: #8ab4f8;
+  --accent-secondary: #81c995;
+  --accent-gradient: linear-gradient(135deg, #8ab4f8 0%, #669df6 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #669df6 0%, #8ab4f8 100%);
+  --user-bubble-bg: linear-gradient(135deg, #669df6 0%, #8ab4f8 100%);
+  --shadow-glow: 0 0 25px rgba(138, 180, 248, 0.3);
+}
+
+/* 紫色主题 - 暗色 */
+[data-theme="dark"][data-accent="purple"] {
+  --accent-primary: #c58af9;
+  --accent-secondary: #a78bfa;
+  --accent-gradient: linear-gradient(135deg, #c58af9 0%, #a855f7 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #a855f7 0%, #c58af9 100%);
+  --user-bubble-bg: linear-gradient(135deg, #a855f7 0%, #c58af9 100%);
+  --shadow-glow: 0 0 25px rgba(197, 138, 249, 0.3);
+}
+
+/* 青绿主题 - 暗色 */
+[data-theme="dark"][data-accent="teal"] {
+  --accent-primary: #4db6ac;
+  --accent-secondary: #80cbc4;
+  --accent-gradient: linear-gradient(135deg, #4db6ac 0%, #26a69a 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #26a69a 0%, #4db6ac 100%);
+  --user-bubble-bg: linear-gradient(135deg, #26a69a 0%, #4db6ac 100%);
+  --shadow-glow: 0 0 25px rgba(77, 182, 172, 0.3);
+}
+
+/* 橙色主题 - 暗色 */
+[data-theme="dark"][data-accent="orange"] {
+  --accent-primary: #ffb74d;
+  --accent-secondary: #ffcc80;
+  --accent-gradient: linear-gradient(135deg, #ffb74d 0%, #ffa726 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #ffa726 0%, #ffb74d 100%);
+  --user-bubble-bg: linear-gradient(135deg, #ffa726 0%, #ffb74d 100%);
+  --shadow-glow: 0 0 25px rgba(255, 183, 77, 0.3);
+}
+
+/* 粉色主题 - 暗色 */
+[data-theme="dark"][data-accent="pink"] {
+  --accent-primary: #f48fb1;
+  --accent-secondary: #f8bbd0;
+  --accent-gradient: linear-gradient(135deg, #f48fb1 0%, #f06292 100%);
+  --accent-gradient-hover: linear-gradient(135deg, #f06292 0%, #f48fb1 100%);
+  --user-bubble-bg: linear-gradient(135deg, #f06292 0%, #f48fb1 100%);
+  --shadow-glow: 0 0 25px rgba(244, 143, 177, 0.3);
 }
 
 /* ============================================
@@ -129,6 +220,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -136,24 +228,51 @@ body {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.5); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(26, 115, 232, 0.25);
+  }
+
+  50% {
+    box-shadow: 0 0 35px rgba(26, 115, 232, 0.4);
+  }
 }
 
 @keyframes gradient-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 /* ============================================
@@ -236,7 +355,8 @@ body {
   color: var(--accent-primary);
 }
 
-.markdown-body ul, .markdown-body ol {
+.markdown-body ul,
+.markdown-body ol {
   padding-left: 1.5rem;
   margin: 0.5rem 0;
 }

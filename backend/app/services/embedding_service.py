@@ -1,11 +1,11 @@
 """
 Embedding 服务 - 生成向量并管理存储
 """
-import asyncio
+
 from typing import Any
 
 from langchain_openai import OpenAIEmbeddings
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
@@ -24,7 +24,7 @@ class EmbeddingService:
         # 使用 OpenAI embedding (兼容 DeepSeek)
         api_key = settings.ai_embedding_api_key or settings.ai_openai_api_key
         base_url = settings.ai_embedding_base_url or settings.ai_openai_base_url
-        
+
         self.embeddings = OpenAIEmbeddings(
             model=settings.ai_embedding_model,
             api_key=api_key,
@@ -58,7 +58,7 @@ class EmbeddingService:
         """
         # 生成向量
         vector = await self.embed_text(content)
-        
+
         # 存储
         embedding = MessageEmbedding(
             message_id=message_id,
@@ -82,16 +82,16 @@ class EmbeddingService:
     ) -> list[dict[str, Any]]:
         """
         语义检索相关消息
-        
+
         返回: [{"content": str, "role": str, "similarity": float}, ...]
         """
         # 生成查询向量
         query_vector = await self.embed_text(query)
-        
+
         # 构建查询 - 使用余弦相似度
         if conversation_id:
             sql = text("""
-                SELECT 
+                SELECT
                     content,
                     role,
                     1 - (embedding <=> :query_vec::vector) as similarity
@@ -107,7 +107,7 @@ class EmbeddingService:
             }
         else:
             sql = text("""
-                SELECT 
+                SELECT
                     content,
                     role,
                     1 - (embedding <=> :query_vec::vector) as similarity
@@ -119,10 +119,10 @@ class EmbeddingService:
                 "query_vec": str(query_vector),
                 "limit": top_k,
             }
-        
+
         result = await db.execute(sql, params)
         rows = result.fetchall()
-        
+
         return [
             {"content": row.content, "role": row.role, "similarity": float(row.similarity)}
             for row in rows

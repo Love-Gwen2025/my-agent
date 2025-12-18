@@ -31,9 +31,7 @@ def create_engine(cfg: Settings) -> AsyncEngine:
         max_overflow=cfg.db_max_overflow,
         echo=False,
         pool_pre_ping=True,
-        connect_args={
-            "server_settings": {"search_path": cfg.db_name}
-        },
+        connect_args={"server_settings": {"search_path": cfg.db_name}},
     )
 
 

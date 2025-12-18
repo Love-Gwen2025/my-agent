@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, Conversation, Message, AiModel } from '../types';
+import type { ThemeMode, AccentColor } from '../config/themes';
 
 /** 应用状态接口 */
 interface AppState {
@@ -29,6 +30,10 @@ interface AppState {
   isLoading: boolean;
   /** 流式响应的临时内容 */
   streamingContent: string;
+  /** 主题模式 (亮色/暗色/跟随系统) */
+  themeMode: ThemeMode;
+  /** 强调色主题 */
+  accentColor: AccentColor;
 }
 
 /** 应用操作接口 */
@@ -65,6 +70,10 @@ interface AppActions {
   appendStreamingContent: (chunk: string) => void;
   /** 清空流式内容 */
   clearStreamingContent: () => void;
+  /** 设置主题模式 */
+  setThemeMode: (mode: ThemeMode) => void;
+  /** 设置强调色 */
+  setAccentColor: (color: AccentColor) => void;
 }
 
 /** 应用 Store */
@@ -82,6 +91,8 @@ export const useAppStore = create<AppState & AppActions>()(
       sidebarOpen: true,
       isLoading: false,
       streamingContent: '',
+      themeMode: 'system',
+      accentColor: 'blue',
 
       // 用户相关操作
       setUser: (user) => set({ user }),
@@ -143,6 +154,10 @@ export const useAppStore = create<AppState & AppActions>()(
           streamingContent: state.streamingContent + chunk,
         })),
       clearStreamingContent: () => set({ streamingContent: '' }),
+
+      // 主题相关操作
+      setThemeMode: (mode) => set({ themeMode: mode }),
+      setAccentColor: (color) => set({ accentColor: color }),
     }),
     {
       name: 'app-storage',
@@ -150,6 +165,8 @@ export const useAppStore = create<AppState & AppActions>()(
         token: state.token,
         user: state.user,
         currentModelCode: state.currentModelCode,
+        themeMode: state.themeMode,
+        accentColor: state.accentColor,
       }),
     }
   )

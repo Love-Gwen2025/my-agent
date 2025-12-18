@@ -19,7 +19,8 @@ dependencies = [
     "python-multipart>=0.0.9",
     "alembic>=1.13.1",
     "langchain-openai>=0.2.0",
-    "langchain-core>=0.2.0"
+    "langchain-core>=0.2.0",
+    "langgraph>=1.0.5",
 ]
 
 [dependency-groups]

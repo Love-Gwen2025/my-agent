@@ -1,6 +1,7 @@
 """
 密码哈希工具 - 直接使用 bcrypt 库
 """
+
 import bcrypt
 
 
@@ -26,7 +27,7 @@ def verify_and_migrate(raw_password: str, stored_password: str) -> tuple[bool, s
             new_hash = hash_password(raw_password)
             return True, new_hash
         return False, None
-    
+
     # bcrypt 校验
     try:
         password_bytes = raw_password.encode("utf-8")

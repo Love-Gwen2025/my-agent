@@ -1,6 +1,7 @@
 """
 聊天相关 API 路由 - 集成 RAG 和缓存
 """
+
 from fastapi import APIRouter, Depends, Response, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from redis.asyncio import Redis
@@ -31,17 +32,17 @@ def create_chat_service(
     """
     conv_service = ConversationService(db)
     model_service = ModelService(settings) if settings.ai_deepseek_api_key else None
-    
+
     # 可选服务 - 根据配置启用
     embedding_service = None
     cache_service = None
-    
+
     if settings.ai_openai_api_key or settings.ai_embedding_api_key:
         embedding_service = EmbeddingService(settings)
-    
+
     if redis:
         cache_service = ConversationCacheService(redis, settings)
-    
+
     return ChatService(
         conversation_service=conv_service,
         model_service=model_service,
@@ -101,7 +102,7 @@ async def chat(
     """
     settings = get_settings()
     chat_service = create_chat_service(db, redis, settings)
-    
+
     try:
         reply, _ = await chat_service.chat(
             user_id=current.id,

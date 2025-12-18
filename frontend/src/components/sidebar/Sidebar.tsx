@@ -3,10 +3,11 @@
  *
  * Modern sidebar with gradient buttons and hover effects
  */
-import { useEffect } from 'react';
-import { Plus, MessageSquare, Trash2, ChevronLeft, Sparkles, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus, MessageSquare, Trash2, ChevronLeft, Sparkles, LogOut, Settings } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { getConversations, createConversation, deleteConversation } from '../../api';
+import { ThemePanel } from '../settings';
 import type { Conversation } from '../../types';
 import clsx from 'clsx';
 
@@ -91,6 +92,9 @@ function ConversationItem({
  * 侧边栏组件
  */
 export function Sidebar() {
+  // 主题设置面板状态
+  const [isThemePanelOpen, setIsThemePanelOpen] = useState(false);
+
   const {
     conversations,
     currentConversationId,
@@ -209,6 +213,18 @@ export function Sidebar() {
 
       {/* User section */}
       <div className="p-3 border-t border-[var(--border-color)]">
+        {/* 设置按钮 */}
+        <button
+          onClick={() => setIsThemePanelOpen(true)}
+          className="w-full flex items-center gap-3 p-2 mb-2 rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+        >
+          <div className="w-10 h-10 rounded-xl bg-[var(--bg-tertiary)] flex items-center justify-center">
+            <Settings className="w-5 h-5" />
+          </div>
+          <span className="text-sm font-medium">外观设置</span>
+        </button>
+
+        {/* 用户信息 */}
         <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer group">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-medium"
@@ -233,6 +249,9 @@ export function Sidebar() {
           </button>
         </div>
       </div>
+
+      {/* 主题设置面板 */}
+      <ThemePanel isOpen={isThemePanelOpen} onClose={() => setIsThemePanelOpen(false)} />
     </div>
   );
 }

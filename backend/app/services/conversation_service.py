@@ -21,14 +21,18 @@ class ConversationService:
         """
         # 1. 查询会话并校验归属
         query = await self.db.execute(
-            select(Conversation).where(Conversation.id == conversation_id, Conversation.user_id == user_id)
+            select(Conversation).where(
+                Conversation.id == conversation_id, Conversation.user_id == user_id
+            )
         )
         conversation = query.scalar_one_or_none()
         if conversation is None:
             raise PermissionError("会话不存在或无权限")
         return conversation
 
-    async def create_conversation(self, user_id: int, title: str | None, model_code: str | None) -> int:
+    async def create_conversation(
+        self, user_id: int, title: str | None, model_code: str | None
+    ) -> int:
         """
         1. 创建机器人会话，标题为空时给默认值。
         """
@@ -49,7 +53,9 @@ class ConversationService:
         """
         # 1. 查询列表并转换视图
         query = await self.db.execute(
-            select(Conversation).where(Conversation.user_id == user_id).order_by(Conversation.update_time.desc())
+            select(Conversation)
+            .where(Conversation.user_id == user_id)
+            .order_by(Conversation.update_time.desc())
         )
         items = query.scalars().all()
         return [item.to_vo() for item in items]
@@ -62,7 +68,9 @@ class ConversationService:
         conversation = await self.ensure_owner(conversation_id, user_id)
         return conversation.to_vo()
 
-    async def modify_conversation(self, user_id: int, conversation_id: int, title: str | None) -> None:
+    async def modify_conversation(
+        self, user_id: int, conversation_id: int, title: str | None
+    ) -> None:
         """
         1. 修改会话标题。
         """

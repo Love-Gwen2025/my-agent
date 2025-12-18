@@ -1,6 +1,7 @@
 """
 消息向量存储模型
 """
+
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import BigInteger, Text
 from sqlalchemy.orm import Mapped, mapped_column

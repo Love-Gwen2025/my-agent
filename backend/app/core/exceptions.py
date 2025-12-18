@@ -1,6 +1,7 @@
 """
 自定义异常类层次结构，用于统一业务异常处理。
 """
+
 from typing import Any
 
 

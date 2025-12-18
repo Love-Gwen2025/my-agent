@@ -2,7 +2,7 @@
 .venv/
 venv/
 env/
-.env.local
+.env
 
 # Python 缓存
 __pycache__/
