@@ -61,16 +61,16 @@ class Settings(BaseSettings):
     db_port: int = Field(default=5432, description="PostgreSQL 端口")
     db_name: str = Field(default="couple_agent", description="数据库名称")
     db_user: str = Field(default="postgres", description="数据库用户名")
-    db_password: str = Field(default="postgres", description="数据库密码")
+    db_password: str = Field(default="123456", description="数据库密码")
     db_pool_size: int = Field(default=5, description="数据库连接池大小")
     db_max_overflow: int = Field(default=5, description="数据库超出池后的最大连接数")
 
     redis_host: str = Field(default="localhost", description="Redis 主机地址")
     redis_port: int = Field(default=6379, description="Redis 端口")
-    redis_password: str | None = Field(default=None, description="Redis 密码")
-    redis_db: int = Field(default=0, description="Redis 库序号")
+    redis_password: str | None = Field(default=123456, description="Redis 密码")
+    redis_db: int = Field(default=2, description="Redis 库序号")
 
-    jwt_secret: str = Field(default="change_me", description="JWT 密钥")
+    jwt_secret: str = Field(default="couple-agent", description="JWT 密钥")
     jwt_expire_minutes: int = Field(default=60, description="JWT 过期分钟数")
     jwt_issuer: str = Field(default="couple-agent", description="JWT 颁发者")
 

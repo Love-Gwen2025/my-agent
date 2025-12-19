@@ -48,6 +48,27 @@ async def list_conversations(
     return ApiResult.ok([ConversationVo(**item) for item in items])
 
 
+@router.get("/history", response_model=ApiResult[list[MessageVo]])
+async def history(
+    conversationId: int,
+    response: Response,
+    db: AsyncSession = Depends(get_db_session),
+    current: CurrentUser = Depends(get_current_user),
+) -> ApiResult[list[MessageVo]]:
+    """
+    1. 查询会话历史消息。
+    注意：此路由必须在 /{conversation_id} 之前定义，否则 "history" 会被当作 conversation_id 解析。
+    """
+    service = ConversationService(db)
+    try:
+        # 1. 校验归属并返回历史
+        items = await service.history(current.id, conversationId)
+        return ApiResult.ok([MessageVo(**item) for item in items])
+    except PermissionError as ex:
+        response.status_code = status.HTTP_403_FORBIDDEN
+        return ApiResult.error("CONV-403", str(ex))
+
+
 @router.get("/{conversation_id}", response_model=ApiResult[ConversationVo])
 async def get_conversation_detail(
     conversation_id: int,
@@ -94,24 +115,7 @@ async def send_message(
         return ApiResult.error("CONV-403", str(ex))
 
 
-@router.get("/history", response_model=ApiResult[list[MessageVo]])
-async def history(
-    conversationId: int,
-    response: Response,
-    db: AsyncSession = Depends(get_db_session),
-    current: CurrentUser = Depends(get_current_user),
-) -> ApiResult[list[MessageVo]]:
-    """
-    1. 查询会话历史消息。
-    """
-    service = ConversationService(db)
-    try:
-        # 1. 校验归属并返回历史
-        items = await service.history(current.id, conversationId)
-        return ApiResult.ok([MessageVo(**item) for item in items])
-    except PermissionError as ex:
-        response.status_code = status.HTTP_403_FORBIDDEN
-        return ApiResult.error("CONV-403", str(ex))
+# /history 路由已移到 /{conversation_id} 之前定义
 
 
 @router.patch("/modify", response_model=ApiResult[None])

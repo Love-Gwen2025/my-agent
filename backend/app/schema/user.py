@@ -17,7 +17,7 @@ class UserParamPayload(BaseModel):
 
     id: int | None = Field(default=None, description="用户 ID，修改时必填")
     userCode: str = Field(..., description="用户编码")
-    userName: str = Field(..., description="用户昵称")
+    userName: str | None = Field(default=None, description="用户昵称（可选，默认使用 userCode）")
     userPassword: str = Field(..., description="用户密码")
     userPhone: str | None = Field(default=None, description="手机号")
     address: str | None = Field(default=None, description="地址")

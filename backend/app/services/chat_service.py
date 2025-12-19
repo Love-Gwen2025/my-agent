@@ -49,25 +49,13 @@ class ChatService:
         self.rag_enabled = settings.rag_enabled if settings else False
         self.rag_top_k = settings.rag_top_k if settings else 5
 
-        # 初始化 LangGraph 组件
-        self._graph = None
-        self._checkpointer = None
+        # 初始化 LangGraph 组件（已移除缓存，因为 checkpointer 需要 async with）
 
-    async def _get_graph(self):
+    def _has_model(self) -> bool:
         """
-        延迟初始化 LangGraph 图（带 Redis checkpointer）
+        检查是否已配置模型服务
         """
-        if self._graph is None and self.model_service:
-            # 创建 checkpointer
-            self._checkpointer = await create_redis_checkpointer(self.settings)
-            # 创建图
-            model = self.model_service.get_model()
-            self._graph = create_agent_graph(
-                model=model,
-                tools=[],  # 暂无工具
-                checkpointer=self._checkpointer,
-            )
-        return self._graph
+        return self.model_service is not None
 
     def _build_rag_context(self, relevant_messages: list[dict]) -> str | None:
         """
@@ -129,9 +117,7 @@ class ChatService:
                 print(f"RAG search failed: {e}")
 
         # 4. 调用 LangGraph
-        graph = await self._get_graph()
-
-        if graph:
+        if self._has_model():
             # 构建消息列表
             messages = [SystemMessage(content=SYSTEM_PROMPT)]
             if rag_context:
@@ -140,13 +126,22 @@ class ChatService:
                 )
             messages.append(HumanMessage(content=content))
 
-            # 调用 graph (thread_id 用于自动 checkpoint)
-            config = {"configurable": {"thread_id": str(conversation_id)}}
-            result = await graph.ainvoke({"messages": messages}, config=config)
+            # 需要在 checkpointer 上下文中运行
+            async with create_redis_checkpointer(self.settings) as checkpointer:
+                # 创建带 checkpointer 的 graph
+                model = self.model_service.get_model()
+                temp_graph = create_agent_graph(
+                    model=model,
+                    tools=[],
+                    checkpointer=checkpointer,
+                )
+                # 调用 graph (thread_id 用于自动 checkpoint)
+                config = {"configurable": {"thread_id": str(conversation_id)}}
+                result = await temp_graph.ainvoke({"messages": messages}, config=config)
 
-            # 提取回复
-            last_message = result["messages"][-1]
-            reply = last_message.content if isinstance(last_message, AIMessage) else str(last_message)
+                # 提取回复
+                last_message = result["messages"][-1]
+                reply = last_message.content if isinstance(last_message, AIMessage) else str(last_message)
         else:
             reply = f"暂未接入模型，回显: {content}"
 
@@ -267,31 +262,39 @@ class ChatService:
         placeholder_message_id = -1
         config = {"configurable": {"thread_id": str(conversation_id)}}
 
-        graph = await self._get_graph()
 
-        if graph:
-            # 使用 astream 实现流式输出
-            async for event in graph.astream({"messages": messages}, config=config, stream_mode="values"):
-                # 获取最后一条消息
-                if "messages" in event and event["messages"]:
-                    last_msg = event["messages"][-1]
-                    if isinstance(last_msg, AIMessage) and last_msg.content:
-                        # 计算增量 (新增的内容)
-                        current_content = last_msg.content
-                        previous_len = len("".join(full_reply))
-                        if len(current_content) > previous_len:
-                            delta = current_content[previous_len:]
-                            full_reply.clear()
-                            full_reply.append(current_content)
-                            yield json.dumps(
-                                {
-                                    "type": "chunk",
-                                    "content": delta,
-                                    "conversationId": conversation_id,
-                                    "messageId": placeholder_message_id,
-                                },
-                                ensure_ascii=False,
-                            )
+        if self._has_model():
+            # 需要在 checkpointer 上下文中运行
+            async with create_redis_checkpointer(self.settings) as checkpointer:
+                # 重新创建带 checkpointer 的 graph
+                model = self.model_service.get_model()
+                temp_graph = create_agent_graph(
+                    model=model,
+                    tools=[],
+                    checkpointer=checkpointer,
+                )
+                # 使用 astream 实现流式输出
+                async for event in temp_graph.astream({"messages": messages}, config=config, stream_mode="values"):
+                    # 获取最后一条消息
+                    if "messages" in event and event["messages"]:
+                        last_msg = event["messages"][-1]
+                        if isinstance(last_msg, AIMessage) and last_msg.content:
+                            # 计算增量 (新增的内容)
+                            current_content = last_msg.content
+                            previous_len = len("".join(full_reply))
+                            if len(current_content) > previous_len:
+                                delta = current_content[previous_len:]
+                                full_reply.clear()
+                                full_reply.append(current_content)
+                                yield json.dumps(
+                                    {
+                                        "type": "chunk",
+                                        "content": delta,
+                                        "conversationId": conversation_id,
+                                        "messageId": placeholder_message_id,
+                                    },
+                                    ensure_ascii=False,
+                                )
         else:
             # 未接入模型时的回退
             fallback = f"暂未接入模型，回显: {content}"

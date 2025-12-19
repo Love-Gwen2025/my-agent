@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { MessageSquare, Loader2, Sparkles } from 'lucide-react';
 import { useAppStore } from '../../store';
-import { login } from '../../api';
+import { login, register } from '../../api';
 
 /**
  * 登录页面
@@ -18,7 +18,7 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  /** 处理登录 */
+  /** 处理登录（登录即注册） */
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
@@ -29,12 +29,25 @@ export function LoginPage() {
     setIsLoading(true);
     setError('');
 
+    const params = { userCode: username, userPassword: password };
+
     try {
-      const token = await login({ userCode: username, userPassword: password });
+      // 1. 先尝试登录
+      const token = await login(params);
       setToken(token);
       setUser({ id: 0, userCode: username, userName: username });
-    } catch (err) {
-      setError('登录失败，请检查用户名和密码');
+    } catch (loginErr) {
+      try {
+        // 2. 登录失败，尝试自动注册
+        await register(params);
+        // 3. 注册成功后重新登录
+        const token = await login(params);
+        setToken(token);
+        setUser({ id: 0, userCode: username, userName: username });
+      } catch (registerErr) {
+        // 4. 注册也失败，说明是密码错误
+        setError('登录失败，请检查用户名和密码');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -39,10 +39,6 @@ class EmbeddingService:
             from sentence_transformers import SentenceTransformer
 
             model_name = self.settings.ai_embedding_model
-            # 默认使用轻量中文模型
-            if model_name == "text-embedding-3-small":
-                model_name = "BAAI/bge-small-zh-v1.5"
-
             print(f"📥 Loading local embedding model: {model_name}")
             self._model = SentenceTransformer(model_name)
             print(f"✅ Model loaded successfully")
