@@ -122,6 +122,10 @@ class Settings(BaseSettings):
     rag_top_k: int = Field(default=5, description="RAG 检索返回数量")
     rag_similarity_threshold: float = Field(default=0.6, description="RAG 相似度阈值，低于此值的结果将被过滤")
 
+    # Tavily 搜索配置
+    tavily_api_key: str | None = Field(default=None, description="Tavily API Key")
+    tavily_enabled: bool = Field(default=False, description="是否启用 Tavily 搜索")
+
     model_config = SettingsConfigDict(
         env_file=get_env_file(),
         env_file_encoding="utf-8",

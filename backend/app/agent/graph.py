@@ -1,20 +1,20 @@
 """
-LangGraph Agent 构建模块
+LangGraph Agent 构建模块 (v2)
 
-本模块实现了基于 LangGraph 的 ReAct Agent 架构：
-- AgentState: 定义 Agent 的状态（消息历史等）
-- chatbot: 调用 LLM 获取下一步动作（回复或工具调用）
-- tools: 执行 LLM 请求的工具调用
-- 条件边: 决定下一步是工具执行还是结束
+新架构：
+- RewriteNode: 代词消解
+- ChatbotNode: 决定调用工具 or 直接回复
+- ToolsNode: 执行工具（RAG/搜索等）
 
-设计原则：
-1. 状态即一切：所有状态变化都通过 AgentState 传递
-2. 节点无状态：每个节点函数是纯函数，只依赖传入的 state
-3. 边控制流：通过条件边决定控制流走向
+流程:
+  START → rewrite → chatbot → [tools → chatbot]* → END
 
-参考：https://langchain-ai.github.io/langgraph/concepts/agentic_concepts/#react-agent
+支持：
+- checkpoint_id 分支（时间旅行）
+- 工具自主调用（模型决定是否调用）
 """
 
+import logging
 from typing import Annotated, Literal
 
 from langchain_core.messages import AIMessage, AnyMessage
@@ -25,25 +25,20 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
+from app.nodes.rewrite_node import create_rewrite_node
+
+logger = logging.getLogger(__name__)
+
 # ========== 1. 定义 Agent 状态 ==========
 
 
 class AgentState(TypedDict):
     """
     Agent 的状态定义。
-
-    在 LangGraph 中，状态是图的核心。每一步操作都会更新状态，
-    并将新状态传递给下一步。
-
+    
     Attributes:
         messages: 对话消息历史（使用 add_messages reducer 自动追加）
-
-    关于 add_messages reducer：
-        - 使用 Annotated[list, add_messages] 语法
-        - 当节点返回 {"messages": [new_msg]} 时，会自动追加到列表
-        - 而不是覆盖整个列表，这是 LangGraph 的核心设计
     """
-
     messages: Annotated[list[AnyMessage], add_messages]
 
 
@@ -53,26 +48,15 @@ class AgentState(TypedDict):
 def tools_condition(state: AgentState) -> Literal["tools", "__end__"]:
     """
     条件路由：决定下一步是执行工具还是结束。
-
-    检查最后一条 AI 消息是否包含 tool_calls：
-    - 如果有 tool_calls -> 路由到 "tools" 节点执行工具
-    - 如果没有 -> 路由到 END 结束对话
-
-    Args:
-        state: 当前 Agent 状态
-
-    Returns:
-        "tools" 或 "__end__"
     """
-    # 获取最后一条消息
     messages = state["messages"]
     last_message = messages[-1]
 
-    # 检查是否是 AI 消息且包含 tool_calls
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
+        logger.info(f"🔧 Tool calls detected: {[tc['name'] for tc in last_message.tool_calls]}")
         return "tools"
 
-    # 没有工具调用，结束对话
+    logger.debug("No tool calls, ending conversation")
     return "__end__"
 
 
@@ -83,24 +67,26 @@ def create_agent_graph(
     model: ChatOpenAI,
     tools: list[BaseTool],
     checkpointer=None,
+    enable_rewrite: bool = True,
 ) -> StateGraph:
-    r"""
-    创建 LangGraph Agent 工作流。
+    """
+    创建 LangGraph Agent 工作流 (v2)。
 
-    这个函数构建一个 ReAct 风格的 Agent 图：
-
+    新流程:
     ```
            ┌─────────┐
            │  START  │
            └────┬────┘
                 ▼
            ┌─────────┐
+           │ rewrite │ (可选：代词消解)
+           └────┬────┘
+                ▼
+           ┌─────────┐
     ┌─────►│ chatbot │◄────┐
     │      └────┬────┘     │
-    │           │          │
-    │      有 tool_calls?  │
-    │        /     \       │
-    │       是      否     │
+    │     有 tool_calls?   │
+    │        Y     N       │
     │       ▼       ▼      │
     │   ┌───────┐  ┌────┐  │
     └───┤ tools │  │ END│  │
@@ -108,60 +94,76 @@ def create_agent_graph(
     ```
 
     Args:
-        model: 已绑定工具的 LLM 实例 (model.bind_tools(tools))
+        model: LLM 实例
         tools: 工具列表
-        checkpointer: 可选的 checkpointer 实例 (如 RedisSaver)，用于状态持久化
+        checkpointer: 可选的 checkpointer 用于状态持久化
+        enable_rewrite: 是否启用代词消解节点
 
     Returns:
-        编译后的 CompiledStateGraph，可直接调用 ainvoke/astream
+        编译后的 CompiledStateGraph
     """
+    # 绑定工具到模型
+    if tools:
+        logger.info(f"🔧 Binding {len(tools)} tools to model: {[t.name for t in tools]}")
+        model_with_tools = model.bind_tools(tools)
+    else:
+        logger.warning("⚠️ No tools provided to agent")
+        model_with_tools = model
 
-    # 3.1 定义 chatbot 节点
+    # 定义 chatbot 节点
     async def chatbot(state: AgentState) -> dict:
-        """
-        Chatbot 节点：调用 LLM 获取回复或工具调用决策。
-
-        这个节点不执行工具，只是让 LLM 决定下一步做什么。
-        如果 LLM 需要调用工具，会返回包含 tool_calls 的 AIMessage。
-        """
-        # 将当前消息历史发送给 LLM
-        response = await model.ainvoke(state["messages"])
-        # 返回新消息，add_messages reducer 会自动追加
+        """Chatbot 节点：调用 LLM 获取回复或工具调用决策。"""
+        logger.info(f"🤖 Chatbot receiving {len(state['messages'])} messages")
+        response = await model_with_tools.ainvoke(state["messages"])
+        logger.info(f"🤖 Chatbot response: has_tool_calls={bool(response.tool_calls)}, content_len={len(response.content) if response.content else 0}")
+        if response.tool_calls:
+            logger.info(f"🔧 Tool calls: {[tc['name'] for tc in response.tool_calls]}")
         return {"messages": [response]}
 
-    # 3.2 创建 tools 节点
-    # ToolNode 是 LangGraph 预构建的工具执行节点
-    # 它会自动：
-    #   1. 从最后一条 AIMessage 提取 tool_calls
-    #   2. 并行执行所有工具调用
-    #   3. 将结果包装成 ToolMessage 返回
-    tool_node = ToolNode(tools)
+    # 创建 tools 节点
+    tool_node = ToolNode(tools) if tools else None
 
-    # 3.3 构建状态图
+    # 构建状态图
     workflow = StateGraph(AgentState)
 
-    # 3.4 添加节点
-    workflow.add_node("chatbot", chatbot)
-    workflow.add_node("tools", tool_node)
+    # 添加节点
+    if enable_rewrite:
+        rewrite_node = create_rewrite_node(model)
+        workflow.add_node("rewrite", rewrite_node)
+        workflow.add_node("chatbot", chatbot)
+        if tool_node:
+            workflow.add_node("tools", tool_node)
+        
+        # 设置入口点
+        workflow.set_entry_point("rewrite")
+        
+        # rewrite -> chatbot
+        workflow.add_edge("rewrite", "chatbot")
+    else:
+        workflow.add_node("chatbot", chatbot)
+        if tool_node:
+            workflow.add_node("tools", tool_node)
+        
+        # 设置入口点
+        workflow.set_entry_point("chatbot")
 
-    # 3.5 设置入口点
-    workflow.set_entry_point("chatbot")
+    # 添加条件边
+    if tool_node:
+        workflow.add_conditional_edges(
+            "chatbot",
+            tools_condition,
+            {
+                "tools": "tools",
+                "__end__": END,
+            },
+        )
+        # tools -> chatbot
+        workflow.add_edge("tools", "chatbot")
+    else:
+        # 没有工具，直接结束
+        workflow.add_edge("chatbot", END)
 
-    # 3.6 添加边
-    # chatbot -> 条件判断 -> (tools 或 END)
-    workflow.add_conditional_edges(
-        "chatbot",  # 源节点
-        tools_condition,  # 条件函数
-        {
-            "tools": "tools",  # 如果返回 "tools"，跳转到 tools 节点
-            "__end__": END,  # 如果返回 "__end__"，结束
-        },
-    )
-
-    # tools -> chatbot (执行完工具后回到 chatbot 继续对话)
-    workflow.add_edge("tools", "chatbot")
-
-    # 3.7 编译并返回 (传入 checkpointer 实现状态持久化)
+    # 编译并返回
     return workflow.compile(checkpointer=checkpointer)
 
 
@@ -170,16 +172,38 @@ def create_agent_graph(
 
 def create_default_agent(
     model: ChatOpenAI,
+    checkpointer=None,
+    enable_rewrite: bool = True,
 ) -> StateGraph:
     """
     使用默认工具集创建 Agent。
-
-    这是一个便利函数，自动加载 app.tools 中定义的所有工具。
+    
+    包含：
+    - 时间/计算器工具
+    - RAG 检索工具
+    - Tavily 搜索工具（如果配置了 API Key）
     """
+    from app.core.settings import get_settings
     from app.tools import AVAILABLE_TOOLS
+    from app.tools.rag_tool import rag_search
+    from app.tools.tavily_tool import web_search
 
-    # 绑定工具到模型
-    model_with_tools = model.bind_tools(AVAILABLE_TOOLS)
-
-    # 创建并返回图
-    return create_agent_graph(model_with_tools, AVAILABLE_TOOLS)
+    settings = get_settings()
+    
+    # 基础工具
+    all_tools = list(AVAILABLE_TOOLS)
+    
+    # 添加 RAG 工具
+    if settings.rag_enabled:
+        all_tools.append(rag_search)
+    
+    # 添加 Tavily 搜索工具
+    if settings.tavily_enabled and settings.tavily_api_key:
+        all_tools.append(web_search)
+    
+    return create_agent_graph(
+        model=model,
+        tools=all_tools,
+        checkpointer=checkpointer,
+        enable_rewrite=enable_rewrite,
+    )

@@ -75,6 +75,7 @@ async def stream_chat(
             conversation_id=int(payload.conversationId),
             content=payload.content,
             model_code=payload.modelCode,
+            checkpoint_id=payload.checkpointId,
             db=db,
         ):
             yield f"data: {chunk}\n\n"
@@ -90,20 +91,29 @@ async def chat(
     current: CurrentUser = Depends(get_current_user),
 ) -> ApiResult[str]:
     """
-    同步对话：使用 LangGraph 自动管理对话历史，返回完整回复。
+    同步对话（已废弃，请使用 /stream）。
+    为保持兼容性，此接口收集流式结果后一次返回。
     """
     settings = get_settings()
     chat_service = create_chat_service(db, settings)
 
     try:
-        reply, _ = await chat_service.chat(
+        # 收集流式结果
+        full_reply = []
+        async for chunk in chat_service.stream(
             user_id=current.id,
             conversation_id=int(payload.conversationId),
             content=payload.content,
             model_code=payload.modelCode,
+            checkpoint_id=payload.checkpointId,
             db=db,
-        )
-        return ApiResult.ok(reply)
+        ):
+            import json
+            data = json.loads(chunk)
+            if data.get("type") == "chunk":
+                full_reply.append(data.get("content", ""))
+        
+        return ApiResult.ok("".join(full_reply))
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
         return ApiResult.error("CONV-403", str(ex))

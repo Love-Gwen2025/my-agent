@@ -8,4 +8,5 @@ dependencies = [
     "myapplication>=0.1.0",
     "oci-cli>=3.71.1",
     "sqlalchemy>=2.0.45",
+    "tavily-python>=0.7.17",
 ]

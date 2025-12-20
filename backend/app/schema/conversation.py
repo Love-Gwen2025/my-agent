@@ -37,6 +37,7 @@ class StreamChatParam(BaseModel):
     content: str = Field(..., description="用户消息内容")
     modelCode: str | None = Field(default=None, description="模型编码")
     systemPrompt: str | None = Field(default=None, description="系统提示词")
+    checkpointId: str | None = Field(default=None, description="检查点 ID，用于分支/时间旅行")
 
 
 class MessageVo(BaseModel):
