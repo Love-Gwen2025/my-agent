@@ -14,7 +14,6 @@ class Message(Base):
     __tablename__ = "t_message"
 
     conversation_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    parent_id: Mapped[int | None] = mapped_column(BigInteger)
     sender_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)

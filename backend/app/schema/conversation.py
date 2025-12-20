@@ -38,6 +38,8 @@ class StreamChatParam(BaseModel):
     modelCode: str | None = Field(default=None, description="模型编码")
     systemPrompt: str | None = Field(default=None, description="系统提示词")
     checkpointId: str | None = Field(default=None, description="检查点 ID，用于分支/时间旅行")
+    regenerate: bool = Field(default=False, description="重新生成模式，从 checkpointId 分叉生成新回复")
+    parentCheckpointId: str | None = Field(default=None, description="父检查点 ID，用于时间旅行")   
 
 
 class MessageVo(BaseModel):

@@ -7,14 +7,23 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Bot, Copy, Check, Sparkles } from 'lucide-react';
+import { User, Copy, Check, Sparkles, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import clsx from 'clsx';
-import type { Message } from '../../types';
+import type { Message, SiblingInfo } from '../../types';
+import { BranchNavigator } from './BranchNavigator';
 
 interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
+  /** 分支信息（AI 消息需要） */
+  siblingInfo?: SiblingInfo;
+  /** 切换分支回调 */
+  onNavigateBranch?: (direction: 'prev' | 'next') => void;
+  /** 重新生成回调 */
+  onRegenerate?: () => void;
+  /** 是否正在重新生成 */
+  isRegenerating?: boolean;
 }
 
 /**
@@ -73,8 +82,18 @@ function CodeBlock({
 /**
  * 消息气泡组件
  */
-export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  isStreaming,
+  siblingInfo,
+  onNavigateBranch,
+  onRegenerate,
+  isRegenerating = false,
+}: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  const isAssistant = message.role === 'assistant';
+  const showBranchNav = isAssistant && siblingInfo && siblingInfo.total > 1;
+  const showRegenerate = isAssistant && onRegenerate && !isStreaming;
 
   return (
     <div
@@ -100,45 +119,75 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
       </div>
 
       {/* Message content */}
-      <div
-        className={clsx(
-          'max-w-[80%] rounded-2xl px-5 py-3 shadow-md',
-          isUser
-            ? 'text-white'
-            : 'glass-effect text-[var(--text-primary)]'
-        )}
-        style={isUser ? { background: 'var(--user-bubble-bg)' } : undefined}
-      >
-        {isUser ? (
-          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-        ) : (
-          <div className="markdown-body">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                code({ className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className || '');
-                  const isInline = !match;
-                  return isInline ? (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  ) : (
-                    <CodeBlock language={match[1]}>
-                      {String(children).replace(/\n$/, '')}
-                    </CodeBlock>
-                  );
-                },
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
-            {isStreaming && (
-              <span className="inline-flex items-center gap-1 ml-1">
-                <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" />
-                <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" style={{ animationDelay: '0.2s' }} />
-                <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" style={{ animationDelay: '0.4s' }} />
-              </span>
+      <div className="flex flex-col max-w-[80%]">
+        <div
+          className={clsx(
+            'rounded-2xl px-5 py-3 shadow-md',
+            isUser
+              ? 'text-white'
+              : 'glass-effect text-[var(--text-primary)]'
+          )}
+          style={isUser ? { background: 'var(--user-bubble-bg)' } : undefined}
+        >
+          {isUser ? (
+            <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+          ) : (
+            <div className="markdown-body">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code({ className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || '');
+                    const isInline = !match;
+                    return isInline ? (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    ) : (
+                      <CodeBlock language={match[1]}>
+                        {String(children).replace(/\n$/, '')}
+                      </CodeBlock>
+                    );
+                  },
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+              {isStreaming && (
+                <span className="inline-flex items-center gap-1 ml-1">
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" style={{ animationDelay: '0.2s' }} />
+                  <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" style={{ animationDelay: '0.4s' }} />
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* AI 消息底部工具栏 */}
+        {isAssistant && !isStreaming && (
+          <div className="flex items-center gap-3 mt-2 ml-2">
+            {/* 分支导航器 */}
+            {showBranchNav && onNavigateBranch && (
+              <BranchNavigator
+                currentIndex={siblingInfo.current}
+                totalCount={siblingInfo.total}
+                onNavigate={onNavigateBranch}
+                isLoading={isRegenerating}
+              />
+            )}
+
+            {/* 重新生成按钮 */}
+            {showRegenerate && (
+              <button
+                onClick={onRegenerate}
+                disabled={isRegenerating}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors disabled:opacity-50"
+                title="重新生成"
+              >
+                <RefreshCw className={clsx('w-3.5 h-3.5', isRegenerating && 'animate-spin')} />
+                <span>重新生成</span>
+              </button>
             )}
           </div>
         )}
@@ -146,3 +195,4 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
     </div>
   );
 }
+

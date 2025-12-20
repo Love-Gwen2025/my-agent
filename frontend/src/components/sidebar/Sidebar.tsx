@@ -136,7 +136,7 @@ export function Sidebar() {
     }
   }
 
-  async function handleDeleteConversation(id: number) {
+  async function handleDeleteConversation(id: string) {
     try {
       await deleteConversation(id);
       removeConversation(id);

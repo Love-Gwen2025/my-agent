@@ -43,7 +43,7 @@ export async function createConversation(
  *
  * @param id 会话ID
  */
-export async function deleteConversation(id: number): Promise<void> {
+export async function deleteConversation(id: string): Promise<void> {
   await apiClient.delete(`/conversation/${id}`);
 }
 
@@ -54,7 +54,7 @@ export async function deleteConversation(id: number): Promise<void> {
  * @returns 消息列表
  */
 export async function getConversationHistory(
-  conversationId: number
+  conversationId: string
 ): Promise<Message[]> {
   const response = await apiClient.get<ApiResponse<Message[]>>(
     `/conversation/history`,
@@ -70,7 +70,7 @@ export async function getConversationHistory(
  * @param title 新标题
  */
 export async function updateConversationTitle(
-  id: number,
+  id: string,
   title: string
 ): Promise<void> {
   await apiClient.patch(`/conversation/modify`, { id, title });

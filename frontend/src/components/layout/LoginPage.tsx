@@ -4,7 +4,7 @@
  * Modern glassmorphism design with gradient background
  */
 import { useState } from 'react';
-import { MessageSquare, Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { login, register } from '../../api';
 

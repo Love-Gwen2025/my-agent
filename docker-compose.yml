@@ -23,7 +23,7 @@ services:
       - APP_LOG_LEVEL=${APP_LOG_LEVEL:-info}
 
       # 数据库配置
-      - DB_HOST=${DB_HOST:-postgres}
+      - DB_HOST=postgres
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME:-couple_agent}
       - DB_USER=${DB_USER:-postgres}
@@ -32,7 +32,7 @@ services:
       - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-5}
 
       # Redis 配置
-      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_HOST=redis
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-123456}
       - REDIS_DB=${REDIS_DB:-0}
@@ -76,6 +76,9 @@ services:
       - OSS_CUSTOM_DOMAIN=${OSS_CUSTOM_DOMAIN:-}
       - OSS_OBJECT_PREFIX=${OSS_OBJECT_PREFIX:-}
       - OSS_AVATAR=${OSS_AVATAR:-}
+      # 搜索
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - TAVILY_ENABLED=${TAVILY_ENABLED:-true}
 
       # 功能开关
       - ENABLE_SSE_STREAMING=${ENABLE_SSE_STREAMING:-true}

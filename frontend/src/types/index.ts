@@ -39,13 +39,22 @@ export interface Conversation {
 export interface Message {
   id: number | string;  // 兼容临时 ID (number) 和服务端 ID (string)
   conversationId: string;
-  senderId: string;
+  senderId: number | string;  // 兼容 AI (-1) 和用户 ID (string)
   role: 'user' | 'assistant' | 'system';
   content: string;
   contentType: string;
   modelCode?: string;
   tokenCount?: number;
   createTime: string;
+  /** Checkpoint ID，用于分支导航 */
+  checkpointId?: string;
+}
+
+/** 分支信息（用于 2/3 导航） */
+export interface SiblingInfo {
+  current: number;
+  total: number;
+  siblings: string[];
 }
 
 /** 会话历史消息视图（后端 history 接口返回） */

@@ -73,7 +73,6 @@ COMMENT ON COLUMN t_conversation.ext IS '扩展信息（JSON）';
 CREATE TABLE IF NOT EXISTS t_message (
     id BIGINT PRIMARY KEY,  -- 雪花 ID，由应用层生成
     conversation_id BIGINT NOT NULL,
-    parent_id BIGINT,
     sender_id BIGINT NOT NULL,
     role VARCHAR(20) NOT NULL,
     content TEXT NOT NULL,
@@ -89,13 +88,11 @@ CREATE TABLE IF NOT EXISTS t_message (
 
 -- 消息表索引
 CREATE INDEX IF NOT EXISTS idx_message_conversation_id ON t_message(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_message_parent_id ON t_message(parent_id);
 CREATE INDEX IF NOT EXISTS idx_message_sender_id ON t_message(sender_id);
 CREATE INDEX IF NOT EXISTS idx_message_create_time ON t_message(create_time DESC);
 
 COMMENT ON TABLE t_message IS '消息表';
 COMMENT ON COLUMN t_message.conversation_id IS '所属会话 ID';
-COMMENT ON COLUMN t_message.parent_id IS '父消息 ID（用于消息树）';
 COMMENT ON COLUMN t_message.sender_id IS '发送者 ID（-1 表示 AI）';
 COMMENT ON COLUMN t_message.role IS '角色: user/assistant/system';
 COMMENT ON COLUMN t_message.content IS '消息内容';

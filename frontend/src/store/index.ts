@@ -17,7 +17,7 @@ interface AppState {
   /** 会话列表 */
   conversations: Conversation[];
   /** 当前选中的会话ID */
-  currentConversationId: number | null;
+  currentConversationId: string | null;
   /** 当前会话的消息列表 */
   messages: Message[];
   /** 可用的 AI 模型列表 */
@@ -49,9 +49,9 @@ interface AppActions {
   /** 添加新会话 */
   addConversation: (conversation: Conversation) => void;
   /** 删除会话 */
-  removeConversation: (id: number) => void;
+  removeConversation: (id: string) => void;
   /** 设置当前会话 */
-  setCurrentConversationId: (id: number | null) => void;
+  setCurrentConversationId: (id: string | null) => void;
   /** 设置消息列表 */
   setMessages: (messages: Message[]) => void;
   /** 添加消息 */

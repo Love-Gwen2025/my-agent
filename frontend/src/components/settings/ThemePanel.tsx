@@ -9,7 +9,6 @@ import {
     THEME_MODE_OPTIONS,
     ACCENT_COLOR_OPTIONS,
     type ThemeMode,
-    type AccentColor,
 } from '../../config/themes';
 import clsx from 'clsx';
 

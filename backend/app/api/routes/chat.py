@@ -76,6 +76,7 @@ async def stream_chat(
             content=payload.content,
             model_code=payload.modelCode,
             checkpoint_id=payload.checkpointId,
+            regenerate=payload.regenerate,
             db=db,
         ):
             yield f"data: {chunk}\n\n"
@@ -106,6 +107,7 @@ async def chat(
             content=payload.content,
             model_code=payload.modelCode,
             checkpoint_id=payload.checkpointId,
+            regenerate=payload.regenerate,
             db=db,
         ):
             import json

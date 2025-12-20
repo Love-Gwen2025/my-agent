@@ -51,7 +51,7 @@ export function ChatPanel() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const latestStreamingRef = useRef<string>('');
-  const latestMessageIdRef = useRef<number | null>(null);
+  const latestMessageIdRef = useRef<number | string | null>(null);
 
   const { isLoading, sendMessage, abort } = useSSEChat({
     onChunk: (chunk) => {

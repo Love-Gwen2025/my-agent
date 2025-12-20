@@ -56,17 +56,30 @@ async def history(
     current: CurrentUser = Depends(get_current_user),
 ) -> ApiResult[list[MessageVo]]:
     """
-    1. 查询会话历史消息。
-    注意：此路由必须在 /{conversation_id} 之前定义，否则 "history" 会被当作 conversation_id 解析。
+    查询会话历史消息（从 LangGraph checkpoint 读取）
+    
+    纯 checkpoint 模式：消息来自 LangGraph 状态，支持分支切换。
     """
-    service = ConversationService(db)
+    from app.core.settings import get_settings
+    from app.services.checkpoint_service import CheckpointService
+    
+    conv_service = ConversationService(db)
     try:
-        # 1. 校验归属并返回历史
-        items = await service.history(current.id, int(conversationId))
+        # 1. 校验会话归属
+        await conv_service.ensure_owner(int(conversationId), current.id)
+        
+        # 2. 从 checkpoint 获取消息（无需 ModelService）
+        settings = get_settings()
+        checkpoint_service = CheckpointService(settings)
+        
+        items = await checkpoint_service.get_latest_messages(int(conversationId))
         return ApiResult.ok([MessageVo(**item) for item in items])
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
         return ApiResult.error("CONV-403", str(ex))
+    except Exception as ex:
+        # checkpoint 为空时返回空列表（新会话）
+        return ApiResult.ok([])
 
 
 @router.get("/{conversation_id}", response_model=ApiResult[ConversationVo])
