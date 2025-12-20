@@ -25,23 +25,55 @@ services:
       - DB_PORT=5432
       - DB_NAME=couple_agent
       - DB_USER=postgres
-      - DB_PASSWORD=123456
+      - DB_PASSWORD=${DB_PASSWORD:-123456}
       - DB_POOL_SIZE=10
+      - DB_MAX_OVERFLOW=10
 
       # 连接已有的 redis 容器 (你的配置)
       - REDIS_HOST=redis_cache
       - REDIS_PORT=6379
-      - REDIS_PASSWORD=123456
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-123456}
       - REDIS_DB=0
 
       # JWT 配置 (请修改为安全的密钥!)
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - JWT_EXPIRE_MINUTES=60
+      - JWT_ISSUER=${JWT_ISSUER:-couple-agent}
 
-      # AI 配置
+      # AI DeepSeek 配置
       - AI_DEEPSEEK_API_KEY=${AI_DEEPSEEK_API_KEY}
-      - AI_DEEPSEEK_BASE_URL=https://api.deepseek.com
-      - AI_DEEPSEEK_MODEL_NAME=deepseek-chat
+      - AI_DEEPSEEK_BASE_URL=${AI_DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      - AI_DEEPSEEK_MODEL_NAME=${AI_DEEPSEEK_MODEL_NAME:-deepseek-chat}
+      - AI_DEEPSEEK_TEMPERATURE=${AI_DEEPSEEK_TEMPERATURE:-0.7}
+      - AI_DEEPSEEK_TIMEOUT=${AI_DEEPSEEK_TIMEOUT:-30}
+
+      # AI OpenAI 配置 (可选)
+      - AI_OPENAI_API_KEY=${AI_OPENAI_API_KEY:-}
+      - AI_OPENAI_BASE_URL=${AI_OPENAI_BASE_URL:-https://api.openai.com/v1}
+
+      # Embedding 配置
+      - AI_EMBEDDING_PROVIDER=${AI_EMBEDDING_PROVIDER:-local}
+      - AI_EMBEDDING_MODEL=${AI_EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
+      - AI_EMBEDDING_DIMENSION=${AI_EMBEDDING_DIMENSION:-512}
+      - AI_EMBEDDING_API_KEY=${AI_EMBEDDING_API_KEY:-}
+      - AI_EMBEDDING_BASE_URL=${AI_EMBEDDING_BASE_URL:-}
+
+      # 对话上下文配置
+      - CONVERSATION_CACHE_TTL=${CONVERSATION_CACHE_TTL:-3600}
+      - CONVERSATION_CACHE_MAX_MESSAGES=${CONVERSATION_CACHE_MAX_MESSAGES:-20}
+      - MAX_HISTORY_MESSAGES=${MAX_HISTORY_MESSAGES:-20}
+      - MAX_HISTORY_TOKENS=${MAX_HISTORY_TOKENS:-4000}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
+      - RAG_TOP_K=${RAG_TOP_K:-5}
+      - RAG_SIMILARITY_THRESHOLD=${RAG_SIMILARITY_THRESHOLD:-0.6}
+
+      # OSS 配置 (可选)
+      - OSS_BUCKET=${OSS_BUCKET:-}
+      - OSS_REGION=${OSS_REGION:-cn-hangzhou}
+      - OSS_ENDPOINT=${OSS_ENDPOINT:-}
+      - OSS_CUSTOM_DOMAIN=${OSS_CUSTOM_DOMAIN:-}
+      - OSS_OBJECT_PREFIX=${OSS_OBJECT_PREFIX:-}
+      - OSS_AVATAR=${OSS_AVATAR:-}
 
       # 功能开关
       - ENABLE_SSE_STREAMING=true
@@ -49,9 +81,7 @@ services:
     labels:
       # Watchtower 标签 - 启用自动更新
       - "com.centurylinklabs.watchtower.enable=true"
-    depends_on:
-      - postgres
-      - redis
+    # 注意: postgres 和 redis 是外部服务 (1panel-network)，不在此文件中定义
     networks:
       - 1panel-network
     deploy:

@@ -1,7 +1,10 @@
 -- =============================================
 -- Couple-Agent 数据库初始化脚本
--- 基于 Python 实体类生成
+-- 包含所有表结构的完整定义
 -- ID 使用雪花算法在应用层生成
+-- =============================================
+-- 版本: 1.0.0
+-- 更新: 合并 000_init_schema.sql 和 001_add_message_embedding.sql
 -- =============================================
 
 -- 1. 启用 pgvector 扩展（用于向量检索）
@@ -104,14 +107,17 @@ COMMENT ON COLUMN t_message.status IS '状态: 1-正常, 0-删除';
 -- 消息向量表 (t_message_embedding)
 -- 用于 RAG 语义检索
 -- =============================================
+-- 注意: 向量维度 1536 适用于 OpenAI text-embedding-3-small
+--       如使用本地模型 bge-small-zh-v1.5，维度为 512
+--       建议保持 1536 以兼容多种模型
 CREATE TABLE IF NOT EXISTS t_message_embedding (
     id BIGINT PRIMARY KEY,  -- 雪花 ID，由应用层生成
     message_id BIGINT NOT NULL,
     conversation_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
-    role TEXT NOT NULL,
+    role VARCHAR(20) NOT NULL,  -- user/assistant
     content TEXT NOT NULL,
-    embedding vector(1536),
+    embedding vector(1536),  -- 向量维度
     create_time TIMESTAMP DEFAULT NOW() NOT NULL,
     update_time TIMESTAMP DEFAULT NOW() NOT NULL,
     version INTEGER DEFAULT 0
@@ -122,16 +128,24 @@ CREATE INDEX IF NOT EXISTS idx_msg_embed_message_id ON t_message_embedding(messa
 CREATE INDEX IF NOT EXISTS idx_msg_embed_conversation_id ON t_message_embedding(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_msg_embed_user_id ON t_message_embedding(user_id);
 
--- HNSW 向量索引（用于高效语义检索）
+-- HNSW 向量索引（用于高效语义检索，比 IVFFlat 更快，无需预训练）
 CREATE INDEX IF NOT EXISTS idx_msg_embed_vector ON t_message_embedding 
     USING hnsw (embedding vector_cosine_ops);
 
-COMMENT ON TABLE t_message_embedding IS '消息向量存储表（RAG）';
+COMMENT ON TABLE t_message_embedding IS '消息向量存储表（RAG 语义检索）';
+COMMENT ON COLUMN t_message_embedding.message_id IS '关联的消息 ID';
+COMMENT ON COLUMN t_message_embedding.conversation_id IS '所属会话 ID';
+COMMENT ON COLUMN t_message_embedding.user_id IS '所属用户 ID';
+COMMENT ON COLUMN t_message_embedding.role IS '消息角色: user/assistant';
+COMMENT ON COLUMN t_message_embedding.content IS '消息文本内容';
 COMMENT ON COLUMN t_message_embedding.embedding IS '消息的向量表示（1536维）';
 
 -- =============================================
 -- 外键约束（可选，根据业务需求启用）
 -- =============================================
+-- 注意: 在高并发场景下，外键可能影响性能
+--       建议在应用层保证数据一致性
+-- 
 -- ALTER TABLE t_conversation ADD CONSTRAINT fk_conversation_user 
 --     FOREIGN KEY (user_id) REFERENCES t_user(id);
 -- ALTER TABLE t_message ADD CONSTRAINT fk_message_conversation 
@@ -142,5 +156,5 @@ COMMENT ON COLUMN t_message_embedding.embedding IS '消息的向量表示（1536
 -- =============================================
 -- 初始化数据（可选）
 -- =============================================
--- INSERT INTO t_user (user_code, user_name, user_password) 
--- VALUES ('admin', '管理员', '$2b$12$...');
+-- INSERT INTO t_user (id, user_code, user_name, user_password) 
+-- VALUES (1, 'admin', '管理员', '$2b$12$...');

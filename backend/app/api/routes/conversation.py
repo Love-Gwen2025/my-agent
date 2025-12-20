@@ -50,7 +50,7 @@ async def list_conversations(
 
 @router.get("/history", response_model=ApiResult[list[MessageVo]])
 async def history(
-    conversationId: int,
+    conversationId: str,
     response: Response,
     db: AsyncSession = Depends(get_db_session),
     current: CurrentUser = Depends(get_current_user),
@@ -62,7 +62,7 @@ async def history(
     service = ConversationService(db)
     try:
         # 1. 校验归属并返回历史
-        items = await service.history(current.id, conversationId)
+        items = await service.history(current.id, int(conversationId))
         return ApiResult.ok([MessageVo(**item) for item in items])
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
@@ -71,7 +71,7 @@ async def history(
 
 @router.get("/{conversation_id}", response_model=ApiResult[ConversationVo])
 async def get_conversation_detail(
-    conversation_id: int,
+    conversation_id: str,
     response: Response,
     db: AsyncSession = Depends(get_db_session),
     current: CurrentUser = Depends(get_current_user),
@@ -81,7 +81,7 @@ async def get_conversation_detail(
     """
     service = ConversationService(db)
     try:
-        vo = await service.get_conversation(conversation_id, current.id)
+        vo = await service.get_conversation(int(conversation_id), current.id)
         return ApiResult.ok(ConversationVo(**vo))
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
@@ -101,9 +101,9 @@ async def send_message(
     service = ConversationService(db)
     try:
         # 1. 校验归属并写入消息
-        await service.ensure_owner(payload.conversationId, current.id)
+        await service.ensure_owner(int(payload.conversationId), current.id)
         message = await service.persist_message(
-            conversation_id=payload.conversationId,
+            conversation_id=int(payload.conversationId),
             sender_id=current.id,
             role="user",
             content=payload.content,
@@ -131,7 +131,7 @@ async def modify_conversation(
     service = ConversationService(db)
     try:
         # 1. 执行更新
-        await service.modify_conversation(current.id, payload.id, payload.title)
+        await service.modify_conversation(current.id, int(payload.id) if payload.id else None, payload.title)
         return ApiResult.ok()
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
@@ -140,7 +140,7 @@ async def modify_conversation(
 
 @router.delete("/{conversation_id}", response_model=ApiResult[None])
 async def delete_conversation(
-    conversation_id: int,
+    conversation_id: str,
     response: Response,
     db: AsyncSession = Depends(get_db_session),
     current: CurrentUser = Depends(get_current_user),
@@ -151,7 +151,7 @@ async def delete_conversation(
     service = ConversationService(db)
     try:
         # 1. 删除会话及消息
-        await service.delete_conversation(current.id, conversation_id)
+        await service.delete_conversation(current.id, int(conversation_id))
         return ApiResult.ok()
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN

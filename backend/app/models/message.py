@@ -27,11 +27,12 @@ class Message(Base):
     def to_vo(self) -> dict:
         """
         1. 转为接口需要的消息视图。
+        注意: BigInt ID 转为字符串，避免 JavaScript 精度丢失
         """
         return {
-            "id": self.id,
-            "conversationId": self.conversation_id,
-            "senderId": self.sender_id,
+            "id": str(self.id),
+            "conversationId": str(self.conversation_id),
+            "senderId": str(self.sender_id),
             "role": self.role,
             "content": self.content,
             "contentType": self.content_type,
@@ -41,3 +42,4 @@ class Message(Base):
             if isinstance(self.create_time, datetime)
             else None,
         }
+

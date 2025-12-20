@@ -61,7 +61,7 @@ async def stream_chat(
     conv_service = ConversationService(db)
 
     try:
-        await conv_service.ensure_owner(payload.conversationId, current.id)
+        await conv_service.ensure_owner(int(payload.conversationId), current.id)
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
         return JSONResponse(
@@ -72,7 +72,7 @@ async def stream_chat(
     async def event_generator():
         async for chunk in chat_service.stream(
             user_id=current.id,
-            conversation_id=payload.conversationId,
+            conversation_id=int(payload.conversationId),
             content=payload.content,
             model_code=payload.modelCode,
             db=db,
@@ -98,7 +98,7 @@ async def chat(
     try:
         reply, _ = await chat_service.chat(
             user_id=current.id,
-            conversation_id=payload.conversationId,
+            conversation_id=int(payload.conversationId),
             content=payload.content,
             model_code=payload.modelCode,
             db=db,

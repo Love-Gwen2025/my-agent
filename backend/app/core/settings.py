@@ -116,8 +116,11 @@ class Settings(BaseSettings):
     # 对话上下文配置
     conversation_cache_ttl: int = Field(default=3600, description="Redis 对话缓存 TTL (秒)")
     conversation_cache_max_messages: int = Field(default=20, description="缓存最近消息数量")
+    max_history_messages: int = Field(default=20, description="发送给 LLM 的最大历史消息数")
+    max_history_tokens: int = Field(default=4000, description="历史消息最大 token 估算值 (按字符数/2估算)")
     rag_enabled: bool = Field(default=True, description="是否启用 RAG 检索")
     rag_top_k: int = Field(default=5, description="RAG 检索返回数量")
+    rag_similarity_threshold: float = Field(default=0.6, description="RAG 相似度阈值，低于此值的结果将被过滤")
 
     model_config = SettingsConfigDict(
         env_file=get_env_file(),

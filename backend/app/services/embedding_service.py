@@ -123,9 +123,17 @@ class EmbeddingService:
         query: str,
         conversation_id: int | None = None,
         top_k: int = 5,
+        similarity_threshold: float = 0.0,
     ) -> list[dict[str, Any]]:
         """
         语义检索相关消息
+
+        Args:
+            db: 数据库会话
+            query: 查询文本
+            conversation_id: 可选的会话 ID 过滤
+            top_k: 返回最相似的 K 条结果
+            similarity_threshold: 相似度阈值，低于此值的结果将被过滤
 
         返回: [{"content": str, "role": str, "similarity": float}, ...]
         """
@@ -167,7 +175,9 @@ class EmbeddingService:
         result = await db.execute(sql, params)
         rows = result.fetchall()
 
+        # 过滤低于阈值的结果
         return [
             {"content": row.content, "role": row.role, "similarity": float(row.similarity)}
             for row in rows
+            if float(row.similarity) >= similarity_threshold
         ]

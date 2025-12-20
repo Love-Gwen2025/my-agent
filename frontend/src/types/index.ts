@@ -2,11 +2,12 @@
  * 类型定义文件
  *
  * 定义前端使用的所有 TypeScript 类型
+ * 注意: 所有 ID 字段使用 string 类型，避免 JavaScript 大整数精度丢失
  */
 
 /** 用户信息（后端字段命名） */
 export interface User {
-  id: number;
+  id: number;  // 用户 ID 暂时保留 number（通常较小）
   userCode: string;
   userName?: string;
   avatar?: string;
@@ -23,11 +24,11 @@ export type LoginResponse = string;
 
 /** 会话信息 */
 export interface Conversation {
-  id: number;
+  id: string;  // 雪花ID，使用 string 避免精度丢失
   title: string;
-  userId?: number;
+  userId?: string;
   modelCode?: string;
-  lastMessageId?: number;
+  lastMessageId?: string;
   lastMessageAt?: string;
   avatar?: string;
   createdAt?: string;
@@ -36,9 +37,9 @@ export interface Conversation {
 
 /** 消息信息 */
 export interface Message {
-  id: number;
-  conversationId: number;
-  senderId: number;
+  id: number | string;  // 兼容临时 ID (number) 和服务端 ID (string)
+  conversationId: string;
+  senderId: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   contentType: string;
@@ -72,7 +73,7 @@ export interface CreateConversationParams {
 
 /** 流式聊天请求参数 */
 export interface StreamChatRequest {
-  conversationId: number;
+  conversationId: string;  // 改为 string
   content: string;
   modelCode?: string;
   systemPrompt?: string;
@@ -82,8 +83,8 @@ export interface StreamChatRequest {
 export interface StreamChatEvent {
   type: 'chunk' | 'done' | 'error';
   content?: string;
-  messageId?: number;
-  conversationId?: number;
+  messageId?: number | string;  // 兼容
+  conversationId?: string;
   tokenCount?: number;
   error?: string;
 }
@@ -110,3 +111,4 @@ export interface PageResponse<T> {
   current: number;
   pages: number;
 }
+
