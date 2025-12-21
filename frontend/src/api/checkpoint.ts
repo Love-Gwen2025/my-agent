@@ -1,61 +1,52 @@
 /**
- * Checkpoint API 客户端
+ * 消息分支 API 客户端
  * 
- * 提供分支查询和切换功能
+ * 提供基于消息 ID 的分支查询功能
  */
 import apiClient from './client';
-import type { ApiResponse, SiblingInfo } from '../types';
-
-/** Checkpoint 历史项 */
-export interface CheckpointItem {
-    checkpointId: string;
-    parentId: string | null;
-    messageCount: number;
-}
-
-/** Checkpoint 消息 */
-export interface CheckpointMessage {
-    role: string;
-    content: string;
-}
+import type { ApiResponse, SiblingInfo, Message } from '../types';
 
 /**
- * 获取会话的 checkpoint 历史
- */
-export async function getCheckpointHistory(
-    conversationId: string
-): Promise<CheckpointItem[]> {
-    const response = await apiClient.get<ApiResponse<CheckpointItem[]>>(
-        `/checkpoint/${conversationId}/history`
-    );
-    return response.data.data || [];
-}
-
-/**
- * 获取指定 checkpoint 的兄弟分支
+ * 获取消息的兄弟分支
  * 用于显示 "1/2" 导航
+ * 
+ * @param conversationId 会话 ID
+ * @param messageId 当前消息 ID
  */
-export async function getSiblingCheckpoints(
+export async function getSiblingMessages(
     conversationId: string,
-    checkpointId: string
+    messageId: string
 ): Promise<SiblingInfo> {
     const response = await apiClient.get<ApiResponse<SiblingInfo>>(
-        `/checkpoint/${conversationId}/siblings`,
-        { params: { checkpoint_id: checkpointId } }
+        `/checkpoint/${conversationId}/message-siblings`,
+        { params: { message_id: messageId } }
     );
     return response.data.data || { current: 0, total: 1, siblings: [] };
 }
 
 /**
- * 获取指定 checkpoint 的消息列表
+ * 根据 ID 获取消息详情
+ * 
+ * @param conversationId 会话 ID
+ * @param messageId 消息 ID
  */
-export async function getCheckpointMessages(
+export async function getMessageById(
     conversationId: string,
-    checkpointId: string
-): Promise<CheckpointMessage[]> {
-    const response = await apiClient.get<ApiResponse<CheckpointMessage[]>>(
-        `/checkpoint/${conversationId}/messages`,
-        { params: { checkpoint_id: checkpointId } }
+    messageId: string
+): Promise<Message | null> {
+    const response = await apiClient.get<ApiResponse<Message>>(
+        `/checkpoint/${conversationId}/message/${messageId}`
     );
-    return response.data.data || [];
+    return response.data.data || null;
 }
+
+// 保留旧函数名作为别名，方便迁移
+export const getSiblingCheckpoints = getSiblingMessages;
+export const getCheckpointMessages = async (
+    _conversationId: string,
+    _checkpointId: string
+): Promise<Message[]> => {
+    // 已废弃：这个函数不再使用 checkpoint，直接返回空数组
+    console.warn('getCheckpointMessages is deprecated, use getMessageById instead');
+    return [];
+};

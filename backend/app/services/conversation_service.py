@@ -116,11 +116,16 @@ class ConversationService:
         content_type: str = "TEXT",
         model_code: str | None = None,
         token_count: int = 0,
+        parent_id: int | None = None,
+        checkpoint_id: str | None = None,
     ) -> Message:
         """
-        1. 写入消息记录。
+        写入消息记录，支持消息树结构。
+        
+        Args:
+            parent_id: 父消息 ID，用于构建分支
+            checkpoint_id: 关联的 LangGraph checkpoint ID
         """
-        # 1. 写入消息并更新会话最近消息
         message = Message(
             conversation_id=conversation_id,
             sender_id=sender_id,
@@ -130,6 +135,8 @@ class ConversationService:
             model_code=model_code,
             status=1,
             token_count=token_count,
+            parent_id=parent_id,
+            checkpoint_id=checkpoint_id,
         )
         self.db.add(message)
         await self.db.commit()
@@ -141,3 +148,52 @@ class ConversationService:
         )
         await self.db.commit()
         return message
+
+    async def get_sibling_messages(self, message_id: int) -> dict:
+        """
+        获取消息的兄弟分支（基于 SQL parent_id 查询）
+        
+        这是业界标准做法，极其简单高效。
+        
+        Returns:
+            {
+                "current": 0,  # 当前索引
+                "total": 2,    # 总数
+                "siblings": ["msg_id_1", "msg_id_2"]
+            }
+        """
+        # 1. 查当前消息
+        result = await self.db.execute(
+            select(Message).where(Message.id == message_id)
+        )
+        current_msg = result.scalar_one_or_none()
+        
+        if not current_msg or not current_msg.parent_id:
+            return {"current": 0, "total": 1, "siblings": [str(message_id)]}
+        
+        # 2. 查所有同父消息
+        result = await self.db.execute(
+            select(Message.id)
+            .where(Message.parent_id == current_msg.parent_id)
+            .order_by(Message.create_time.asc())
+        )
+        siblings = [str(row[0]) for row in result.all()]
+        
+        # 3. 计算当前索引
+        try:
+            current_index = siblings.index(str(message_id))
+        except ValueError:
+            current_index = 0
+        
+        return {
+            "current": current_index,
+            "total": len(siblings),
+            "siblings": siblings,
+        }
+
+    async def get_message_by_id(self, message_id: int) -> Message | None:
+        """根据 ID 获取消息"""
+        result = await self.db.execute(
+            select(Message).where(Message.id == message_id)
+        )
+        return result.scalar_one_or_none()

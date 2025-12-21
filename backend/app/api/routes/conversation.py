@@ -56,29 +56,30 @@ async def history(
     current: CurrentUser = Depends(get_current_user),
 ) -> ApiResult[list[MessageVo]]:
     """
-    查询会话历史消息（从 LangGraph checkpoint 读取）
+    查询会话历史消息（从数据库读取）
     
-    纯 checkpoint 模式：消息来自 LangGraph 状态，支持分支切换。
+    始终从 t_message 表读取，确保返回的 id 是雪花 ID（可转为 int）。
+    这样前端可以正确使用 message.id 进行分支导航和重新生成。
     """
-    from app.core.settings import get_settings
-    from app.services.checkpoint_service import CheckpointService
+    import logging
     
+    logger = logging.getLogger(__name__)
     conv_service = ConversationService(db)
     try:
         # 1. 校验会话归属
         await conv_service.ensure_owner(int(conversationId), current.id)
         
-        # 2. 从 checkpoint 获取消息（无需 ModelService）
-        settings = get_settings()
-        checkpoint_service = CheckpointService(settings)
+        # 2. 始终从数据库获取消息（返回雪花 ID）
+        items = await conv_service.history(current.id, int(conversationId))
+        logger.info(f"[history] DB items count: {len(items)}, conversationId={conversationId}")
         
-        items = await checkpoint_service.get_latest_messages(int(conversationId))
         return ApiResult.ok([MessageVo(**item) for item in items])
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
         return ApiResult.error("CONV-403", str(ex))
     except Exception as ex:
-        # checkpoint 为空时返回空列表（新会话）
+        logger.error(f"[history] exception: {ex}, conversationId={conversationId}")
+        # 出错时返回空列表
         return ApiResult.ok([])
 
 

@@ -25,8 +25,6 @@ def create_chat_service(
 ) -> ChatService:
     """
     创建 ChatService 实例
-
-    注意：Redis checkpointer 在 ChatService 内部延迟初始化
     """
     conv_service = ConversationService(db)
     model_service = ModelService(settings) if settings.ai_deepseek_api_key else None
@@ -53,8 +51,6 @@ async def stream_chat(
 ):
     """
     流式对话：使用 LangGraph 自动管理对话历史，逐 token 输出。
-
-    对话状态通过 RedisSaver 自动保存/恢复，无需手动管理缓存。
     """
     settings = get_settings()
     chat_service = create_chat_service(db, settings)
@@ -75,8 +71,8 @@ async def stream_chat(
             conversation_id=int(payload.conversationId),
             content=payload.content,
             model_code=payload.modelCode,
-            checkpoint_id=payload.checkpointId,
             regenerate=payload.regenerate,
+            parent_message_id=int(payload.parentMessageId) if payload.parentMessageId else None,
             db=db,
         ):
             yield f"data: {chunk}\n\n"
@@ -106,8 +102,8 @@ async def chat(
             conversation_id=int(payload.conversationId),
             content=payload.content,
             model_code=payload.modelCode,
-            checkpoint_id=payload.checkpointId,
             regenerate=payload.regenerate,
+            parent_message_id=int(payload.parentMessageId) if payload.parentMessageId else None,
             db=db,
         ):
             import json

@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class ConversationParam(BaseModel):
     """
-    1. 对应 Java 版 ConversationParam，用于会话创建或修改。
+    会话创建或修改参数。
     """
 
     id: str | None = Field(default=None, description="会话 ID，可为空")
@@ -19,7 +19,7 @@ class ConversationParam(BaseModel):
 
 class MessageSendParam(BaseModel):
     """
-    1. 对应 Java 版 MessageSendParam，用于非流式消息发送。
+    非流式消息发送参数。
     """
 
     conversationId: str = Field(..., description="会话 ID")
@@ -30,21 +30,20 @@ class MessageSendParam(BaseModel):
 
 class StreamChatParam(BaseModel):
     """
-    1. 对应 Java 版 StreamChatParam，用于流式对话。
+    流式对话请求参数。
     """
 
     conversationId: str = Field(..., description="会话 ID")
     content: str = Field(..., description="用户消息内容")
     modelCode: str | None = Field(default=None, description="模型编码")
     systemPrompt: str | None = Field(default=None, description="系统提示词")
-    checkpointId: str | None = Field(default=None, description="检查点 ID，用于分支/时间旅行")
-    regenerate: bool = Field(default=False, description="重新生成模式，从 checkpointId 分叉生成新回复")
-    parentCheckpointId: str | None = Field(default=None, description="父检查点 ID，用于时间旅行")   
+    parentMessageId: str | None = Field(default=None, description="父消息 ID，用于构建消息树")
+    regenerate: bool = Field(default=False, description="重新生成模式，从父消息分叉生成新回复")
 
 
 class MessageVo(BaseModel):
     """
-    1. 对应 Java 版 MessageVo/HistoryMessageVo 的核心字段，用于统一返回消息。
+    消息视图对象，用于统一返回消息。
     """
 
     id: str = Field(..., description="消息 ID")
@@ -56,11 +55,13 @@ class MessageVo(BaseModel):
     modelCode: str | None = Field(default=None, description="模型编码")
     tokenCount: int | None = Field(default=None, description="Token 数")
     createTime: str | None = Field(default=None, description="创建时间 ISO8601")
+    parentId: str | None = Field(default=None, description="父消息 ID，用于分支导航")
+    checkpointId: str | None = Field(default=None, description="关联的 checkpoint ID")
 
 
 class ConversationVo(BaseModel):
     """
-    1. 对应 Java 版 ConversationVo，描述会话概要。
+    会话概要视图。
     """
 
     id: str = Field(..., description="会话 ID")
@@ -74,7 +75,7 @@ class ConversationVo(BaseModel):
 
 class StreamChatEvent(BaseModel):
     """
-    1. 对应 Java 版 StreamChatEvent，用于 SSE 返回。
+    SSE 流式事件。
     """
 
     type: str = Field(..., description="事件类型：chunk/done/error")
@@ -83,3 +84,25 @@ class StreamChatEvent(BaseModel):
     conversationId: str | None = Field(default=None, description="会话 ID")
     error: str | None = Field(default=None, description="错误信息")
     tokenCount: int | None = Field(default=None, description="Token 使用量")
+    checkpointId: str | None = Field(default=None, description="生成后的最新 checkpoint ID")
+
+
+class PageParams(BaseModel):
+    """
+    分页参数。
+    """
+
+    page: int | None = Field(default=1, description="页码")
+    size: int | None = Field(default=10, description="页大小")
+
+
+class PageResponse(BaseModel):
+    """
+    分页响应。
+    """
+
+    records: list = Field(default=[], description="记录列表")
+    total: int = Field(default=0, description="总记录数")
+    size: int = Field(default=10, description="页大小")
+    current: int = Field(default=1, description="当前页")
+    pages: int = Field(default=0, description="总页数")

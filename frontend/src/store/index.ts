@@ -20,6 +20,8 @@ interface AppState {
   currentConversationId: string | null;
   /** 当前会话的消息列表 */
   messages: Message[];
+  /** 当前分支使用的 checkpoint ID */
+  currentCheckpointId: string | null;
   /** 可用的 AI 模型列表 */
   models: AiModel[];
   /** 当前选中的模型编码 */
@@ -60,6 +62,8 @@ interface AppActions {
   setModels: (models: AiModel[]) => void;
   /** 设置当前模型 */
   setCurrentModelCode: (code: string | null) => void;
+  /** 设置当前 checkpoint ID */
+  setCurrentCheckpointId: (checkpointId: string | null) => void;
   /** 切换侧边栏 */
   toggleSidebar: () => void;
   /** 设置加载状态 */
@@ -86,6 +90,7 @@ export const useAppStore = create<AppState & AppActions>()(
       conversations: [],
       currentConversationId: null,
       messages: [],
+      currentCheckpointId: null,
       models: [],
       currentModelCode: null,
       sidebarOpen: true,
@@ -112,6 +117,7 @@ export const useAppStore = create<AppState & AppActions>()(
           conversations: [],
           currentConversationId: null,
           messages: [],
+          currentCheckpointId: null,
         });
       },
 
@@ -130,7 +136,7 @@ export const useAppStore = create<AppState & AppActions>()(
               : state.currentConversationId,
         })),
       setCurrentConversationId: (id) =>
-        set({ currentConversationId: id, messages: [], streamingContent: '' }),
+        set({ currentConversationId: id, messages: [], streamingContent: '', currentCheckpointId: null }),
 
       // 消息相关操作
       setMessages: (messages) => set({ messages }),
@@ -142,6 +148,7 @@ export const useAppStore = create<AppState & AppActions>()(
       // 模型相关操作
       setModels: (models) => set({ models }),
       setCurrentModelCode: (code) => set({ currentModelCode: code }),
+      setCurrentCheckpointId: (checkpointId) => set({ currentCheckpointId: checkpointId }),
 
       // UI 相关操作
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),

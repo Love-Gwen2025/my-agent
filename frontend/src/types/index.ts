@@ -46,7 +46,9 @@ export interface Message {
   modelCode?: string;
   tokenCount?: number;
   createTime: string;
-  /** Checkpoint ID，用于分支导航 */
+  /** 父消息 ID，用于分支导航 */
+  parentId?: string;
+  /** Checkpoint ID，用于 LangGraph 恢复执行 */
   checkpointId?: string;
 }
 
@@ -82,20 +84,28 @@ export interface CreateConversationParams {
 
 /** 流式聊天请求参数 */
 export interface StreamChatRequest {
-  conversationId: string;  // 改为 string
+  conversationId: string;
   content: string;
   modelCode?: string;
   systemPrompt?: string;
+  /** 父消息 ID，用于构建消息树 */
+  parentMessageId?: string;
+  /** 是否重新生成 */
+  regenerate?: boolean;
 }
 
 /** 流式聊天事件 */
 export interface StreamChatEvent {
   type: 'chunk' | 'done' | 'error';
   content?: string;
-  messageId?: number | string;  // 兼容
+  messageId?: number | string;
   conversationId?: string;
   tokenCount?: number;
   error?: string;
+  /** 父消息 ID */
+  parentId?: string;
+  /** 用户消息真实 ID */
+  userMessageId?: string;
 }
 
 /** API 响应包装 */

@@ -119,9 +119,9 @@ class ChatService:
 
         model_code: str | None = None,
 
-        checkpoint_id: str | None = None,
-
         regenerate: bool = False,
+
+        parent_message_id: int | None = None,
 
         db: AsyncSession | None = None,
 
@@ -156,9 +156,9 @@ class ChatService:
 
             model_code: 模型编码（可选）
 
-            checkpoint_id: 检查点 ID（可选，用于分支/时间旅行）
+            regenerate: 重新生成模式，跳过用户消息持久化
 
-            regenerate: 重新生成模式，跳过用户消息持久化，从 checkpoint 分叉
+            parent_message_id: 父消息 ID，用于构建消息树
 
             db: 数据库会话（用于 RAG）
 
@@ -193,6 +193,8 @@ class ChatService:
 
                 model_code=model_code,
 
+                parent_id=parent_message_id,
+
             )
 
 
@@ -213,9 +215,7 @@ class ChatService:
 
         placeholder_message_id = -1
 
-
         # 4. 构建 LangGraph config
-
         config = {
 
             "configurable": {
@@ -226,11 +226,18 @@ class ChatService:
 
         }
 
-        # 如果指定了 checkpoint_id，从该点分叉
+        # 5. 重新生成时，回退到父消息的 checkpoint
+        parent_checkpoint_id = None
+        if regenerate and parent_message_id:
+            # 查询父消息（用户消息）的上一条 AI 消息的 checkpoint_id
+            # 或者直接查父消息本身的 checkpoint（如果有）
+            parent_msg = await self.conversation_service.get_message_by_id(parent_message_id)
+            if parent_msg and parent_msg.checkpoint_id:
+                parent_checkpoint_id = parent_msg.checkpoint_id
+                config["configurable"]["checkpoint_id"] = parent_checkpoint_id
+                self._logger.info(f"[stream] Rollback to checkpoint: {parent_checkpoint_id}")
 
-        if checkpoint_id:
-
-            config["configurable"]["checkpoint_id"] = checkpoint_id
+        self._logger.info(f"[stream] regenerate={regenerate}, parent_message_id={parent_message_id}, parent_checkpoint_id={parent_checkpoint_id}, config={config}")
 
 
         if self._has_model():
@@ -255,10 +262,15 @@ class ChatService:
 
                 # 构建输入消息
                 # 给 SystemMessage 固定 ID，防止 LangGraph 重复追加
-                input_messages = [
-                    SystemMessage(content=SYSTEM_PROMPT, id="sys_instruction"),
-                    HumanMessage(content=content),
-                ]
+                if regenerate and parent_checkpoint_id:
+                    # 重新生成时，不添加新消息，直接从父 checkpoint 继续执行
+                    # 这样新生成的 checkpoint 会成为原 checkpoint 的兄弟
+                    input_messages = []
+                else:
+                    input_messages = [
+                        SystemMessage(content=SYSTEM_PROMPT, id="sys_instruction"),
+                        HumanMessage(content=content),
+                    ]
 
 
                 # 使用 astream_events 获得 token 级流式输出
@@ -387,6 +399,14 @@ class ChatService:
 
         reply_text = "".join(full_reply) if full_reply else ""
 
+        # 获取最新 checkpoint ID 用于关联
+        latest_checkpoint_id, _ = await self._get_latest_checkpoint_id(
+            conversation_id=conversation_id,
+        )
+
+        # AI 消息的 parent_id 是用户消息的 ID
+        ai_parent_id = user_message.id if user_message else parent_message_id
+
         assistant_message = await self.conversation_service.persist_message(
 
             conversation_id=conversation_id,
@@ -402,6 +422,10 @@ class ChatService:
             model_code=model_code,
 
             token_count=len(reply_text),
+
+            parent_id=ai_parent_id,
+
+            checkpoint_id=latest_checkpoint_id,
 
         )
 
@@ -436,6 +460,9 @@ class ChatService:
 
         # 7. 发送完成信号
 
+        # 获取用户消息 ID（regenerate 时使用 parent_message_id）
+        user_message_id = user_message.id if user_message else parent_message_id
+
         yield json.dumps(
 
             {
@@ -447,6 +474,10 @@ class ChatService:
                 "conversationId": str(conversation_id),
 
                 "tokenCount": len(reply_text),
+
+                "parentId": str(ai_parent_id) if ai_parent_id else None,
+
+                "userMessageId": str(user_message_id) if user_message_id else None,
 
             },
 
@@ -531,4 +562,33 @@ class ChatService:
         except Exception as e:
 
             self._logger.error(f"Background task failed: {e}")
+
+    async def _get_latest_checkpoint_id(
+        self,
+        conversation_id: int,
+    ) -> str | None:
+        """
+        1. 获取最新 checkpointId，用于在 SSE done 事件中返回。
+        """
+        try:
+            # 复用仅包含 thread_id 的配置，确保读取最新状态
+            config = {"configurable": {"thread_id": str(conversation_id)}}
+            async with create_checkpointer(self.settings) as checkpointer:
+                # 使用 alist 获取最新 checkpoint，以便获取 parent_config
+                async for checkpoint_tuple in checkpointer.alist(config, limit=1):
+                    # CheckpointTuple 是对象，使用属性访问
+                    checkpoint = checkpoint_tuple.checkpoint or {}
+                    parent_config = checkpoint_tuple.parent_config or {}
+                    
+                    checkpoint_id = checkpoint.get("id")
+                    parent_id = None
+                    if parent_config:
+                        configurable = parent_config.get("configurable", {}) or {}
+                        parent_id = configurable.get("checkpoint_id")
+                    
+                    return checkpoint_id, parent_id
+                return None, None
+        except Exception as exc:
+            self._logger.error(f"Failed to fetch latest checkpoint info: {exc}")
+            return None, None
 

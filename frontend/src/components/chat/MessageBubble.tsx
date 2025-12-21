@@ -24,6 +24,18 @@ interface MessageBubbleProps {
   onRegenerate?: () => void;
   /** 是否正在重新生成 */
   isRegenerating?: boolean;
+  /** 开启编辑回调（仅用户消息） */
+  onEdit?: () => void;
+  /** 是否处于编辑状态 */
+  isEditing?: boolean;
+  /** 编辑中的内容 */
+  editingContent?: string;
+  /** 编辑内容变更回调 */
+  onEditChange?: (value: string) => void;
+  /** 提交编辑回调 */
+  onEditSubmit?: () => void;
+  /** 取消编辑回调 */
+  onEditCancel?: () => void;
 }
 
 /**
@@ -89,9 +101,16 @@ export function MessageBubble({
   onNavigateBranch,
   onRegenerate,
   isRegenerating = false,
+  onEdit,
+  isEditing = false,
+  editingContent = '',
+  onEditChange,
+  onEditSubmit,
+  onEditCancel,
 }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
+  // 分支导航器只在 AI 消息上显示，用户消息分支通过编辑功能操作
   const showBranchNav = isAssistant && siblingInfo && siblingInfo.total > 1;
   const showRegenerate = isAssistant && onRegenerate && !isStreaming;
 
@@ -130,7 +149,44 @@ export function MessageBubble({
           style={isUser ? { background: 'var(--user-bubble-bg)' } : undefined}
         >
           {isUser ? (
-            <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+            isEditing ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  className="w-full min-h-[80px] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] p-3 outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                  value={editingContent}
+                  onChange={(e) => onEditChange?.(e.target.value)}
+                  placeholder="编辑消息内容"
+                />
+                <div className="flex gap-2">
+                  <button
+                    className="px-3 py-1 rounded bg-[var(--accent-primary)] text-white text-xs disabled:opacity-60"
+                    onClick={onEditSubmit}
+                    disabled={isRegenerating}
+                  >
+                    保存并生成
+                  </button>
+                  <button
+                    className="px-3 py-1 rounded border border-[var(--border-color)] text-xs text-[var(--text-secondary)]"
+                    onClick={onEditCancel}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-3">
+                <p className="whitespace-pre-wrap leading-relaxed flex-1">{message.content}</p>
+                {onEdit && (
+                  <button
+                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-1 rounded transition-colors"
+                    onClick={onEdit}
+                    title="编辑并分支"
+                  >
+                    编辑
+                  </button>
+                )}
+              </div>
+            )
           ) : (
             <div className="markdown-body">
               <ReactMarkdown
@@ -163,6 +219,7 @@ export function MessageBubble({
             </div>
           )}
         </div>
+
 
         {/* AI 消息底部工具栏 */}
         {isAssistant && !isStreaming && (
