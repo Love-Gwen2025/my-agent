@@ -96,7 +96,7 @@ export interface StreamChatRequest {
 
 /** 流式聊天事件 */
 export interface StreamChatEvent {
-  type: 'chunk' | 'done' | 'error';
+  type: 'chunk' | 'done' | 'error' | 'tool_start' | 'tool_end';
   content?: string;
   messageId?: number | string;
   conversationId?: string;
@@ -106,6 +106,8 @@ export interface StreamChatEvent {
   parentId?: string;
   /** 用户消息真实 ID */
   userMessageId?: string;
+  /** 工具名称（tool_start/tool_end 事件时使用） */
+  tool?: string;
 }
 
 /** API 响应包装 */

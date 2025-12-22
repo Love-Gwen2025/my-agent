@@ -6,9 +6,9 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageSquare, Sparkles } from 'lucide-react';
 import { useAppStore } from '../../store';
-import { useSSEChat } from '../../hooks';
+import { useSSEChat, getToolDisplayName } from '../../hooks';
 import { getConversationHistory } from '../../api';
-import { getSiblingMessages, getMessageById } from '../../api/checkpoint';
+import { getSiblingMessages, getMessageById, setCurrentMessage } from '../../api/branch';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { ModelSelector } from './ModelSelector';
@@ -62,7 +62,7 @@ export function ChatPanel() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<string>('');
 
-  const { isLoading, sendMessage, abort } = useSSEChat({
+  const { isLoading, sendMessage, abort, activeTool } = useSSEChat({
     onChunk: (chunk) => {
       latestStreamingRef.current = `${latestStreamingRef.current}${chunk}`;
       setStreamingContent(latestStreamingRef.current);
@@ -219,7 +219,6 @@ export function ChatPanel() {
           direction === 'prev' ? info.current - 1 : info.current + 1;
         if (nextIndex < 0 || nextIndex >= info.total) return;
 
-        // 获取目标消息 ID
         const targetMessageId = info.siblings[nextIndex];
         // 获取目标消息并替换当前消息
         const targetMessage = await getMessageById(currentConversationId, targetMessageId);
@@ -229,6 +228,11 @@ export function ChatPanel() {
             String(msg.id) === messageId ? targetMessage : msg
           );
           setMessages(newMessages);
+
+          // 保存用户选择的分支状态（异步，不阻塞 UI）
+          setCurrentMessage(currentConversationId, targetMessageId).catch(
+            (err) => console.error('保存分支状态失败:', err)
+          );
         }
         setSiblingInfoMap((prev) => ({
           ...prev,
@@ -436,6 +440,19 @@ export function ChatPanel() {
                 }}
               />
             ))}
+            {/* 工具调用状态指示器 */}
+            {activeTool && (
+              <div className="tool-status-indicator">
+                <div className="tool-status-icon">
+                  <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-4.93-5.07l-2.83 2.83m-5.66 5.66l-2.83 2.83m11.32 0l-2.83-2.83m-5.66-5.66l-2.83-2.83" />
+                  </svg>
+                </div>
+                <span className="tool-status-text">
+                  正在{getToolDisplayName(activeTool)}...
+                </span>
+              </div>
+            )}
             {streamingContent && (
               <MessageBubble
                 message={{

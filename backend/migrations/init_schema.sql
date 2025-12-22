@@ -3,8 +3,8 @@
 -- 包含所有表结构的完整定义
 -- ID 使用雪花算法在应用层生成
 -- =============================================
--- 版本: 1.0.0
--- 更新: 合并 000_init_schema.sql 和 001_add_message_embedding.sql
+-- 版本: 1.1.0
+-- 更新: 合并消息树分支支持（parent_id, checkpoint_id）
 -- =============================================
 
 -- 1. 启用 pgvector 扩展（用于向量检索）
@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS t_message (
     token_count INTEGER DEFAULT 0,
     model_code VARCHAR(50),
     status INTEGER DEFAULT 1,
+    parent_id BIGINT,  -- 父消息 ID，用于构建消息树分支
+    checkpoint_id VARCHAR(100),  -- LangGraph checkpoint ID，用于恢复执行
     ext JSONB,
     create_time TIMESTAMP DEFAULT NOW() NOT NULL,
     update_time TIMESTAMP DEFAULT NOW() NOT NULL,
@@ -90,6 +92,7 @@ CREATE TABLE IF NOT EXISTS t_message (
 CREATE INDEX IF NOT EXISTS idx_message_conversation_id ON t_message(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_message_sender_id ON t_message(sender_id);
 CREATE INDEX IF NOT EXISTS idx_message_create_time ON t_message(create_time DESC);
+CREATE INDEX IF NOT EXISTS idx_message_parent_id ON t_message(parent_id);
 
 COMMENT ON TABLE t_message IS '消息表';
 COMMENT ON COLUMN t_message.conversation_id IS '所属会话 ID';
@@ -99,6 +102,8 @@ COMMENT ON COLUMN t_message.content IS '消息内容';
 COMMENT ON COLUMN t_message.content_type IS '内容类型: TEXT/IMAGE/FILE';
 COMMENT ON COLUMN t_message.token_count IS 'Token 消耗数';
 COMMENT ON COLUMN t_message.status IS '状态: 1-正常, 0-删除';
+COMMENT ON COLUMN t_message.parent_id IS '父消息 ID，用于构建消息树分支';
+COMMENT ON COLUMN t_message.checkpoint_id IS 'LangGraph checkpoint ID，用于恢复执行';
 
 -- =============================================
 -- 消息向量表 (t_message_embedding)

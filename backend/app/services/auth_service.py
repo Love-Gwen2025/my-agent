@@ -1,12 +1,12 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import Settings
 from app.models.user import User
 from app.utils.jwt_token import create_access_token
-from app.utils.password import hash_password, verify_and_migrate
+from app.utils.password import hash_password, verify_password
 from app.utils.session_store import SessionStore
 
 
@@ -55,19 +55,10 @@ class AuthService:
         user = query.scalar_one_or_none()
         if user is None:
             raise ValueError("用户不存在")
-        # 2. 校验密码，兼容旧明文
-        is_valid, new_hash = verify_and_migrate(payload.get("userPassword"), user.user_password)
-        if not is_valid:
+        # 2. 校验密码
+        if not verify_password(payload.get("userPassword"), user.user_password):
             raise ValueError("账号或密码错误")
-        # 3. 如需迁移明文则回写哈希
-        if new_hash:
-            await self.db.execute(
-                update(User)
-                .where(User.id == user.id)
-                .values(user_password=new_hash, update_time=datetime.now())
-            )
-            await self.db.commit()
-        # 4. 生成 JWT 并写入 Redis 会话
+        # 3. 生成 JWT 并写入 Redis 会话
         token, expire_at = create_access_token(user.id, user.user_name, self.settings)
         session_payload = {
             "id": user.id,
