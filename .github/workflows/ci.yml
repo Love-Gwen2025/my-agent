@@ -1,9 +1,9 @@
 name: Build and Push Docker Images
 
 on:
-  # PR 合并到 master 时触发（推荐的生产实践）
+  # 推送到 feature/dev_ynk 时触发
   push:
-    branches: [master]
+    branches: [feature/dev_ynk]
   # 手动触发（用于紧急修复）
   workflow_dispatch:
 
