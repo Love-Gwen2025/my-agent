@@ -1,9 +1,9 @@
 name: Build and Push Docker Images
 
 on:
-  # PR 合并到 main 时触发（推荐的生产实践）
+  # PR 合并到 master 时触发（推荐的生产实践）
   push:
-    branches: [main]
+    branches: [master]
   # 手动触发（用于紧急修复）
   workflow_dispatch:
 
