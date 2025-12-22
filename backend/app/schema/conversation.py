@@ -1,77 +1,114 @@
+"""
+Pydantic Schema 定义
+
+注意: 所有雪花 ID 使用 str 类型，避免 JavaScript 大整数精度丢失
+"""
 
 from pydantic import BaseModel, Field
 
 
 class ConversationParam(BaseModel):
     """
-    1. 对应 Java 版 ConversationParam，用于会话创建或修改。
+    会话创建或修改参数。
     """
 
-    id: int | None = Field(default=None, description="会话 ID，可为空")
+    id: str | None = Field(default=None, description="会话 ID，可为空")
     title: str | None = Field(default=None, description="会话标题")
     modelCode: str | None = Field(default=None, description="默认模型编码")
 
 
 class MessageSendParam(BaseModel):
     """
-    1. 对应 Java 版 MessageSendParam，用于非流式消息发送。
+    非流式消息发送参数。
     """
 
-    conversationId: int = Field(..., description="会话 ID")
+    conversationId: str = Field(..., description="会话 ID")
     content: str = Field(..., description="消息内容")
     contentType: str | None = Field(default="TEXT", description="消息类型")
-    replyTo: int | None = Field(default=None, description="引用消息 ID")
+    replyTo: str | None = Field(default=None, description="引用消息 ID")
 
 
 class StreamChatParam(BaseModel):
     """
-    1. 对应 Java 版 StreamChatParam，用于流式对话。
+    流式对话请求参数。
     """
 
-    conversationId: int = Field(..., description="会话 ID")
+    conversationId: str = Field(..., description="会话 ID")
     content: str = Field(..., description="用户消息内容")
     modelCode: str | None = Field(default=None, description="模型编码")
     systemPrompt: str | None = Field(default=None, description="系统提示词")
+    parentMessageId: str | None = Field(default=None, description="父消息 ID，用于构建消息树")
+    regenerate: bool = Field(default=False, description="重新生成模式，从父消息分叉生成新回复")
 
 
 class MessageVo(BaseModel):
     """
-    1. 对应 Java 版 MessageVo/HistoryMessageVo 的核心字段，用于统一返回消息。
+    消息视图对象，用于统一返回消息。
     """
 
-    id: int = Field(..., description="消息 ID")
-    conversationId: int = Field(..., description="会话 ID")
-    senderId: int = Field(..., description="发送者 ID")
+    id: str = Field(..., description="消息 ID")
+    conversationId: str = Field(..., description="会话 ID")
+    senderId: str = Field(..., description="发送者 ID")
     role: str = Field(..., description="角色 user/assistant")
     content: str = Field(..., description="消息内容")
     contentType: str = Field(default="TEXT", description="消息类型")
     modelCode: str | None = Field(default=None, description="模型编码")
     tokenCount: int | None = Field(default=None, description="Token 数")
     createTime: str | None = Field(default=None, description="创建时间 ISO8601")
+    parentId: str | None = Field(default=None, description="父消息 ID，用于分支导航")
+    checkpointId: str | None = Field(default=None, description="关联的 checkpoint ID")
+
+
+class HistoryResponse(BaseModel):
+    """消息历史响应，包含完整消息树"""
+    messages: list[MessageVo] = Field(..., description="所有消息列表")
+    currentMessageId: str | None = Field(default=None, description="当前选中的消息 ID")
 
 
 class ConversationVo(BaseModel):
     """
-    1. 对应 Java 版 ConversationVo，描述会话概要。
+    会话概要视图。
     """
 
-    id: int = Field(..., description="会话 ID")
+    id: str = Field(..., description="会话 ID")
     title: str | None = Field(default=None, description="会话标题")
-    userId: int = Field(..., description="拥有者 ID")
+    userId: str = Field(..., description="拥有者 ID")
     modelCode: str | None = Field(default=None, description="默认模型编码")
-    lastMessageId: int | None = Field(default=None, description="最后一条消息 ID")
+    lastMessageId: str | None = Field(default=None, description="最后一条消息 ID")
     lastMessageAt: str | None = Field(default=None, description="最后消息时间 ISO8601")
     avatar: str | None = Field(default=None, description="会话头像")
 
 
 class StreamChatEvent(BaseModel):
     """
-    1. 对应 Java 版 StreamChatEvent，用于 SSE 返回。
+    SSE 流式事件。
     """
 
     type: str = Field(..., description="事件类型：chunk/done/error")
     content: str | None = Field(default=None, description="内容片段")
-    messageId: int | None = Field(default=None, description="消息 ID")
-    conversationId: int | None = Field(default=None, description="会话 ID")
+    messageId: str | None = Field(default=None, description="消息 ID")
+    conversationId: str | None = Field(default=None, description="会话 ID")
     error: str | None = Field(default=None, description="错误信息")
     tokenCount: int | None = Field(default=None, description="Token 使用量")
+    checkpointId: str | None = Field(default=None, description="生成后的最新 checkpoint ID")
+
+
+class PageParams(BaseModel):
+    """
+    分页参数。
+    """
+
+    page: int | None = Field(default=1, description="页码")
+    size: int | None = Field(default=10, description="页大小")
+
+
+class PageResponse(BaseModel):
+    """
+    分页响应。
+    """
+
+    records: list = Field(default=[], description="记录列表")
+    total: int = Field(default=0, description="总记录数")
+    size: int = Field(default=10, description="页大小")
+    current: int = Field(default=1, description="当前页")
+    pages: int = Field(default=0, description="总页数")

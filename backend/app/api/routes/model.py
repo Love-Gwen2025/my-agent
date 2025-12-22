@@ -1,12 +1,12 @@
 """
 AI 模型配置接口
 """
+
 from fastapi import APIRouter
 
 from app.core.settings import get_settings
 from app.schema.base import ApiResult
 from app.schema.model import ModelVo
-
 
 router = APIRouter(prefix="/model", tags=["模型"])
 
@@ -18,7 +18,7 @@ async def list_models() -> ApiResult[list[ModelVo]]:
     """
     settings = get_settings()
     models: list[ModelVo] = []
-    
+
     # DeepSeek 模型
     if settings.ai_deepseek_api_key:
         models.append(
@@ -31,7 +31,7 @@ async def list_models() -> ApiResult[list[ModelVo]]:
                 status=1,
             )
         )
-    
+
     # OpenAI 模型
     if settings.ai_openai_api_key and settings.ai_openai_deployment_name:
         models.append(
@@ -44,7 +44,7 @@ async def list_models() -> ApiResult[list[ModelVo]]:
                 status=1,
             )
         )
-    
+
     # 如果没有配置任何模型，返回占位
     if not models:
         models.append(
@@ -57,7 +57,7 @@ async def list_models() -> ApiResult[list[ModelVo]]:
                 status=0,
             )
         )
-    
+
     return ApiResult.ok(models)
 
 

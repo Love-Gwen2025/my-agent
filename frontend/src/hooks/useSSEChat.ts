@@ -14,6 +14,10 @@ interface UseSSEChatOptions {
   onComplete?: (event: StreamChatEvent, finalContent: string) => void;
   /** 发生错误时的回调 */
   onError?: (error: string) => void;
+  /** 工具开始调用时的回调 */
+  onToolStart?: (toolName: string) => void;
+  /** 工具调用结束时的回调 */
+  onToolEnd?: (toolName: string) => void;
 }
 
 interface UseSSEChatReturn {
@@ -21,6 +25,8 @@ interface UseSSEChatReturn {
   isLoading: boolean;
   /** 当前累积的响应内容 */
   content: string;
+  /** 当前正在执行的工具名称（null 表示没有工具在执行） */
+  activeTool: string | null;
   /** 发送消息 */
   sendMessage: (request: StreamChatRequest) => void;
   /** 中止当前请求 */
@@ -30,16 +36,34 @@ interface UseSSEChatReturn {
 }
 
 /**
+ * 工具名称到中文显示名称的映射
+ */
+const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  rag_search: '搜索历史对话',
+  web_search: '搜索网页',
+  get_current_time: '获取当前时间',
+  simple_calculator: '计算',
+};
+
+/**
+ * 获取工具的显示名称
+ */
+export function getToolDisplayName(toolName: string): string {
+  return TOOL_DISPLAY_NAMES[toolName] || toolName;
+}
+
+/**
  * SSE 流式聊天 Hook
  *
  * @param options 配置选项
  * @returns SSE 聊天控制器
  */
 export function useSSEChat(options: UseSSEChatOptions = {}): UseSSEChatReturn {
-  const { onChunk, onComplete, onError } = options;
+  const { onChunk, onComplete, onError, onToolStart, onToolEnd } = options;
 
   const [isLoading, setIsLoading] = useState(false);
   const [content, setContent] = useState('');
+  const [activeTool, setActiveTool] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
@@ -48,6 +72,7 @@ export function useSSEChat(options: UseSSEChatOptions = {}): UseSSEChatReturn {
   const reset = useCallback(() => {
     setContent('');
     setIsLoading(false);
+    setActiveTool(null);
   }, []);
 
   /**
@@ -59,6 +84,7 @@ export function useSSEChat(options: UseSSEChatOptions = {}): UseSSEChatReturn {
       abortControllerRef.current = null;
     }
     setIsLoading(false);
+    setActiveTool(null);
   }, []);
 
   /**
@@ -76,7 +102,7 @@ export function useSSEChat(options: UseSSEChatOptions = {}): UseSSEChatReturn {
 
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+        const response = await fetch(`${API_BASE_URL}/chat/stream`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -134,11 +160,21 @@ export function useSSEChat(options: UseSSEChatOptions = {}): UseSSEChatReturn {
                   onChunk?.(event.content);
                 } else if (event.type === 'done') {
                   setIsLoading(false);
+                  setActiveTool(null);
                   // done 事件使用当前累积内容作为最终内容传递
                   onComplete?.(event, accumulatedContent);
                 } else if (event.type === 'error') {
                   setIsLoading(false);
+                  setActiveTool(null);
                   onError?.(event.error || '未知错误');
+                } else if (event.type === 'tool_start' && event.tool) {
+                  // 工具开始调用
+                  setActiveTool(event.tool);
+                  onToolStart?.(event.tool);
+                } else if (event.type === 'tool_end' && event.tool) {
+                  // 工具调用结束
+                  setActiveTool(null);
+                  onToolEnd?.(event.tool);
                 }
               } catch {
                 console.warn('Failed to parse SSE data:', jsonStr);
@@ -155,16 +191,19 @@ export function useSSEChat(options: UseSSEChatOptions = {}): UseSSEChatReturn {
           onError?.(errorMessage);
         }
         setIsLoading(false);
+        setActiveTool(null);
       }
     },
-    [abort, reset, onChunk, onComplete, onError]
+    [abort, reset, onChunk, onComplete, onError, onToolStart, onToolEnd]
   );
 
   return {
     isLoading,
     content,
+    activeTool,
     sendMessage,
     abort,
     reset,
   };
 }
+

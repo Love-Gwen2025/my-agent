@@ -43,24 +43,24 @@ export async function createConversation(
  *
  * @param id 会话ID
  */
-export async function deleteConversation(id: number): Promise<void> {
+export async function deleteConversation(id: string): Promise<void> {
   await apiClient.delete(`/conversation/${id}`);
 }
 
 /**
- * 获取会话历史消息
+ * 获取会话历史消息（返回完整消息树）
  *
  * @param conversationId 会话ID
- * @returns 消息列表
+ * @returns 包含所有消息和当前选中消息ID的响应
  */
 export async function getConversationHistory(
-  conversationId: number
-): Promise<Message[]> {
-  const response = await apiClient.get<ApiResponse<Message[]>>(
+  conversationId: string
+): Promise<{ messages: Message[]; currentMessageId: string | null }> {
+  const response = await apiClient.get<ApiResponse<{ messages: Message[]; currentMessageId: string | null }>>(
     `/conversation/history`,
     { params: { conversationId } }
   );
-  return response.data.data || [];
+  return response.data.data || { messages: [], currentMessageId: null };
 }
 
 /**
@@ -70,7 +70,7 @@ export async function getConversationHistory(
  * @param title 新标题
  */
 export async function updateConversationTitle(
-  id: number,
+  id: string,
   title: string
 ): Promise<void> {
   await apiClient.patch(`/conversation/modify`, { id, title });

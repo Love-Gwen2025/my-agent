@@ -2,31 +2,25 @@
  * 模型选择器组件
  */
 import { useEffect, useState } from 'react';
-import { ChevronDown, Bot } from 'lucide-react';
+import { ChevronDown, Bot, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../../store';
 import { getModels } from '../../api';
 import clsx from 'clsx';
 
-/**
- * 模型选择器组件
- */
 export function ModelSelector() {
   const { models, currentModelCode, setModels, setCurrentModelCode, token } =
     useAppStore();
   const [isOpen, setIsOpen] = useState(false);
 
-  /** 加载模型列表 */
   useEffect(() => {
-    if (token) {
-      loadModels();
-    }
+    if (token) loadModels();
   }, [token]);
 
   async function loadModels() {
     try {
       const data = await getModels();
       setModels(data);
-      // 设置默认模型
       if (!currentModelCode && data.length > 0) {
         const defaultModel = data.find((m) => m.isDefault) || data[0];
         setCurrentModelCode(defaultModel.modelCode);
@@ -38,59 +32,65 @@ export function ModelSelector() {
 
   const currentModel = models.find((m) => m.modelCode === currentModelCode);
 
-  if (models.length === 0) {
-    return null;
-  }
+  if (models.length === 0) return null;
 
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
-        className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors text-sm"
+        className={clsx(
+          "flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border/50 transition-all duration-200 text-sm font-medium",
+          isOpen ? "bg-surface-highlight text-primary ring-2 ring-primary/10" : "bg-surface/50 hover:bg-surface-highlight text-muted hover:text-foreground"
+        )}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <Bot className="w-4 h-4 text-[var(--accent-primary)]" />
+        <Bot className={clsx("w-4 h-4", isOpen ? "text-primary" : "text-muted")} />
         <span>{currentModel?.modelName || '选择模型'}</span>
         <ChevronDown
           className={clsx(
-            'w-4 h-4 transition-transform',
-            isOpen && 'rotate-180'
+            'w-3.5 h-3.5 transition-transform duration-200 opacity-50',
+            isOpen && 'rotate-180 opacity-100'
           )}
         />
       </button>
 
-      {isOpen && (
-        <>
-          {/* 背景遮罩 */}
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
-          {/* 下拉菜单 */}
-          <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-lg z-20 py-1">
-            {models.map((model) => (
-              <button
-                key={model.id}
-                className={clsx(
-                  'w-full px-3 py-2 text-left text-sm hover:bg-[var(--bg-tertiary)] transition-colors flex items-center justify-between',
-                  model.modelCode === currentModelCode &&
-                    'text-[var(--accent-primary)]'
-                )}
-                onClick={() => {
-                  setCurrentModelCode(model.modelCode);
-                  setIsOpen(false);
-                }}
-              >
-                <span>{model.modelName}</span>
-                {model.isDefault && (
-                  <span className="text-xs text-[var(--text-secondary)]">
-                    默认
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 5, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 5, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-full right-0 mt-2 w-56 bg-surface/90 backdrop-blur-xl border border-border rounded-xl shadow-2xl z-20 overflow-hidden p-1.5"
+            >
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted/50 uppercase tracking-wider">
+                Available Models
+              </div>
+              {models.map((model) => (
+                <button
+                  key={model.id}
+                  className={clsx(
+                    'w-full px-3 py-2.5 text-left text-sm rounded-lg transition-all flex items-center justify-between group',
+                    model.modelCode === currentModelCode
+                      ? 'bg-primary/10 text-primary'
+                      : 'hover:bg-surface-highlight text-muted hover:text-foreground'
+                  )}
+                  onClick={() => {
+                    setCurrentModelCode(model.modelCode);
+                    setIsOpen(false);
+                  }}
+                >
+                  <span className="font-medium">{model.modelName}</span>
+                  {model.modelCode === currentModelCode && (
+                    <Check className="w-4 h-4 text-primary" />
+                  )}
+                </button>
+              ))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

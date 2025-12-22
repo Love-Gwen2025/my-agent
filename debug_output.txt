@@ -1,0 +1,8 @@
+DB URL: postgresql+asyncpg://postgres:123456@localhost:5432/couple_agent
+Connected to DB
+DB Error: (sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedTableError'>: relation "t_conversation" does not exist
+[SQL: SELECT t_conversation.user_id, t_conversation.title, t_conversation.model_code, t_conversation.last_message_id, t_conversation.last_message_at, t_conversation.ext, t_conversation.avatar, t_conversation.current_message_id, t_conversation.id, t_conversation.create_time, t_conversation.update_time, t_conversation.version 
+FROM t_conversation ORDER BY t_conversation.update_time DESC 
+ LIMIT $1::INTEGER]
+[parameters: (1,)]
+(Background on this error at: https://sqlalche.me/e/20/f405)

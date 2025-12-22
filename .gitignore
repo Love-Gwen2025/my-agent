@@ -2,7 +2,7 @@
 .venv/
 venv/
 env/
-.env.local
+.env
 
 # Python 缓存
 __pycache__/
@@ -46,5 +46,12 @@ frontend/node_modules/
 frontend/dist/
 frontend/.env.local
 
-# 敏感配置（可选）
-# .env
+# 环境变量文件（敏感信息，不提交）
+.env
+.env.local
+.env.*.local
+.env.prod
+.env.production
+# 但保留 example 模板
+!.env.example
+!.env.prod.example

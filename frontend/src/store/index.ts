@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, Conversation, Message, AiModel } from '../types';
+import type { ThemeMode, AccentColor } from '../config/themes';
 
 /** 应用状态接口 */
 interface AppState {
@@ -16,9 +17,11 @@ interface AppState {
   /** 会话列表 */
   conversations: Conversation[];
   /** 当前选中的会话ID */
-  currentConversationId: number | null;
+  currentConversationId: string | null;
   /** 当前会话的消息列表 */
   messages: Message[];
+  /** 当前分支使用的 checkpoint ID */
+  currentCheckpointId: string | null;
   /** 可用的 AI 模型列表 */
   models: AiModel[];
   /** 当前选中的模型编码 */
@@ -29,6 +32,10 @@ interface AppState {
   isLoading: boolean;
   /** 流式响应的临时内容 */
   streamingContent: string;
+  /** 主题模式 (亮色/暗色/跟随系统) */
+  themeMode: ThemeMode;
+  /** 强调色主题 */
+  accentColor: AccentColor;
 }
 
 /** 应用操作接口 */
@@ -44,9 +51,9 @@ interface AppActions {
   /** 添加新会话 */
   addConversation: (conversation: Conversation) => void;
   /** 删除会话 */
-  removeConversation: (id: number) => void;
+  removeConversation: (id: string) => void;
   /** 设置当前会话 */
-  setCurrentConversationId: (id: number | null) => void;
+  setCurrentConversationId: (id: string | null) => void;
   /** 设置消息列表 */
   setMessages: (messages: Message[]) => void;
   /** 添加消息 */
@@ -55,6 +62,8 @@ interface AppActions {
   setModels: (models: AiModel[]) => void;
   /** 设置当前模型 */
   setCurrentModelCode: (code: string | null) => void;
+  /** 设置当前 checkpoint ID */
+  setCurrentCheckpointId: (checkpointId: string | null) => void;
   /** 切换侧边栏 */
   toggleSidebar: () => void;
   /** 设置加载状态 */
@@ -65,6 +74,10 @@ interface AppActions {
   appendStreamingContent: (chunk: string) => void;
   /** 清空流式内容 */
   clearStreamingContent: () => void;
+  /** 设置主题模式 */
+  setThemeMode: (mode: ThemeMode) => void;
+  /** 设置强调色 */
+  setAccentColor: (color: AccentColor) => void;
 }
 
 /** 应用 Store */
@@ -77,11 +90,14 @@ export const useAppStore = create<AppState & AppActions>()(
       conversations: [],
       currentConversationId: null,
       messages: [],
+      currentCheckpointId: null,
       models: [],
       currentModelCode: null,
       sidebarOpen: true,
       isLoading: false,
       streamingContent: '',
+      themeMode: 'system',
+      accentColor: 'blue',
 
       // 用户相关操作
       setUser: (user) => set({ user }),
@@ -101,6 +117,7 @@ export const useAppStore = create<AppState & AppActions>()(
           conversations: [],
           currentConversationId: null,
           messages: [],
+          currentCheckpointId: null,
         });
       },
 
@@ -119,7 +136,7 @@ export const useAppStore = create<AppState & AppActions>()(
               : state.currentConversationId,
         })),
       setCurrentConversationId: (id) =>
-        set({ currentConversationId: id, messages: [], streamingContent: '' }),
+        set({ currentConversationId: id, messages: [], streamingContent: '', currentCheckpointId: null }),
 
       // 消息相关操作
       setMessages: (messages) => set({ messages }),
@@ -131,6 +148,7 @@ export const useAppStore = create<AppState & AppActions>()(
       // 模型相关操作
       setModels: (models) => set({ models }),
       setCurrentModelCode: (code) => set({ currentModelCode: code }),
+      setCurrentCheckpointId: (checkpointId) => set({ currentCheckpointId: checkpointId }),
 
       // UI 相关操作
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
@@ -143,6 +161,10 @@ export const useAppStore = create<AppState & AppActions>()(
           streamingContent: state.streamingContent + chunk,
         })),
       clearStreamingContent: () => set({ streamingContent: '' }),
+
+      // 主题相关操作
+      setThemeMode: (mode) => set({ themeMode: mode }),
+      setAccentColor: (color) => set({ accentColor: color }),
     }),
     {
       name: 'app-storage',
@@ -150,6 +172,8 @@ export const useAppStore = create<AppState & AppActions>()(
         token: state.token,
         user: state.user,
         currentModelCode: state.currentModelCode,
+        themeMode: state.themeMode,
+        accentColor: state.accentColor,
       }),
     }
   )

@@ -1,17 +1,45 @@
+"""
+聊天相关 API 路由 - 使用 LangGraph 自动状态管理
+"""
+
 from fastapi import APIRouter, Depends, Response, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db_session
-from app.core.settings import get_settings
+from app.core.settings import Settings, get_settings
 from app.dependencies.auth import CurrentUser, get_current_user
 from app.schema.base import ApiResult
 from app.schema.conversation import StreamChatParam
 from app.services.chat_service import ChatService
 from app.services.conversation_service import ConversationService
+from app.services.embedding_service import EmbeddingService
 from app.services.model_service import ModelService
 
 router = APIRouter(prefix="/chat", tags=["聊天"])
+
+
+def create_chat_service(
+    db: AsyncSession,
+    settings: Settings,
+) -> ChatService:
+    """
+    创建 ChatService 实例
+    """
+    conv_service = ConversationService(db)
+    model_service = ModelService(settings) if settings.ai_deepseek_api_key else None
+
+    # 可选服务 - 根据配置启用
+    embedding_service = None
+    if settings.ai_openai_api_key or settings.ai_embedding_api_key:
+        embedding_service = EmbeddingService(settings)
+
+    return ChatService(
+        conversation_service=conv_service,
+        model_service=model_service,
+        embedding_service=embedding_service,
+        settings=settings,
+    )
 
 
 @router.post("/stream")
@@ -22,15 +50,14 @@ async def stream_chat(
     current: CurrentUser = Depends(get_current_user),
 ):
     """
-    1. 流式对话：校验会话后逐 token 输出。
+    流式对话：使用 LangGraph 自动管理对话历史，逐 token 输出。
     """
-    conv_service = ConversationService(db)
     settings = get_settings()
-    model_service = ModelService(settings) if settings.ai_deepseek_api_key else None
-    chat_service = ChatService(conv_service, model_service)
+    chat_service = create_chat_service(db, settings)
+    conv_service = ConversationService(db)
 
     try:
-        await conv_service.ensure_owner(payload.conversationId, current.id)
+        await conv_service.ensure_owner(int(payload.conversationId), current.id)
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
         return JSONResponse(
@@ -39,12 +66,14 @@ async def stream_chat(
         )
 
     async def event_generator():
-        # 1. 按顺序推送分片
         async for chunk in chat_service.stream(
             user_id=current.id,
-            conversation_id=payload.conversationId,
+            conversation_id=int(payload.conversationId),
             content=payload.content,
             model_code=payload.modelCode,
+            regenerate=payload.regenerate,
+            parent_message_id=int(payload.parentMessageId) if payload.parentMessageId else None,
+            db=db,
         ):
             yield f"data: {chunk}\n\n"
 
@@ -59,21 +88,30 @@ async def chat(
     current: CurrentUser = Depends(get_current_user),
 ) -> ApiResult[str]:
     """
-    1. 同步对话：校验会话归属并回显回复。
+    同步对话（已废弃，请使用 /stream）。
+    为保持兼容性，此接口收集流式结果后一次返回。
     """
-    conv_service = ConversationService(db)
     settings = get_settings()
-    model_service = ModelService(settings) if settings.ai_deepseek_api_key else None
-    chat_service = ChatService(conv_service, model_service)
+    chat_service = create_chat_service(db, settings)
+
     try:
-        # 1. 执行聊天并返回最终回复
-        reply, _ = await chat_service.chat(
+        # 收集流式结果
+        full_reply = []
+        async for chunk in chat_service.stream(
             user_id=current.id,
-            conversation_id=payload.conversationId,
+            conversation_id=int(payload.conversationId),
             content=payload.content,
             model_code=payload.modelCode,
-        )
-        return ApiResult.ok(reply)
+            regenerate=payload.regenerate,
+            parent_message_id=int(payload.parentMessageId) if payload.parentMessageId else None,
+            db=db,
+        ):
+            import json
+            data = json.loads(chunk)
+            if data.get("type") == "chunk":
+                full_reply.append(data.get("content", ""))
+        
+        return ApiResult.ok("".join(full_reply))
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
         return ApiResult.error("CONV-403", str(ex))
@@ -82,6 +120,6 @@ async def chat(
 @router.get("/health", response_model=ApiResult[str])
 async def health() -> ApiResult[str]:
     """
-    1. 健康检查接口：便于在迁移过程中验证 Python 服务存活。
+    健康检查接口。
     """
     return ApiResult.ok("Chat service is healthy")

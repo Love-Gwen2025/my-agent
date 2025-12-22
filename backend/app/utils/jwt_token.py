@@ -29,6 +29,8 @@ def decode_token(token: str, settings: Settings) -> dict[str, Any] | None:
     1. 解析 JWT，异常返回 None，避免抛出 500。
     """
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"], options={"verify_aud": False})
+        return jwt.decode(
+            token, settings.jwt_secret, algorithms=["HS256"], options={"verify_aud": False}
+        )
     except JWTError:
         return None

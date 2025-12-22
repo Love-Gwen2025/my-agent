@@ -25,13 +25,15 @@ class Conversation(Base):
     def to_vo(self) -> dict:
         """
         1. 转为接口会话视图。
+        注意: BigInt ID 转为字符串，避免 JavaScript 精度丢失
         """
         return {
-            "id": self.id,
+            "id": str(self.id),
             "title": self.title,
-            "userId": self.user_id,
+            "userId": str(self.user_id),
             "modelCode": self.model_code,
-            "lastMessageId": self.last_message_id,
+            "lastMessageId": str(self.last_message_id) if self.last_message_id else None,
             "lastMessageAt": self.last_message_at.isoformat() if self.last_message_at else None,
             "avatar": self.avatar,
         }
+

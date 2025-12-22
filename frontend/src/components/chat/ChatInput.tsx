@@ -1,24 +1,18 @@
 /**
- * 消息输入框组件
+ * 消息输入框组件 - Premium Edition
  */
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, StopCircle } from 'lucide-react';
+import { Send, StopCircle, Plus, Mic, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
 interface ChatInputProps {
-  /** 是否正在加载 */
   isLoading?: boolean;
-  /** 是否禁用 */
   disabled?: boolean;
-  /** 发送消息回调 */
   onSend: (content: string) => void;
-  /** 中止请求回调 */
   onAbort?: () => void;
 }
 
-/**
- * 消息输入框组件
- */
 export function ChatInput({
   isLoading,
   disabled,
@@ -26,9 +20,9 @@ export function ChatInput({
   onAbort,
 }: ChatInputProps) {
   const [input, setInput] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  /** 自动调整高度 */
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -37,7 +31,6 @@ export function ChatInput({
     }
   }, [input]);
 
-  /** 处理发送 */
   const handleSend = () => {
     const content = input.trim();
     if (!content || isLoading || disabled) return;
@@ -45,7 +38,6 @@ export function ChatInput({
     setInput('');
   };
 
-  /** 处理键盘事件 */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -54,45 +46,116 @@ export function ChatInput({
   };
 
   return (
-    <div className="p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
-      <div className="max-w-4xl mx-auto">
-        <div className="relative flex items-end gap-2 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] p-2">
+    <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-background via-background/95 to-transparent z-20">
+      <div className="max-w-3xl mx-auto relative">
+        <motion.div
+          initial={false}
+          animate={{
+            boxShadow: isFocused
+              ? '0 0 0 3px rgba(var(--primary), 0.15), 0 8px 32px rgba(var(--primary), 0.12)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)'
+          }}
+          className={clsx(
+            'flex items-end gap-2 p-3 rounded-[28px] transition-all duration-300',
+            'glass border',
+            isFocused ? 'border-primary/30' : 'border-transparent'
+          )}
+        >
+          {/* Left Actions */}
+          <motion.button
+            whileHover={{ scale: 1.1, rotate: 90 }}
+            whileTap={{ scale: 0.9 }}
+            className="p-2.5 rounded-xl hover:bg-surface-container-high text-muted hover:text-primary transition-all"
+          >
+            <Plus className="w-5 h-5" />
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="p-2.5 rounded-xl hover:bg-surface-container-high text-muted hover:text-primary transition-all hidden sm:block"
+          >
+            <ImageIcon className="w-5 h-5" />
+          </motion.button>
+
           <textarea
             ref={textareaRef}
-            className="flex-1 bg-transparent text-[var(--text-primary)] resize-none outline-none px-2 py-1 max-h-[200px] placeholder:text-[var(--text-secondary)]"
-            placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+            className="flex-1 bg-transparent text-foreground resize-none outline-none py-3 px-2 max-h-[200px] placeholder:text-muted/60 text-base min-h-[52px]"
+            placeholder="Ask anything..."
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             disabled={disabled}
           />
-          <button
-            className={clsx(
-              'p-2 rounded-xl transition-colors',
-              isLoading
-                ? 'bg-red-500 hover:bg-red-600'
-                : input.trim() && !disabled
-                ? 'bg-[var(--accent-primary)] hover:opacity-90'
-                : 'bg-[var(--bg-tertiary)] cursor-not-allowed'
-            )}
-            onClick={isLoading ? onAbort : handleSend}
-            disabled={!isLoading && (!input.trim() || disabled)}
-          >
-            {isLoading ? (
-              onAbort ? (
-                <StopCircle className="w-5 h-5 text-white" />
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-1 pb-1">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="p-2.5 rounded-xl hover:bg-surface-container-high text-muted hover:text-primary transition-all hidden sm:block"
+            >
+              <Mic className="w-5 h-5" />
+            </motion.button>
+
+            <AnimatePresence mode="wait">
+              {isLoading ? (
+                <motion.button
+                  key="stop"
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  exit={{ scale: 0, rotate: 180 }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="p-2.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors shadow-lg"
+                  onClick={onAbort}
+                >
+                  <StopCircle className="w-5 h-5 fill-current" />
+                </motion.button>
               ) : (
-                <Loader2 className="w-5 h-5 text-white animate-spin" />
-              )
-            ) : (
-              <Send className="w-5 h-5 text-white" />
+                input.trim() && (
+                  <motion.button
+                    key="send"
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    exit={{ scale: 0, rotate: 180 }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="p-2.5 rounded-xl bg-gradient-to-r from-primary to-secondary text-white shadow-glow-sm hover:shadow-glow-md transition-all"
+                    onClick={handleSend}
+                  >
+                    <Send className="w-5 h-5 ml-0.5" />
+                  </motion.button>
+                )
+              )}
+            </AnimatePresence>
+
+            {/* AI indicator when idle and no input */}
+            {!isLoading && !input.trim() && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-2.5 rounded-xl text-muted"
+              >
+                <Sparkles className="w-5 h-5" />
+              </motion.div>
             )}
-          </button>
-        </div>
-        <div className="text-xs text-[var(--text-secondary)] text-center mt-2">
-          AI 生成内容仅供参考，请核实重要信息
-        </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="text-center mt-3"
+        >
+          <p className="text-xs text-muted/60">
+            AI may generate inaccurate information. Verify important facts.
+          </p>
+        </motion.div>
       </div>
     </div>
   );

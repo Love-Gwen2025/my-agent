@@ -2,6 +2,7 @@
 结构化日志配置模块。
 开发环境使用彩色控制台输出，生产环境支持 JSON 格式。
 """
+
 import logging
 import sys
 from typing import Literal
@@ -40,9 +41,7 @@ def setup_logging(
     else:
         # 开发环境彩色输出
         formatter = logging.Formatter(
-            "\033[90m%(asctime)s\033[0m | "
-            "%(levelname)-8s | "
-            "\033[36m%(name)s\033[0m - %(message)s",
+            "\033[90m%(asctime)s\033[0m | %(levelname)-8s | \033[36m%(name)s\033[0m - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 

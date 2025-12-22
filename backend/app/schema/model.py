@@ -1,6 +1,7 @@
 """
 模型相关数据结构
 """
+
 from pydantic import BaseModel, Field
 
 

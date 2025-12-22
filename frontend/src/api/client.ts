@@ -8,7 +8,7 @@ import type { ApiResponse } from '../types';
 import { useAppStore } from '../store';
 
 /** API 基础地址 */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 /**
  * 处理未授权响应
