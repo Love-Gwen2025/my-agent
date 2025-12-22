@@ -40,6 +40,15 @@ dev = [
 [tool.uv]
 constraint-dependencies = []
 
+# 使用 PyTorch CPU 版本（无 CUDA），大幅减小镜像体积
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
 # Ruff 配置 - 代码检查与格式化
 [tool.ruff]
 target-version = "py312"
