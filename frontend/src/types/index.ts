@@ -110,6 +110,12 @@ export interface StreamChatEvent {
   tool?: string;
 }
 
+/** 消息历史响应 */
+export interface HistoryResponse {
+  messages: Message[];
+  currentMessageId: string | null;
+}
+
 /** API 响应包装 */
 export interface ApiResponse<T> {
   success: boolean;

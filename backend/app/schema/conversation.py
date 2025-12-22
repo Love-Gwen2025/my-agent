@@ -59,6 +59,12 @@ class MessageVo(BaseModel):
     checkpointId: str | None = Field(default=None, description="关联的 checkpoint ID")
 
 
+class HistoryResponse(BaseModel):
+    """消息历史响应，包含完整消息树"""
+    messages: list[MessageVo] = Field(..., description="所有消息列表")
+    currentMessageId: str | None = Field(default=None, description="当前选中的消息 ID")
+
+
 class ConversationVo(BaseModel):
     """
     会话概要视图。
