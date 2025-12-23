@@ -45,6 +45,12 @@ def create_app() -> FastAPI:
     # 挂载路由
     app.include_router(api_router)
 
+    # 根级别健康检查端点（供 Docker/K8s/监控服务使用）
+    @app.get("/health")
+    async def health_check():
+        """根级别健康检查端点"""
+        return {"status": "ok"}
+
     logger.info(f"Application {settings.app_name} started in {settings.app_env} mode")
 
     return app
@@ -67,7 +73,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         """处理 HTTP 异常"""
-        logger.warning(f"HTTPException: {exc.status_code} - {exc.detail}")
+        # 日志包含请求路径，方便排查 404 等问题
+        logger.warning(f"HTTPException: {exc.status_code} - {exc.detail} | Path: {request.url.path}")
         return JSONResponse(
             status_code=exc.status_code,
             content=ApiResult.error(str(exc.status_code), str(exc.detail)).model_dump(),
