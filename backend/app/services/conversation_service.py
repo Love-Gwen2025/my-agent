@@ -105,7 +105,7 @@ class ConversationService:
         """
         # 1. 校验归属
         conversation = await self.ensure_owner(conversation_id, user_id)
-        
+
         # 2. 查询所有消息
         query = await self.db.execute(
             select(Message)
@@ -186,10 +186,10 @@ class ConversationService:
             select(Message).where(Message.id == message_id)
         )
         current_msg = result.scalar_one_or_none()
-        
+
         if not current_msg or not current_msg.parent_id:
             return {"current": 0, "total": 1, "siblings": [str(message_id)]}
-        
+
         # 2. 查所有同父消息
         result = await self.db.execute(
             select(Message.id)
@@ -197,13 +197,13 @@ class ConversationService:
             .order_by(Message.create_time.asc())
         )
         siblings = [str(row[0]) for row in result.all()]
-        
+
         # 3. 计算当前索引
         try:
             current_index = siblings.index(str(message_id))
         except ValueError:
             current_index = 0
-        
+
         return {
             "current": current_index,
             "total": len(siblings),

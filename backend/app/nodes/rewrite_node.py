@@ -46,25 +46,25 @@ async def rewrite_query(
       - messages: 可能被重写后的消息列表
     """
     messages = state.get("messages", [])
-    
+
     if not messages:
         return state
-    
+
     # 获取最后一条用户消息
     last_message = messages[-1]
     if not isinstance(last_message, HumanMessage):
         return state
-    
+
     original_query = last_message.content
-    
+
     # 如果消息很短或没有明显的代词，跳过重写
     pronouns = ["它", "这个", "那个", "他", "她", "他们", "她们", "这", "那"]
     has_pronoun = any(p in original_query for p in pronouns)
-    
+
     if not has_pronoun or len(messages) <= 1:
         logger.debug(f"Skipping rewrite for: {original_query}")
         return state
-    
+
     try:
         # 构建历史上下文（最近几条消息）
         history_context = []
@@ -74,28 +74,28 @@ async def rewrite_query(
             else:
                 content = msg.content if hasattr(msg, 'content') else str(msg)
                 history_context.append(f"助手: {content[:200]}")  # 限制长度
-        
+
         history_str = "\n".join(history_context) if history_context else "无历史"
-        
+
         # 调用 LLM 进行重写
         rewrite_messages = [
             SystemMessage(content=REWRITE_PROMPT),
             HumanMessage(content=f"对话历史:\n{history_str}\n\n用户消息: {original_query}\n\n重写结果:"),
         ]
-        
+
         response = await model.ainvoke(rewrite_messages)
         rewritten_query = response.content.strip()
-        
+
         # 如果重写结果与原始查询不同，更新消息
         if rewritten_query and rewritten_query != original_query:
             logger.info(f"Query rewritten: '{original_query}' -> '{rewritten_query}'")
             # 创建新的消息列表，替换最后一条
             new_messages = messages[:-1] + [HumanMessage(content=rewritten_query)]
             return {"messages": new_messages}
-        
+
     except Exception as e:
         logger.warning(f"Query rewrite failed: {e}, using original query")
-    
+
     return state
 
 
@@ -111,5 +111,5 @@ def create_rewrite_node(model):
     """
     async def node(state: dict[str, Any]) -> dict[str, Any]:
         return await rewrite_query(state, model)
-    
+
     return node

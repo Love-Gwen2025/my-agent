@@ -1,11 +1,11 @@
 /**
  * Gemini Sidebar - Premium Colorful Edition
  */
-import { useEffect, useState } from 'react';
-import { Plus, MessageSquare, Trash2, Menu, Settings, HelpCircle, Activity } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Plus, MessageSquare, Trash2, Menu, Settings, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '../../store';
-import { getConversations, createConversation, deleteConversation } from '../../api';
+import { getConversations, createConversation, deleteConversation, updateConversationTitle } from '../../api';
 import clsx from 'clsx';
 import { ThemePanel } from '../settings';
 
@@ -14,6 +14,7 @@ function SidebarItem({
   label,
   isActive,
   onClick,
+  onEdit,
   onDelete,
   isCollapsed,
   colorClass = "text-muted"
@@ -22,6 +23,7 @@ function SidebarItem({
   label: string;
   isActive?: boolean;
   onClick: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
   isCollapsed: boolean;
   colorClass?: string;
@@ -54,14 +56,27 @@ function SidebarItem({
         </span>
       )}
 
-      {!isCollapsed && onDelete && (
-        <div className="opacity-0 group-hover:opacity-100 absolute right-2 flex items-center transition-opacity duration-200">
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="p-1.5 hover:bg-red-500/20 hover:text-red-500 rounded-full transition-all duration-200"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+      {/* 编辑和删除按钮 */}
+      {!isCollapsed && (onEdit || onDelete) && (
+        <div className="opacity-0 group-hover:opacity-100 absolute right-2 flex items-center gap-1 transition-opacity duration-200">
+          {onEdit && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              className="p-1.5 hover:bg-primary/20 hover:text-primary rounded-full transition-all duration-200"
+              title="重命名"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="p-1.5 hover:bg-red-500/20 hover:text-red-500 rounded-full transition-all duration-200"
+              title="删除"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
     </motion.div>
@@ -70,6 +85,10 @@ function SidebarItem({
 
 export function Sidebar() {
   const [isThemePanelOpen, setIsThemePanelOpen] = useState(false);
+  // 编辑状态
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const {
     conversations,
@@ -79,6 +98,7 @@ export function Sidebar() {
     setConversations,
     addConversation,
     removeConversation,
+    updateConversation,
     setCurrentConversationId,
     token,
     user,
@@ -87,6 +107,14 @@ export function Sidebar() {
   useEffect(() => {
     if (token) loadConversations();
   }, [token]);
+
+  // 编辑时自动聚焦
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId]);
 
   async function loadConversations() {
     try {
@@ -114,6 +142,34 @@ export function Sidebar() {
     } catch (error) {
       console.error('Failed to delete conversation:', error);
     }
+  }
+
+  // 开始编辑会话标题
+  function handleEditConversation(id: string, currentTitle: string) {
+    setEditingId(id);
+    setEditingTitle(currentTitle || '');
+  }
+
+  // 保存编辑的标题
+  async function handleSaveTitle() {
+    if (!editingId || !editingTitle.trim()) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      await updateConversationTitle(editingId, editingTitle.trim());
+      updateConversation(editingId, { title: editingTitle.trim() });
+    } catch (error) {
+      console.error('Failed to update conversation title:', error);
+    } finally {
+      setEditingId(null);
+    }
+  }
+
+  // 取消编辑
+  function handleCancelEdit() {
+    setEditingId(null);
+    setEditingTitle('');
   }
 
   return (
@@ -176,35 +232,43 @@ export function Sidebar() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.03 }}
           >
-            <SidebarItem
-              icon={MessageSquare}
-              label={conv.title || 'Chat'}
-              isActive={conv.id === currentConversationId}
-              onClick={() => setCurrentConversationId(conv.id)}
-              onDelete={() => handleDeleteConversation(conv.id)}
-              isCollapsed={!sidebarOpen}
-              colorClass="text-indigo-400"
-            />
+            {editingId === conv.id ? (
+              /* 编辑模式 - 显示输入框 */
+              <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-surface-container-high">
+                <MessageSquare className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onBlur={handleSaveTitle}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveTitle();
+                    if (e.key === 'Escape') handleCancelEdit();
+                  }}
+                  className="flex-1 bg-transparent text-sm font-medium outline-none border-b-2 border-primary/50 focus:border-primary py-0.5"
+                  placeholder="输入会话标题..."
+                />
+              </div>
+            ) : (
+              /* 正常模式 - 显示标题 */
+              <SidebarItem
+                icon={MessageSquare}
+                label={conv.title || 'Chat'}
+                isActive={conv.id === currentConversationId}
+                onClick={() => setCurrentConversationId(conv.id)}
+                onEdit={() => handleEditConversation(conv.id, conv.title || '')}
+                onDelete={() => handleDeleteConversation(conv.id)}
+                isCollapsed={!sidebarOpen}
+                colorClass="text-indigo-400"
+              />
+            )}
           </motion.div>
         ))}
       </div>
 
-      {/* Bottom Section - Colorful Icons */}
+      {/* Bottom Section - Settings Only */}
       <div className="mt-auto px-2 space-y-1 pt-4 border-t border-gradient-to-r from-primary/20 to-secondary/20">
-        <SidebarItem
-          icon={HelpCircle}
-          label="Help"
-          onClick={() => { }}
-          isCollapsed={!sidebarOpen}
-          colorClass="text-teal-400"
-        />
-        <SidebarItem
-          icon={Activity}
-          label="Activity"
-          onClick={() => { }}
-          isCollapsed={!sidebarOpen}
-          colorClass="text-amber-400"
-        />
         <SidebarItem
           icon={Settings}
           label="Settings"

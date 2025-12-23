@@ -21,11 +21,11 @@ def _get_tavily_client():
     获取 Tavily 客户端（懒加载）
     """
     settings = get_settings()
-    
+
     if not settings.tavily_api_key:
         logger.warning("Tavily API key not configured")
         return None
-    
+
     try:
         from tavily import TavilyClient
         return TavilyClient(api_key=settings.tavily_api_key)
@@ -53,10 +53,10 @@ def web_search(query: str, max_results: int = 5) -> str:
         搜索结果摘要
     """
     client = _get_tavily_client()
-    
+
     if not client:
         return "网络搜索服务未配置。请联系管理员配置 Tavily API Key。"
-    
+
     try:
         response = client.search(
             query=query,
@@ -64,13 +64,13 @@ def web_search(query: str, max_results: int = 5) -> str:
             include_answer=True,
             search_depth="basic",
         )
-        
+
         # 如果有直接答案
         if response.get("answer"):
             result = f"答案: {response['answer']}\n\n"
         else:
             result = ""
-        
+
         # 添加搜索结果
         if response.get("results"):
             result += "搜索结果:\n"
@@ -79,9 +79,9 @@ def web_search(query: str, max_results: int = 5) -> str:
                 content = item.get("content", "")[:200]  # 限制长度
                 url = item.get("url", "")
                 result += f"{i}. {title}\n   {content}...\n   来源: {url}\n\n"
-        
+
         return result if result else "未找到相关搜索结果。"
-        
+
     except Exception as e:
         logger.error(f"Tavily search failed: {e}")
         return f"搜索时发生错误: {e}"

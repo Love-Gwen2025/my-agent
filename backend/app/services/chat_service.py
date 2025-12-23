@@ -9,10 +9,10 @@
 
 import asyncio
 import json
-import logging
 from collections.abc import AsyncIterator
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.graph import create_default_agent
@@ -21,7 +21,6 @@ from app.core.settings import Settings
 from app.services.conversation_service import ConversationService
 from app.services.embedding_service import EmbeddingService
 from app.services.model_service import ModelService
-from app.tools.rag_tool import set_rag_context
 
 # 系统提示词
 SYSTEM_PROMPT = """你是一个智能助手。你可以使用以下工具来帮助回答问题：
@@ -55,7 +54,19 @@ class ChatService:
         self.model_service = model_service
         self.embedding_service = embedding_service
         self.settings = settings
-        self._logger = logging.getLogger(__name__)
+
+    async def _create_title(self, msg: str) -> str:
+        """根据消息内容自动生成会话标题"""
+        from app.core.settings import get_settings
+        prompt = f"""
+根据传入的消息,生成一个5-10字左右的标题,内容力求准确,简明,扼要。
+只输出标题本身，不要加引号或其他内容。
+消息: {msg}
+标题:"""
+        settings = get_settings()
+        model_service = ModelService(settings)
+        response = await model_service.chat(prompt)
+        return response.strip()[:20]  # 限制最大 20 字符
 
     def _has_model(self) -> bool:
         """检查是否已配置模型服务"""
@@ -76,6 +87,7 @@ class ChatService:
 
         流程：
         1. 校验会话归属
+        1.1 如果是首次发送消息，自动生成标题
         2. 持久化用户消息（regenerate 模式下跳过）
         3. 设置 RAG 上下文
         4. 调用 LangGraph（自动加载历史、执行工具）
@@ -95,7 +107,15 @@ class ChatService:
             JSON 格式的 SSE 数据
         """
         # 1. 校验会话归属
-        await self.conversation_service.ensure_owner(conversation_id, user_id)
+        conversation = await self.conversation_service.ensure_owner(conversation_id, user_id)
+
+        # 1.1 如果会话当前无消息，根据发来的消息生成标题，写入会话
+        generated_title: str | None = None
+        if not conversation.current_message_id:
+            generated_title = await self._create_title(content)
+            await self.conversation_service.modify_conversation(
+                user_id, conversation_id, generated_title
+            )
 
         # 2. 持久化用户消息（regenerate 模式下跳过，因为是复用之前的用户消息）
         user_message = None
@@ -110,20 +130,17 @@ class ChatService:
                 parent_id=parent_message_id,
             )
 
-        # 3. 设置 RAG 上下文（供 rag_tool 使用）
-        set_rag_context(
-            embedding_service=self.embedding_service,
-            db_session=db,
-            conversation_id=conversation_id,
-        )
-
         full_reply = []
         placeholder_message_id = -1
 
-        # 4. 构建 LangGraph config
+        # 4. 构建 LangGraph config（包含 RAG 依赖）
         config = {
             "configurable": {
                 "thread_id": str(conversation_id),
+                # RAG 工具依赖 - 通过 RunnableConfig 传递
+                "embedding_service": self.embedding_service,
+                "db_session": db,
+                "conversation_id": conversation_id,
             }
         }
 
@@ -136,9 +153,11 @@ class ChatService:
             if parent_msg and parent_msg.checkpoint_id:
                 parent_checkpoint_id = parent_msg.checkpoint_id
                 config["configurable"]["checkpoint_id"] = parent_checkpoint_id
-                self._logger.info(f"[stream] Rollback to checkpoint: {parent_checkpoint_id}")
+                logger.info(f"[stream] Rollback to checkpoint: {parent_checkpoint_id}")
 
-        self._logger.info(f"[stream] regenerate={regenerate}, parent_message_id={parent_message_id}, parent_checkpoint_id={parent_checkpoint_id}, config={config}")
+        logger.info(
+            f"[stream] regenerate={regenerate}, parent_message_id={parent_message_id}, parent_checkpoint_id={parent_checkpoint_id}, config={config}"
+        )
 
         if self._has_model():
             async with create_checkpointer(self.settings) as checkpointer:
@@ -165,9 +184,7 @@ class ChatService:
 
                 # 使用 astream_events 获得 token 级流式输出
                 async for event in graph.astream_events(
-                    {"messages": input_messages},
-                    config=config,
-                    version="v2"
+                    {"messages": input_messages}, config=config, version="v2"
                 ):
                     kind = event.get("event", "")
 
@@ -190,7 +207,7 @@ class ChatService:
                     # 工具开始调用
                     elif kind == "on_tool_start":
                         tool_name = event.get("name", "unknown")
-                        self._logger.info(f"Tool started: {tool_name}")
+                        logger.info(f"Tool started: {tool_name}")
                         yield json.dumps(
                             {
                                 "type": "tool_start",
@@ -203,7 +220,7 @@ class ChatService:
                     # 工具调用结束
                     elif kind == "on_tool_end":
                         tool_name = event.get("name", "unknown")
-                        self._logger.info(f"Tool ended: {tool_name}")
+                        logger.info(f"Tool ended: {tool_name}")
                         yield json.dumps(
                             {
                                 "type": "tool_end",
@@ -249,20 +266,32 @@ class ChatService:
             checkpoint_id=latest_checkpoint_id,
         )
 
-        # 6. 异步存储 embedding（regenerate 模式下只存 AI 回复）
-        if self.embedding_service and db and user_message:
-            task = asyncio.create_task(
-                self._store_embeddings_async(
-                    db,
-                    user_message.id,
-                    assistant_message.id,
-                    conversation_id,
-                    user_id,
-                    content,
-                    reply_text,
+        # 6. 异步存储 embedding（使用独立 session，避免请求结束后 session 已关闭）
+        if self.embedding_service:
+            if user_message:
+                # 正常模式：存储用户消息和 AI 回复
+                task = asyncio.create_task(
+                    self._store_embeddings_async(
+                        user_message.id,
+                        assistant_message.id,
+                        conversation_id,
+                        user_id,
+                        content,
+                        reply_text,
+                    )
                 )
-            )
-            task.add_done_callback(self._handle_task_exception)
+                task.add_done_callback(self._handle_task_exception)
+            else:
+                # regenerate 模式：只存储 AI 回复（用户消息已存过）
+                task = asyncio.create_task(
+                    self._store_ai_embedding_async(
+                        assistant_message.id,
+                        conversation_id,
+                        user_id,
+                        reply_text,
+                    )
+                )
+                task.add_done_callback(self._handle_task_exception)
 
         # 7. 发送完成信号
         # 获取用户消息 ID（regenerate 时使用 parent_message_id）
@@ -276,13 +305,13 @@ class ChatService:
                 "tokenCount": len(reply_text),
                 "parentId": str(ai_parent_id) if ai_parent_id else None,
                 "userMessageId": str(user_message_id) if user_message_id else None,
+                "title": generated_title,  # 新生成的标题（如果有）
             },
             ensure_ascii=False,
         )
 
     async def _store_embeddings_async(
         self,
-        db: AsyncSession,
         user_message_id: int,
         assistant_message_id: int,
         conversation_id: int,
@@ -290,26 +319,56 @@ class ChatService:
         user_content: str,
         assistant_content: str,
     ) -> None:
-        """异步存储消息的 embedding"""
-        try:
-            await self.embedding_service.store_message_embedding(
-                db=db,
-                message_id=user_message_id,
-                conversation_id=conversation_id,
-                user_id=user_id,
-                role="user",
-                content=user_content,
-            )
-            await self.embedding_service.store_message_embedding(
-                db=db,
-                message_id=assistant_message_id,
-                conversation_id=conversation_id,
-                user_id=user_id,
-                role="assistant",
-                content=assistant_content,
-            )
-        except Exception as e:
-            self._logger.error(f"Failed to store embeddings: {e}")
+        """异步存储消息的 embedding（使用独立 session）"""
+        from app.core.db import SessionLocal
+
+        async with SessionLocal() as db:
+            try:
+                await self.embedding_service.store_message_embedding(
+                    db=db,
+                    message_id=user_message_id,
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                    role="user",
+                    content=user_content,
+                )
+                await self.embedding_service.store_message_embedding(
+                    db=db,
+                    message_id=assistant_message_id,
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                    role="assistant",
+                    content=assistant_content,
+                )
+                logger.info(
+                    f"Stored embeddings for messages {user_message_id}, {assistant_message_id}"
+                )
+            except Exception as e:
+                logger.error(f"Failed to store embeddings: {e}")
+
+    async def _store_ai_embedding_async(
+        self,
+        assistant_message_id: int,
+        conversation_id: int,
+        user_id: int,
+        assistant_content: str,
+    ) -> None:
+        """异步存储 AI 回复的 embedding（用于 regenerate 模式，使用独立 session）"""
+        from app.core.db import SessionLocal
+
+        async with SessionLocal() as db:
+            try:
+                await self.embedding_service.store_message_embedding(
+                    db=db,
+                    message_id=assistant_message_id,
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                    role="assistant",
+                    content=assistant_content,
+                )
+                logger.info(f"Stored AI embedding for message {assistant_message_id}")
+            except Exception as e:
+                logger.error(f"Failed to store AI embedding: {e}")
 
     def _handle_task_exception(self, task: asyncio.Task) -> None:
         """处理异步任务异常"""
@@ -318,7 +377,7 @@ class ChatService:
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            self._logger.error(f"Background task failed: {e}")
+            logger.error(f"Background task failed: {e}")
 
     async def _get_latest_checkpoint_id(
         self,
@@ -346,5 +405,5 @@ class ChatService:
                     return checkpoint_id, parent_id
                 return None, None
         except Exception as exc:
-            self._logger.error(f"Failed to fetch latest checkpoint info: {exc}")
+            logger.error(f"Failed to fetch latest checkpoint info: {exc}")
             return None, None

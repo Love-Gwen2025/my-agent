@@ -142,6 +142,7 @@ export function ChatPanel() {
     clearStreamingContent,
     user,
     setCurrentCheckpointId,
+    updateConversation,
   } = useAppStore();
 
   const {
@@ -149,6 +150,7 @@ export function ChatPanel() {
     setMessageTree,
     switchBranch,
     getSiblingInfo,
+    addMessage,
   } = useMessageTree({
     onSaveCurrentMessage: async (messageId) => {
       if (currentConversationId) {
@@ -171,14 +173,20 @@ export function ChatPanel() {
       latestStreamingRef.current = `${latestStreamingRef.current}${chunk}`;
       setStreamingContent(latestStreamingRef.current);
     },
-    onComplete: (event, finalContent) => {
+    onComplete: async (event, finalContent) => {
       const contentToSave = finalContent || latestStreamingRef.current;
       if (contentToSave) {
-        setTimeout(() => loadHistory(), 100);
         latestMessageIdRef.current = event.messageId ?? null;
+        // 先静默刷新历史，等加载完成后再清空流式内容，实现平滑过渡
+        await loadHistory();
         setRegeneratingId(null);
         setNavLoadingId(null);
       }
+      // 如果后端返回了新标题，更新会话列表中的标题
+      if (event.title && event.conversationId) {
+        updateConversation(event.conversationId, { title: event.title });
+      }
+      // 历史加载完成后再清空流式内容，避免闪烁
       latestStreamingRef.current = '';
       clearStreamingContent();
     },
@@ -277,6 +285,20 @@ export function ChatPanel() {
     if (!currentConversationId || !user) return;
     const lastMessage = displayMessages.length > 0 ? displayMessages[displayMessages.length - 1] : null;
     const parentMessageId = lastMessage ? String(lastMessage.id) : undefined;
+
+    // 乐观更新：立即显示用户消息，无需等待服务器
+    const tempUserMessage: Message = {
+      id: `temp-${Date.now()}`,
+      conversationId: currentConversationId,
+      senderId: user.id,
+      role: 'user',
+      content,
+      contentType: 'TEXT',
+      createTime: new Date().toISOString(),
+      parentId: parentMessageId,
+    };
+    addMessage(tempUserMessage);
+
     latestStreamingRef.current = '';
     clearStreamingContent();
     sendMessage({
@@ -285,7 +307,7 @@ export function ChatPanel() {
       modelCode: currentModelCode || undefined,
       parentMessageId,
     });
-  }, [currentConversationId, currentModelCode, user, displayMessages, sendMessage, clearStreamingContent]);
+  }, [currentConversationId, currentModelCode, user, displayMessages, sendMessage, clearStreamingContent, addMessage]);
 
   if (!currentConversationId) {
     return <GreetingScreen userName={user?.userName || 'Traveler'} onSuggestionClick={() => { }} />;

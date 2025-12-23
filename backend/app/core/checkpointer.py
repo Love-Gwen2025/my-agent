@@ -4,8 +4,8 @@ LangGraph Checkpointer - PostgreSQL 实现
 使用 AsyncPostgresSaver 将对话状态持久化到 PostgreSQL。
 """
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 

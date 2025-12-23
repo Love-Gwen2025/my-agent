@@ -108,6 +108,8 @@ export interface StreamChatEvent {
   userMessageId?: string;
   /** 工具名称（tool_start/tool_end 事件时使用） */
   tool?: string;
+  /** 新生成的会话标题（首次发消息时返回） */
+  title?: string;
 }
 
 /** 消息历史响应 */

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Integer, String, Text, JSON
+from sqlalchemy import JSON, BigInteger, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -24,10 +24,10 @@ class Message(Base):
     model_code: Mapped[str | None] = mapped_column(String(50))
     status: Mapped[int] = mapped_column(Integer, default=1)
     ext: Mapped[dict | None] = mapped_column(JSON)
-    
+
     # 新增：父消息 ID，用于构建消息树和分支管理
     parent_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)
-    
+
     # 新增：关联的 checkpoint ID，用于 LangGraph 恢复执行
     checkpoint_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 

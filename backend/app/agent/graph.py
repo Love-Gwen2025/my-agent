@@ -133,17 +133,17 @@ def create_agent_graph(
         workflow.add_node("chatbot", chatbot)
         if tool_node:
             workflow.add_node("tools", tool_node)
-        
+
         # 设置入口点
         workflow.set_entry_point("rewrite")
-        
+
         # rewrite -> chatbot
         workflow.add_edge("rewrite", "chatbot")
     else:
         workflow.add_node("chatbot", chatbot)
         if tool_node:
             workflow.add_node("tools", tool_node)
-        
+
         # 设置入口点
         workflow.set_entry_point("chatbot")
 
@@ -189,18 +189,18 @@ def create_default_agent(
     from app.tools.tavily_tool import web_search
 
     settings = get_settings()
-    
+
     # 基础工具
     all_tools = list(AVAILABLE_TOOLS)
-    
+
     # 添加 RAG 工具
     if settings.rag_enabled:
         all_tools.append(rag_search)
-    
+
     # 添加 Tavily 搜索工具
     if settings.tavily_enabled and settings.tavily_api_key:
         all_tools.append(web_search)
-    
+
     return create_agent_graph(
         model=model,
         tools=all_tools,

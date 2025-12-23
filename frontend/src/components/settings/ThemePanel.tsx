@@ -7,7 +7,6 @@ import { Sun, Moon, Monitor, X } from 'lucide-react';
 import { useAppStore } from '../../store';
 import {
     THEME_MODE_OPTIONS,
-    ACCENT_COLOR_OPTIONS,
     type ThemeMode,
 } from '../../config/themes';
 import clsx from 'clsx';
@@ -38,7 +37,7 @@ function getThemeModeIcon(mode: ThemeMode) {
  * 主题设置面板组件
  */
 export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
-    const { themeMode, accentColor, setThemeMode, setAccentColor } = useAppStore();
+    const { themeMode, setThemeMode } = useAppStore();
 
     // 面板未打开时不渲染
     if (!isOpen) return null;
@@ -84,36 +83,6 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
                                 >
                                     {getThemeModeIcon(option.value)}
                                     <span>{option.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* 强调色主题选择 */}
-                    <div>
-                        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-3">
-                            主题颜色
-                        </label>
-                        <div className="flex gap-3">
-                            {ACCENT_COLOR_OPTIONS.map((option) => (
-                                <button
-                                    key={option.value}
-                                    onClick={() => setAccentColor(option.value)}
-                                    title={option.label}
-                                    className={clsx(
-                                        'relative w-10 h-10 rounded-xl transition-all duration-200',
-                                        accentColor === option.value
-                                            ? 'ring-2 ring-offset-2 ring-[var(--accent-primary)] ring-offset-[var(--bg-secondary)] scale-110'
-                                            : 'hover:scale-105'
-                                    )}
-                                    style={{ backgroundColor: option.color }}
-                                >
-                                    {/* 选中状态的对勾 */}
-                                    {accentColor === option.value && (
-                                        <span className="absolute inset-0 flex items-center justify-center text-white text-lg font-bold">
-                                            ✓
-                                        </span>
-                                    )}
                                 </button>
                             ))}
                         </div>

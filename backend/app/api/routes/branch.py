@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db_session
-from app.core.settings import get_settings
 from app.dependencies.auth import CurrentUser, get_current_user
 from app.schema.base import ApiResult
 from app.services.conversation_service import ConversationService
@@ -54,14 +53,14 @@ async def get_message_siblings(
         }
     """
     conv_service = ConversationService(db)
-    
+
     try:
         # 校验会话归属
         await conv_service.ensure_owner(int(conversation_id), current.id)
-        
+
         # 使用 SQL 查询获取兄弟消息
         siblings = await conv_service.get_sibling_messages(int(message_id))
-        
+
         return ApiResult.ok(SiblingMessagesVo(**siblings))
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
@@ -85,18 +84,18 @@ async def get_message_by_id(
     用于切换分支时加载指定消息内容。
     """
     conv_service = ConversationService(db)
-    
+
     try:
         # 校验会话归属
         await conv_service.ensure_owner(int(conversation_id), current.id)
-        
+
         # 获取消息
         message = await conv_service.get_message_by_id(int(message_id))
-        
+
         if not message:
             response.status_code = status.HTTP_404_NOT_FOUND
             return ApiResult.error("MSG-404", "消息不存在")
-        
+
         return ApiResult.ok(message.to_vo())
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
@@ -126,17 +125,17 @@ async def set_current_message(
     刷新页面后会恢复到用户选择的分支。
     """
     conv_service = ConversationService(db)
-    
+
     try:
         # 校验会话归属
         await conv_service.ensure_owner(int(conversation_id), current.id)
-        
+
         # 保存当前消息 ID
         await conv_service.set_current_message(
-            int(conversation_id), 
+            int(conversation_id),
             int(payload.messageId)
         )
-        
+
         return ApiResult.ok("保存成功")
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN

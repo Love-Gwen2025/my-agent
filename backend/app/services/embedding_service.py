@@ -43,7 +43,7 @@ class EmbeddingService:
             print(f"📥 Loading local embedding model (fastembed): {model_name}")
             # fastembed 会自动下载并缓存模型到 ~/.cache/fastembed
             self._model = TextEmbedding(model_name=model_name)
-            print(f"✅ Model loaded successfully")
+            print("✅ Model loaded successfully")
 
         return self._model
 

@@ -2,15 +2,14 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.router import api_router
 from app.core.exceptions import AppException
-from app.core.logging import get_logger, setup_logging
+from app.core.logging import setup_logging
 from app.core.settings import get_settings
 from app.schema.base import ApiResult
-
-logger = get_logger(__name__)
 
 
 def create_app() -> FastAPI:

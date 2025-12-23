@@ -4,6 +4,7 @@
 
 from fastapi import APIRouter, Depends, Response, status
 from fastapi.responses import JSONResponse, StreamingResponse
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db_session
@@ -30,8 +31,11 @@ def create_chat_service(
     model_service = ModelService(settings) if settings.ai_deepseek_api_key else None
 
     # 可选服务 - 根据配置启用
+    # 本地模式不需要 API Key，远程模式需要
     embedding_service = None
-    if settings.ai_openai_api_key or settings.ai_embedding_api_key:
+    use_local_embedding = settings.ai_embedding_provider == "local"
+    has_remote_key = settings.ai_openai_api_key or settings.ai_embedding_api_key
+    if use_local_embedding or has_remote_key:
         embedding_service = EmbeddingService(settings)
 
     return ChatService(
@@ -59,6 +63,7 @@ async def stream_chat(
     try:
         await conv_service.ensure_owner(int(payload.conversationId), current.id)
     except PermissionError as ex:
+        logger.warning(f"Permission denied: user={current.id}, conversation={payload.conversationId}")
         response.status_code = status.HTTP_403_FORBIDDEN
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -110,9 +115,10 @@ async def chat(
             data = json.loads(chunk)
             if data.get("type") == "chunk":
                 full_reply.append(data.get("content", ""))
-        
+
         return ApiResult.ok("".join(full_reply))
     except PermissionError as ex:
+        logger.warning(f"Permission denied: user={current.id}, conversation={payload.conversationId}")
         response.status_code = status.HTTP_403_FORBIDDEN
         return ApiResult.error("CONV-403", str(ex))
 

@@ -45,6 +45,8 @@ constraint-dependencies = []
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+
+[tool.ruff.lint]
 select = [
     "E",      # pycodestyle errors
     "W",      # pycodestyle warnings
@@ -57,15 +59,18 @@ select = [
 ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults
+    "W293",   # blank line contains whitespace (常见于 docstring)
+    "C414",   # unnecessary list() call within sorted()
+    "UP046", # Generic class uses old syntax (保持 Pydantic 兼容性)
 ]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
-
-[tool.ruff.lint.isort]
-known-first-party = ["app"]
 
 # Black 配置 - 代码格式化
 [tool.black]

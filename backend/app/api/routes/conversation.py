@@ -63,17 +63,17 @@ async def history(
     前端负责根据 parentId 构建树结构和计算显示路径。
     """
     import logging
-    
+
     logger = logging.getLogger(__name__)
     conv_service = ConversationService(db)
     try:
         # 1. 校验会话归属
         await conv_service.ensure_owner(int(conversationId), current.id)
-        
+
         # 2. 获取完整消息树
         result = await conv_service.history(current.id, int(conversationId))
         logger.info(f"[history] messages count: {len(result['messages'])}, conversationId={conversationId}")
-        
+
         return ApiResult.ok(HistoryResponse(
             messages=[MessageVo(**item) for item in result['messages']],
             currentMessageId=result['currentMessageId']

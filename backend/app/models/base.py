@@ -14,6 +14,8 @@ class Base(DeclarativeBase):
     1. 分布式安全：无需数据库协调，各节点独立生成
     2. 趋势递增：按时间排序，适合索引
     3. 不暴露信息：难以猜测和遍历
+
+    版本号用于乐观锁，更新时自动递增，防止并发冲突。
     """
 
     # 使用雪花 ID 作为主键，在 Python 层生成
@@ -34,5 +36,11 @@ class Base(DeclarativeBase):
         onupdate=func.now(),
         nullable=False,
     )
+    # 乐观锁版本号，更新时自动递增
     version: Mapped[int] = mapped_column(default=0)
+
+    # 启用 SQLAlchemy 乐观锁机制
+    __mapper_args__ = {
+        "version_id_col": version,  # 指定 version 字段作为版本控制列
+    }
 
