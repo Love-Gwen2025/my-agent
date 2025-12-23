@@ -9,7 +9,7 @@ services:
   # ----------------------------------------------------------------
   # 1. Backend 服务 (使用 GHCR 镜像)
   # ----------------------------------------------------------------
-  couple-agent-backend:
+  backend:
     image: ghcr.io/love-gwen2025/couple-agent/backend:latest
     container_name: couple-agent-backend
     restart: always
@@ -76,7 +76,7 @@ services:
       - OSS_AVATAR=${OSS_AVATAR:-}
       # 搜索
       - TAVILY_API_KEY=${TAVILY_API_KEY}
-      - TAVILY_ENABLED=${TAVILY_ENABLED:-true} 
+      - TAVILY_ENABLED=${TAVILY_ENABLED:-true}
 
       # 功能开关
       - ENABLE_SSE_STREAMING=true
@@ -105,7 +105,7 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
-      - couple-agent-backend
+      - backend
     networks:
       - 1panel-network
     deploy:
