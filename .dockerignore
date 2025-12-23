@@ -1,0 +1,50 @@
+# ============================================
+# Docker 构建时忽略的文件和目录
+# ============================================
+
+# 依赖目录 (由 Docker 构建时重新安装)
+**/node_modules
+**/.venv
+**/__pycache__
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# 测试和开发文件
+**/tests
+**/*.test.*
+**/*.spec.*
+.coverage
+htmlcov
+.pytest_cache
+
+# 日志和临时文件
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 环境文件 (敏感信息，不应包含在镜像中)
+.env
+.env.*
+!.env.example
+
+# 文档
+*.md
+!README.md
+docs
+
+# 构建产物
+**/dist
+**/build
+
+# 本地数据
+data
+logs

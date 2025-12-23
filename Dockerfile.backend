@@ -15,6 +15,8 @@ WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock* ./
 
 # 安装依赖到虚拟环境（不包含 dev 依赖）
+# 增加超时时间，避免下载大型包（如 numpy）时超时
+ENV UV_HTTP_TIMEOUT=120
 RUN uv sync --frozen --no-dev --no-install-project
 
 # ---------- 运行阶段 ----------
