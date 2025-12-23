@@ -1,9 +1,9 @@
 name: Build and Push Docker Images
 
 on:
-  # PR 合并到 main 时触发（推荐的生产实践）
+  # 推送到 feature/dev_ynk 时触发
   push:
-    branches: [main]
+    branches: [feature/dev_ynk]
   # 手动触发（用于紧急修复）
   workflow_dispatch:
 
@@ -18,6 +18,17 @@ jobs:
       packages: write
 
     steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
       - name: Checkout
         uses: actions/checkout@v4
 

@@ -7,6 +7,7 @@ from app.schema.base import ApiResult
 from app.schema.conversation import (
     ConversationParam,
     ConversationVo,
+    HistoryResponse,
     MessageSendParam,
     MessageVo,
 )
@@ -48,18 +49,18 @@ async def list_conversations(
     return ApiResult.ok([ConversationVo(**item) for item in items])
 
 
-@router.get("/history", response_model=ApiResult[list[MessageVo]])
+@router.get("/history", response_model=ApiResult[HistoryResponse])
 async def history(
     conversationId: str,
     response: Response,
     db: AsyncSession = Depends(get_db_session),
     current: CurrentUser = Depends(get_current_user),
-) -> ApiResult[list[MessageVo]]:
+) -> ApiResult[HistoryResponse]:
     """
-    查询会话历史消息（从数据库读取）
+    查询会话历史消息（返回完整消息树）
     
-    始终从 t_message 表读取，确保返回的 id 是雪花 ID（可转为 int）。
-    这样前端可以正确使用 message.id 进行分支导航和重新生成。
+    返回所有消息和当前选中的消息 ID，
+    前端负责根据 parentId 构建树结构和计算显示路径。
     """
     import logging
     
@@ -69,18 +70,21 @@ async def history(
         # 1. 校验会话归属
         await conv_service.ensure_owner(int(conversationId), current.id)
         
-        # 2. 始终从数据库获取消息（返回雪花 ID）
-        items = await conv_service.history(current.id, int(conversationId))
-        logger.info(f"[history] DB items count: {len(items)}, conversationId={conversationId}")
+        # 2. 获取完整消息树
+        result = await conv_service.history(current.id, int(conversationId))
+        logger.info(f"[history] messages count: {len(result['messages'])}, conversationId={conversationId}")
         
-        return ApiResult.ok([MessageVo(**item) for item in items])
+        return ApiResult.ok(HistoryResponse(
+            messages=[MessageVo(**item) for item in result['messages']],
+            currentMessageId=result['currentMessageId']
+        ))
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
         return ApiResult.error("CONV-403", str(ex))
     except Exception as ex:
         logger.error(f"[history] exception: {ex}, conversationId={conversationId}")
-        # 出错时返回空列表
-        return ApiResult.ok([])
+        # 出错时返回空响应
+        return ApiResult.ok(HistoryResponse(messages=[], currentMessageId=None))
 
 
 @router.get("/{conversation_id}", response_model=ApiResult[ConversationVo])

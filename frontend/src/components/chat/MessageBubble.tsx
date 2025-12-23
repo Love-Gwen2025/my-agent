@@ -1,14 +1,13 @@
 /**
- * 消息气泡组件
- *
- * Modern design with gradient user messages and glass AI messages
+ * 消息组件 - Premium Edition
  */
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Copy, Check, Sparkles, RefreshCw } from 'lucide-react';
+import { Copy, Check, Sparkles, RefreshCw, Pencil, ThumbsUp, ThumbsDown, Share2, MoreVertical } from 'lucide-react';
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import type { Message, SiblingInfo } from '../../types';
 import { BranchNavigator } from './BranchNavigator';
@@ -16,38 +15,19 @@ import { BranchNavigator } from './BranchNavigator';
 interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
-  /** 分支信息（AI 消息需要） */
   siblingInfo?: SiblingInfo;
-  /** 切换分支回调 */
   onNavigateBranch?: (direction: 'prev' | 'next') => void;
-  /** 重新生成回调 */
   onRegenerate?: () => void;
-  /** 是否正在重新生成 */
   isRegenerating?: boolean;
-  /** 开启编辑回调（仅用户消息） */
   onEdit?: () => void;
-  /** 是否处于编辑状态 */
   isEditing?: boolean;
-  /** 编辑中的内容 */
   editingContent?: string;
-  /** 编辑内容变更回调 */
   onEditChange?: (value: string) => void;
-  /** 提交编辑回调 */
   onEditSubmit?: () => void;
-  /** 取消编辑回调 */
   onEditCancel?: () => void;
 }
 
-/**
- * 代码块组件
- */
-function CodeBlock({
-  language,
-  children,
-}: {
-  language: string;
-  children: string;
-}) {
+function CodeBlock({ language, children }: { language: string; children: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -57,21 +37,17 @@ function CodeBlock({
   };
 
   return (
-    <div className="relative group rounded-xl overflow-hidden my-3">
-      {/* Language label */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-color)]">
-        <span className="text-xs font-medium text-[var(--text-secondary)]">{language}</span>
-        <button
-          className="p-1.5 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors"
+    <div className="relative group/code rounded-2xl overflow-hidden my-4 glass-subtle">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/20">
+        <span className="text-xs font-semibold text-primary uppercase tracking-wider">{language || 'code'}</span>
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className="p-1.5 rounded-lg hover:bg-surface-container-high transition-all opacity-0 group-hover/code:opacity-100"
           onClick={handleCopy}
-          title="复制代码"
         >
-          {copied ? (
-            <Check className="w-4 h-4 text-green-400" />
-          ) : (
-            <Copy className="w-4 h-4 text-[var(--text-secondary)]" />
-          )}
-        </button>
+          {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted" />}
+        </motion.button>
       </div>
       <SyntaxHighlighter
         style={oneDark}
@@ -79,10 +55,10 @@ function CodeBlock({
         PreTag="div"
         customStyle={{
           margin: 0,
-          paddingTop: '3rem',
-          borderRadius: '0.75rem',
+          padding: '1.25rem',
           fontSize: '0.875rem',
-          background: 'var(--bg-tertiary)',
+          background: 'transparent',
+          fontFamily: '"JetBrains Mono", "Fira Code", monospace'
         }}
       >
         {children}
@@ -91,9 +67,6 @@ function CodeBlock({
   );
 }
 
-/**
- * 消息气泡组件
- */
 export function MessageBubble({
   message,
   isStreaming,
@@ -110,146 +83,195 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
-  // 分支导航器只在 AI 消息上显示，用户消息分支通过编辑功能操作
   const showBranchNav = isAssistant && siblingInfo && siblingInfo.total > 1;
-  const showRegenerate = isAssistant && onRegenerate && !isStreaming;
 
   return (
-    <div
-      className={clsx(
-        'flex gap-4 p-4 animate-fade-in-up',
-        isUser ? 'flex-row-reverse' : 'flex-row'
-      )}
-    >
-      {/* Avatar */}
-      <div
-        className={clsx(
-          'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg',
-          isUser
-            ? 'bg-gradient-to-br from-blue-500 to-purple-600'
-            : 'bg-gradient-to-br from-cyan-400 to-purple-600'
-        )}
-      >
+    <div className={clsx("flex gap-4 p-2 mb-6 group/row w-full", isUser ? "flex-row-reverse" : "flex-row")}>
+
+      {/* Icon Area */}
+      <div className="flex-shrink-0 mt-1">
         {isUser ? (
-          <User className="w-5 h-5 text-white" />
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-primary font-semibold text-sm border border-primary/20"
+          >
+            U
+          </motion.div>
         ) : (
-          <Sparkles className="w-5 h-5 text-white" />
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            className={clsx(
+              "w-9 h-9 rounded-full flex items-center justify-center",
+              isStreaming ? "animate-pulse-glow" : ""
+            )}
+          >
+            <div className={clsx(
+              "w-full h-full rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center",
+              isStreaming ? "animate-breathe" : ""
+            )}>
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+          </motion.div>
         )}
       </div>
 
-      {/* Message content */}
-      <div className="flex flex-col max-w-[80%]">
-        <div
-          className={clsx(
-            'rounded-2xl px-5 py-3 shadow-md',
-            isUser
-              ? 'text-white'
-              : 'glass-effect text-[var(--text-primary)]'
-          )}
-          style={isUser ? { background: 'var(--user-bubble-bg)' } : undefined}
-        >
-          {isUser ? (
-            isEditing ? (
-              <div className="flex flex-col gap-2">
+      {/* Content Area */}
+      <div className={clsx("flex flex-col max-w-[90%] md:max-w-[85%]", isUser ? "items-end" : "items-start")}>
+
+        {/* Name */}
+        <div className={clsx(
+          "text-sm font-semibold mb-1.5",
+          isUser ? "text-primary" : "gradient-text"
+        )}>
+          {isUser ? 'You' : 'AI Assistant'}
+        </div>
+
+        <div className={clsx(
+          "w-full",
+          // User messages get a premium bubble
+          isUser && !isEditing ? "bg-gradient-to-br from-surface-container-high to-surface-container text-foreground rounded-3xl rounded-tr-lg px-5 py-3.5 shadow-sm border border-border/30" : "",
+          // Assistant messages are plain text
+          isAssistant ? "px-0 text-foreground" : ""
+        )}>
+
+          {isEditing ? (
+            <div className="gradient-border">
+              <div className="bg-surface-container rounded-2xl p-4 w-full">
                 <textarea
-                  className="w-full min-h-[80px] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] p-3 outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                  className="w-full min-h-[100px] bg-transparent outline-none resize-none text-foreground"
                   value={editingContent}
                   onChange={(e) => onEditChange?.(e.target.value)}
-                  placeholder="编辑消息内容"
+                  autoFocus
                 />
-                <div className="flex gap-2">
-                  <button
-                    className="px-3 py-1 rounded bg-[var(--accent-primary)] text-white text-xs disabled:opacity-60"
-                    onClick={onEditSubmit}
-                    disabled={isRegenerating}
-                  >
-                    保存并生成
-                  </button>
-                  <button
-                    className="px-3 py-1 rounded border border-[var(--border-color)] text-xs text-[var(--text-secondary)]"
+                <div className="flex justify-end gap-2 mt-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={onEditCancel}
+                    className="px-5 py-2 rounded-xl text-sm font-medium text-muted hover:bg-surface-container-high transition-colors"
                   >
-                    取消
-                  </button>
+                    Cancel
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={onEditSubmit}
+                    className="px-5 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-primary to-secondary text-white hover:shadow-glow-sm transition-all"
+                  >
+                    Update
+                  </motion.button>
                 </div>
               </div>
-            ) : (
-              <div className="flex items-start justify-between gap-3">
-                <p className="whitespace-pre-wrap leading-relaxed flex-1">{message.content}</p>
-                {onEdit && (
-                  <button
-                    className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-1 rounded transition-colors"
-                    onClick={onEdit}
-                    title="编辑并分支"
-                  >
-                    编辑
-                  </button>
-                )}
-              </div>
-            )
+            </div>
           ) : (
-            <div className="markdown-body">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code({ className, children, ...props }) {
-                    const match = /language-(\w+)/.exec(className || '');
-                    const isInline = !match;
-                    return isInline ? (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    ) : (
-                      <CodeBlock language={match[1]}>
-                        {String(children).replace(/\n$/, '')}
-                      </CodeBlock>
-                    );
-                  },
-                }}
-              >
-                {message.content}
-              </ReactMarkdown>
-              {isStreaming && (
-                <span className="inline-flex items-center gap-1 ml-1">
-                  <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" />
-                  <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" style={{ animationDelay: '0.2s' }} />
-                  <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-pulse" style={{ animationDelay: '0.4s' }} />
-                </span>
+            <div className={clsx(isUser ? "" : "markdown-body")}>
+              {isUser ? (
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              ) : (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      return !match ? (
+                        <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-mono text-sm" {...props}>
+                          {children}
+                        </code>
+                      ) : (
+                        <CodeBlock language={match[1]}>{String(children).replace(/\n$/, '')}</CodeBlock>
+                      );
+                    }
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
               )}
             </div>
           )}
+
         </div>
 
-
-        {/* AI 消息底部工具栏 */}
+        {/* Toolbar for AI Messages */}
         {isAssistant && !isStreaming && (
-          <div className="flex items-center gap-3 mt-2 ml-2">
-            {/* 分支导航器 */}
+          <motion.div
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-center gap-1 mt-2 -ml-2 text-muted"
+          >
             {showBranchNav && onNavigateBranch && (
               <BranchNavigator
                 currentIndex={siblingInfo.current}
                 totalCount={siblingInfo.total}
                 onNavigate={onNavigateBranch}
-                isLoading={isRegenerating}
               />
             )}
 
-            {/* 重新生成按钮 */}
-            {showRegenerate && (
-              <button
+            <div className="flex items-center">
+              {[
+                { icon: ThumbsUp, title: "Good response" },
+                { icon: ThumbsDown, title: "Bad response" },
+              ].map(({ icon: Icon, title }, i) => (
+                <motion.button
+                  key={i}
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="p-2 hover:bg-surface-container-high hover:text-primary rounded-xl transition-all"
+                  title={title}
+                >
+                  <Icon className="w-4 h-4" />
+                </motion.button>
+              ))}
+
+              <motion.button
+                whileHover={{ scale: 1.15 }}
+                whileTap={{ scale: 0.9 }}
+                className={clsx(
+                  "p-2 hover:bg-surface-container-high hover:text-primary rounded-xl transition-all",
+                  isRegenerating && "animate-spin"
+                )}
                 onClick={onRegenerate}
-                disabled={isRegenerating}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors disabled:opacity-50"
-                title="重新生成"
+                title="Regenerate"
               >
-                <RefreshCw className={clsx('w-3.5 h-3.5', isRegenerating && 'animate-spin')} />
-                <span>重新生成</span>
-              </button>
-            )}
+                <RefreshCw className="w-4 h-4" />
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.15 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-2 hover:bg-surface-container-high hover:text-primary rounded-xl transition-all"
+                title="Share"
+              >
+                <Share2 className="w-4 h-4" />
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.15 }}
+                whileTap={{ scale: 0.9 }}
+                className="p-2 hover:bg-surface-container-high hover:text-primary rounded-xl transition-all"
+                title="More"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Edit Button for User Messages */}
+        {isUser && !isEditing && (
+          <div className="mt-1 mr-1 self-end opacity-0 group-hover/row:opacity-100 transition-opacity duration-300">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onEdit}
+              className="p-2 rounded-xl hover:bg-surface-container-high text-muted hover:text-primary transition-all"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </motion.button>
           </div>
         )}
+
       </div>
     </div>
   );
 }
-

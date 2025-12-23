@@ -1,61 +1,165 @@
 /**
- * 聊天面板组件
- *
- * Main chat interface with modern styling
+ * 聊天面板组件 - Premium Edition
  */
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { MessageSquare, Sparkles } from 'lucide-react';
+import { Compass, Lightbulb, Code, Pencil } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAppStore } from '../../store';
-import { useSSEChat, getToolDisplayName } from '../../hooks';
+import { useSSEChat, getToolDisplayName, useMessageTree } from '../../hooks';
 import { getConversationHistory } from '../../api';
-import { getSiblingMessages, getMessageById, setCurrentMessage } from '../../api/branch';
+import { setCurrentMessage } from '../../api/branch';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { ModelSelector } from './ModelSelector';
-import type { Message, SiblingInfo } from '../../types';
+import type { Message } from '../../types';
 
-/**
- * 空状态组件
- */
-function EmptyState() {
+// Premium Colorful Suggestion Card
+function SuggestionCard({ icon: Icon, text, onClick, delay = 0, colorFrom = "from-indigo-500", colorTo = "to-purple-500" }: {
+  icon: any,
+  text: string,
+  onClick: () => void,
+  delay?: number,
+  colorFrom?: string,
+  colorTo?: string
+}) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-secondary)] p-8">
-      <div
-        className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6 animate-float"
-        style={{ background: 'var(--accent-gradient)' }}
-      >
-        <Sparkles className="w-10 h-10 text-white" />
+    <motion.button
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: delay * 0.1, duration: 0.4 }}
+      whileHover={{ scale: 1.05, y: -6 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className="gemini-card flex flex-col justify-between p-5 h-52 text-left group relative overflow-hidden"
+    >
+      {/* Colorful glow effect on hover */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${colorFrom}/10 ${colorTo}/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+      <div className={`absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br ${colorFrom} ${colorTo} rounded-full blur-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
+
+      <span className="text-foreground font-medium text-base leading-relaxed relative z-10">{text}</span>
+
+      <div className="self-end relative z-10">
+        <div className={`p-3 rounded-xl bg-gradient-to-br ${colorFrom}/15 ${colorTo}/15 group-hover:${colorFrom}/25 group-hover:${colorTo}/25 transition-all duration-300 group-hover:shadow-lg`}>
+          <Icon className={`w-5 h-5 bg-gradient-to-r ${colorFrom} ${colorTo} bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-300`}
+            style={{ color: 'transparent', fill: 'url(#icon-gradient)' }}
+          />
+          <svg width="0" height="0">
+            <defs>
+              <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{ stopColor: '#6366f1' }} />
+                <stop offset="100%" style={{ stopColor: '#a855f7' }} />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
       </div>
-      <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">开始对话</h2>
-      <p className="text-center max-w-md">
-        选择一个会话或创建新对话，开始与 AI 助手交流
-      </p>
-    </div>
+    </motion.button>
   );
 }
 
 /**
- * 聊天面板组件
+ * Premium Greeting Screen
  */
+function GreetingScreen({ userName, onSuggestionClick }: { userName: string, onSuggestionClick: (text: string) => void }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-4xl mx-auto w-full">
+      {/* Premium Glow Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="mb-12 text-left self-start w-full relative z-10"
+      >
+        <h1 className="text-5xl md:text-6xl font-medium mb-4 tracking-tight">
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="gradient-text-animated block"
+          >
+            Hello, {userName}
+          </motion.span>
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-muted/50 font-medium block mt-2"
+          >
+            How can I help today?
+          </motion.span>
+        </h1>
+      </motion.div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full relative z-10">
+        <SuggestionCard
+          icon={Compass}
+          text="Plan a trip to explore the city's hidden gems"
+          onClick={() => onSuggestionClick("Plan a trip to explore the city's hidden gems")}
+          delay={1}
+          colorFrom="from-teal-500"
+          colorTo="to-cyan-500"
+        />
+        <SuggestionCard
+          icon={Lightbulb}
+          text="Brainstorm clear and catchy tagline for my product"
+          onClick={() => onSuggestionClick("Brainstorm clear and catchy tagline for my product")}
+          delay={2}
+          colorFrom="from-amber-500"
+          colorTo="to-orange-500"
+        />
+        <SuggestionCard
+          icon={Code}
+          text="Refactor this React component to be more performant"
+          onClick={() => onSuggestionClick("Refactor this React component to be more performant")}
+          delay={3}
+          colorFrom="from-indigo-500"
+          colorTo="to-purple-500"
+        />
+        <SuggestionCard
+          icon={Pencil}
+          text="Write a thank you note to my interviewer"
+          onClick={() => onSuggestionClick("Write a thank you note to my interviewer")}
+          delay={4}
+          colorFrom="from-rose-500"
+          colorTo="to-pink-500"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function ChatPanel() {
   const {
     currentConversationId,
-    messages,
-    currentCheckpointId,
     currentModelCode,
     streamingContent,
-    setMessages,
-    addMessage,
     setStreamingContent,
     clearStreamingContent,
     user,
     setCurrentCheckpointId,
   } = useAppStore();
 
+  const {
+    displayMessages,
+    setMessageTree,
+    switchBranch,
+    getSiblingInfo,
+  } = useMessageTree({
+    onSaveCurrentMessage: async (messageId) => {
+      if (currentConversationId) {
+        await setCurrentMessage(currentConversationId, messageId);
+      }
+    },
+  });
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const latestStreamingRef = useRef<string>('');
   const latestMessageIdRef = useRef<number | string | null>(null);
-  const [siblingInfoMap, setSiblingInfoMap] = useState<Record<string, SiblingInfo>>({});
   const [navLoadingId, setNavLoadingId] = useState<string | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const regeneratingIdRef = useRef<string | null>(null);
@@ -70,64 +174,8 @@ export function ChatPanel() {
     onComplete: (event, finalContent) => {
       const contentToSave = finalContent || latestStreamingRef.current;
       if (contentToSave) {
-        const messageId = event.messageId ?? latestMessageIdRef.current ?? Date.now();
-
-        const aiMessage: Message = {
-          id: messageId,
-          conversationId: currentConversationId!,
-          senderId: -1,
-          role: 'assistant',
-          content: contentToSave,
-          contentType: 'TEXT',
-          modelCode: currentModelCode || undefined,
-          tokenCount: event.tokenCount,
-          createTime: new Date().toISOString(),
-          checkpointId: undefined,
-          parentId: event.userMessageId || event.parentId,
-        };
-
-        // 如果是 regenerate 模式，替换旧消息；否则追加
-        console.log('[onComplete] regeneratingIdRef.current =', regeneratingIdRef.current);
-        if (regeneratingIdRef.current) {
-          const oldId = regeneratingIdRef.current;
-          // 使用 getState() 获取最新消息列表，避免闭包陷阱
-          const currentMessages = useAppStore.getState().messages;
-          console.log('[onComplete] Replacing message, oldId =', oldId, ', message IDs in store =', currentMessages.map(m => String(m.id)));
-          const found = currentMessages.some(msg => String(msg.id) === oldId);
-          console.log('[onComplete] Found matching message:', found);
-          setMessages(
-            currentMessages.map((msg) => String(msg.id) === oldId ? aiMessage : msg)
-          );
-          // 验证替换后的状态并刷新分支信息
-          setTimeout(() => {
-            console.log('[onComplete] After setMessages, message IDs =', useAppStore.getState().messages.map(m => String(m.id)));
-            // 刷新历史以更新分支导航信息
-            loadHistory();
-          }, 100);
-        } else {
-          console.log('[onComplete] Appending new AI message');
-          // 获取当前消息列表
-          const currentMsgs = useAppStore.getState().messages;
-
-          // 同时：1) 更新用户消息的临时 ID 为真实 ID，2) 添加 AI 消息
-          const updatedMsgs = currentMsgs.map(msg => {
-            // 更新临时用户消息 ID（非 18 位数字）
-            if (msg.role === 'user' && event.userMessageId && !String(msg.id).match(/^\d{18,}$/)) {
-              console.log('[onComplete] Updating user message ID from', msg.id, 'to', event.userMessageId);
-              return { ...msg, id: event.userMessageId };
-            }
-            return msg;
-          });
-
-          // 添加 AI 消息
-          updatedMsgs.push(aiMessage);
-
-          // 一次性更新状态
-          setMessages(updatedMsgs);
-        }
-
-        latestMessageIdRef.current = messageId;
-        regeneratingIdRef.current = null;
+        setTimeout(() => loadHistory(), 100);
+        latestMessageIdRef.current = event.messageId ?? null;
         setRegeneratingId(null);
         setNavLoadingId(null);
       }
@@ -135,7 +183,7 @@ export function ChatPanel() {
       clearStreamingContent();
     },
     onError: (error) => {
-      console.error('聊天错误:', error);
+      console.error('Chat Error:', error);
       latestStreamingRef.current = '';
       clearStreamingContent();
       setRegeneratingId(null);
@@ -143,336 +191,181 @@ export function ChatPanel() {
     },
   });
 
-
   useEffect(() => {
-    if (currentConversationId) {
-      loadHistory();
-    }
+    if (currentConversationId) loadHistory();
   }, [currentConversationId]);
 
   async function loadHistory() {
     if (!currentConversationId) return;
     try {
       const data = await getConversationHistory(currentConversationId);
-      setMessages(data);
-      const lastCheckpoint = [...data].reverse().find((item) => item.checkpointId)?.checkpointId || null;
+      setMessageTree(data.messages, data.currentMessageId);
+      const lastCheckpoint = [...data.messages].reverse().find((item) => item.checkpointId)?.checkpointId || null;
       setCurrentCheckpointId(lastCheckpoint);
-      setSiblingInfoMap({});
       setNavLoadingId(null);
       setRegeneratingId(null);
       setEditingMessageId(null);
       setEditingContent('');
-
-      // 预加载 AI 消息的分支信息（基于 messageId）
-      const assistantMessages = data.filter(
-        (msg) => msg.role === 'assistant'
-      );
-      if (assistantMessages.length > 0) {
-        const siblingPromises = assistantMessages.map((msg) =>
-          getSiblingMessages(currentConversationId!, String(msg.id))
-            .then((info) => ({ messageId: String(msg.id), info }))
-            .catch(() => null)
-        );
-        const results = await Promise.all(siblingPromises);
-        const newSiblingMap: Record<string, SiblingInfo> = {};
-        for (const result of results) {
-          if (result) {
-            newSiblingMap[result.messageId] = result.info;
-          }
-        }
-        setSiblingInfoMap(newSiblingMap);
-      }
     } catch (error) {
-      console.error('加载历史消息失败:', error);
+      console.error('Failed to load history:', error);
     }
   }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [displayMessages, streamingContent]);
 
-  /**
-   * 获取或缓存兄弟分支信息（基于 messageId）
-   */
-  const ensureSiblingInfo = useCallback(
-    async (messageId: string) => {
-      if (siblingInfoMap[messageId]) return siblingInfoMap[messageId];
-      const info = await getSiblingMessages(currentConversationId!, messageId);
-      setSiblingInfoMap((prev) => ({ ...prev, [messageId]: info }));
-      return info;
-    },
-    [currentConversationId, siblingInfoMap]
-  );
+  const handleNavigateBranch = useCallback((messageId: string, direction: 'prev' | 'next') => {
+    if (!currentConversationId || navLoadingId) return;
+    setNavLoadingId(messageId);
+    try {
+      const info = getSiblingInfo(messageId);
+      if (!info || info.total <= 1) return;
+      const nextIndex = direction === 'prev' ? info.current - 1 : info.current + 1;
+      if (nextIndex < 0 || nextIndex >= info.total) return;
+      switchBranch(info.siblings[nextIndex]);
+    } catch (error) {
+      console.error('Branch switch failed:', error);
+    } finally {
+      setNavLoadingId(null);
+    }
+  }, [currentConversationId, navLoadingId, getSiblingInfo, switchBranch]);
 
-  /**
-   * 切换分支，替换当前 AI 消息
-   */
-  const handleNavigateBranch = useCallback(
-    async (messageId: string, direction: 'prev' | 'next') => {
-      if (!currentConversationId || navLoadingId) return;
-      setNavLoadingId(messageId);
-      try {
-        const info = await ensureSiblingInfo(messageId);
-        if (!info || info.total <= 1) return;
+  const handleRegenerate = useCallback((message: Message, index: number) => {
+    if (!currentConversationId || !user) return;
+    const lastUser = [...displayMessages].slice(0, index).reverse().find((item) => item.role === 'user');
+    if (!lastUser) return;
+    const parentMessageId = String(lastUser.id);
+    setRegeneratingId(String(message.id));
+    regeneratingIdRef.current = String(message.id);
+    latestStreamingRef.current = '';
+    clearStreamingContent();
+    sendMessage({
+      conversationId: currentConversationId,
+      content: lastUser.content,
+      modelCode: currentModelCode || undefined,
+      parentMessageId: parentMessageId,
+      regenerate: true,
+    });
+  }, [clearStreamingContent, currentConversationId, currentModelCode, displayMessages, sendMessage, user]);
 
-        const nextIndex =
-          direction === 'prev' ? info.current - 1 : info.current + 1;
-        if (nextIndex < 0 || nextIndex >= info.total) return;
-
-        const targetMessageId = info.siblings[nextIndex];
-        // 获取目标消息并替换当前消息
-        const targetMessage = await getMessageById(currentConversationId, targetMessageId);
-        if (targetMessage) {
-          // 替换消息列表中对应的消息
-          const newMessages = messages.map((msg) =>
-            String(msg.id) === messageId ? targetMessage : msg
-          );
-          setMessages(newMessages);
-
-          // 保存用户选择的分支状态（异步，不阻塞 UI）
-          setCurrentMessage(currentConversationId, targetMessageId).catch(
-            (err) => console.error('保存分支状态失败:', err)
-          );
-        }
-        setSiblingInfoMap((prev) => ({
-          ...prev,
-          [messageId]: { ...info, current: nextIndex },
-          [targetMessageId]: { ...info, current: nextIndex },
-        }));
-      } catch (error) {
-        console.error('切换分支失败:', error);
-      } finally {
-        setNavLoadingId(null);
-      }
-    },
-    [
-      currentConversationId,
-      ensureSiblingInfo,
-      messages,
-      navLoadingId,
-      setMessages,
-      setCurrentCheckpointId,
-      setStreamingContent,
-    ]
-  );
-
-  /**
-   * 1. 重新生成当前 AI 回复，生成兄弟分支
-   */
-  const handleRegenerate = useCallback(
-    (message: Message, index: number) => {
-      if (!currentConversationId || !user) return;
-      const lastUser = [...messages]
-        .slice(0, index)
-        .reverse()
-        .find((item) => item.role === 'user');
-      if (!lastUser) return;
-
-      // 重新生成时，新的 AI 回复和当前 AI 回复共享同一个父节点（用户消息）
-      // 使用用户消息的 ID 作为 parentMessageId
-      const parentMessageId = String(lastUser.id);
-
-      setRegeneratingId(String(message.id));
-      regeneratingIdRef.current = String(message.id); // 设置 ref 供 onComplete 使用
-      console.log('[handleRegenerate] Set regeneratingIdRef to', regeneratingIdRef.current);
-      latestStreamingRef.current = '';
-      latestMessageIdRef.current = null;
-      clearStreamingContent();
-
-      sendMessage({
-        conversationId: currentConversationId,
-        content: lastUser.content,
-        modelCode: currentModelCode || undefined,
-        parentMessageId: parentMessageId,
-        regenerate: true,
-      });
-    },
-    [
-      clearStreamingContent,
-      currentConversationId,
-      currentModelCode,
-      messages,
-      sendMessage,
-      user,
-    ]
-  );
-
-  /**
-   * 1. 开始编辑历史用户消息
-   */
   const startEditMessage = useCallback((message: Message) => {
     setEditingMessageId(String(message.id));
     setEditingContent(message.content);
   }, []);
 
-  /**
-   * 1. 提交编辑后的消息，基于历史 checkpoint 分叉
-   */
-  const submitEditMessage = useCallback(
-    async (message: Message) => {
-      if (!currentConversationId || !user) return;
-      // 编辑用户消息时，基于父消息创建新分支
-      const parentId = message.parentId;
-      try {
-        latestStreamingRef.current = '';
-        latestMessageIdRef.current = null;
-        clearStreamingContent();
-        sendMessage({
-          conversationId: currentConversationId,
-          content: editingContent,
-          modelCode: currentModelCode || undefined,
-          parentMessageId: parentId || undefined,
-        });
-      } catch (error) {
-        console.error('编辑消息发送失败:', error);
-      } finally {
-        setEditingMessageId(null);
-        setEditingContent('');
-      }
-    },
-    [
-      clearStreamingContent,
-      currentConversationId,
-      currentModelCode,
-      editingContent,
-      sendMessage,
-      setCurrentCheckpointId,
-      setMessages,
-      setEditingMessageId,
-      user,
-    ]
-  );
-
-  const handleSend = useCallback(
-    (content: string) => {
-      if (!currentConversationId || !user) return;
-
-      const userMessage: Message = {
-        id: Date.now(),
-        conversationId: currentConversationId,
-        senderId: user.id,
-        role: 'user',
-        content,
-        contentType: 'TEXT',
-        createTime: new Date().toISOString(),
-        checkpointId: currentCheckpointId || undefined,
-      };
-      // 1. 立即追加用户消息，保持本地流畅体验
-      addMessage(userMessage);
+  const submitEditMessage = useCallback(async (message: Message) => {
+    if (!currentConversationId || !user) return;
+    try {
       latestStreamingRef.current = '';
-      latestMessageIdRef.current = null;
       clearStreamingContent();
-
       sendMessage({
         conversationId: currentConversationId,
-        content,
+        content: editingContent,
         modelCode: currentModelCode || undefined,
+        parentMessageId: message.parentId || undefined,
       });
-    },
-    [currentConversationId, currentCheckpointId, currentModelCode, user, addMessage, sendMessage]
-  );
+    } catch (error) {
+      console.error('Edit failed:', error);
+    } finally {
+      setEditingMessageId(null);
+      setEditingContent('');
+    }
+  }, [clearStreamingContent, currentConversationId, currentModelCode, editingContent, sendMessage, user]);
+
+  const handleSend = useCallback((content: string) => {
+    if (!currentConversationId || !user) return;
+    const lastMessage = displayMessages.length > 0 ? displayMessages[displayMessages.length - 1] : null;
+    const parentMessageId = lastMessage ? String(lastMessage.id) : undefined;
+    latestStreamingRef.current = '';
+    clearStreamingContent();
+    sendMessage({
+      conversationId: currentConversationId,
+      content,
+      modelCode: currentModelCode || undefined,
+      parentMessageId,
+    });
+  }, [currentConversationId, currentModelCode, user, displayMessages, sendMessage, clearStreamingContent]);
 
   if (!currentConversationId) {
-    return <EmptyState />;
+    return <GreetingScreen userName={user?.userName || 'Traveler'} onSuggestionClick={() => { }} />;
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[var(--bg-primary)]">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-secondary)]">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: 'var(--accent-gradient)' }}
-          >
-            <MessageSquare className="w-4 h-4 text-white" />
-          </div>
-          <h2 className="font-semibold text-[var(--text-primary)]">对话</h2>
+    <div className="flex-1 flex flex-col h-full relative">
+      {/* Header with Model Selector */}
+      <div className="absolute top-0 left-0 right-0 p-4 z-10 flex justify-between items-start pointer-events-none">
+        <div className="pointer-events-auto">
+          <ModelSelector />
         </div>
-        <ModelSelector />
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
-        {messages.length === 0 && !streamingContent ? (
-          <div className="h-full flex flex-col items-center justify-center text-[var(--text-secondary)] p-8">
-            <div className="w-16 h-16 rounded-2xl glass-effect flex items-center justify-center mb-4">
-              <MessageSquare className="w-8 h-8 opacity-50" />
-            </div>
-            <p className="text-center">发送消息开始对话</p>
-          </div>
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto w-full">
+        {displayMessages.length === 0 && !streamingContent ? (
+          <GreetingScreen userName={user?.userName || 'User'} onSuggestionClick={handleSend} />
         ) : (
-          <div className="max-w-4xl mx-auto py-4">
-            {messages.map((message, index) => (
-              <MessageBubble
+          <div className="max-w-3xl mx-auto py-20 pb-40 px-4">
+            {displayMessages.map((message: Message, index: number) => (
+              <motion.div
                 key={message.id}
-                message={message}
-                siblingInfo={
-                  message.role === 'assistant' ? siblingInfoMap[String(message.id)] : undefined
-                }
-                onNavigateBranch={
-                  message.role === 'assistant'
-                    ? (direction) => handleNavigateBranch(String(message.id), direction)
-                    : undefined
-                }
-                onRegenerate={
-                  message.role === 'assistant'
-                    ? () => handleRegenerate(message, index)
-                    : undefined
-                }
-                isRegenerating={
-                  regeneratingId === String(message.id) ||
-                  navLoadingId === String(message.id)
-                }
-                isStreaming={streamingContent !== '' && message.id === -1}
-                onEdit={
-                  message.role === 'user'
-                    ? () => startEditMessage(message)
-                    : undefined
-                }
-                isEditing={editingMessageId === String(message.id)}
-                editingContent={editingContent}
-                onEditChange={setEditingContent}
-                onEditSubmit={() => submitEditMessage(message)}
-                onEditCancel={() => {
-                  setEditingMessageId(null);
-                  setEditingContent('');
-                }}
-              />
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <MessageBubble
+                  message={message}
+                  siblingInfo={message.role === 'assistant' ? getSiblingInfo(String(message.id)) ?? undefined : undefined}
+                  onNavigateBranch={message.role === 'assistant' ? (direction) => handleNavigateBranch(String(message.id), direction) : undefined}
+                  onRegenerate={message.role === 'assistant' ? () => handleRegenerate(message, index) : undefined}
+                  isRegenerating={regeneratingId === String(message.id) || navLoadingId === String(message.id)}
+                  isStreaming={streamingContent !== '' && message.id === -1}
+                  onEdit={message.role === 'user' ? () => startEditMessage(message) : undefined}
+                  isEditing={editingMessageId === String(message.id)}
+                  editingContent={editingContent}
+                  onEditChange={setEditingContent}
+                  onEditSubmit={() => submitEditMessage(message)}
+                  onEditCancel={() => { setEditingMessageId(null); setEditingContent(''); }}
+                />
+              </motion.div>
             ))}
-            {/* 工具调用状态指示器 */}
+
             {activeTool && (
-              <div className="tool-status-indicator">
-                <div className="tool-status-icon">
-                  <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2v4m0 12v4m-8-10h4m12 0h4m-4.93-5.07l-2.83 2.83m-5.66 5.66l-2.83 2.83m11.32 0l-2.83-2.83m-5.66-5.66l-2.83-2.83" />
-                  </svg>
-                </div>
-                <span className="tool-status-text">
-                  正在{getToolDisplayName(activeTool)}...
-                </span>
-              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center gap-3 p-4 text-sm text-muted"
+              >
+                <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                <span className="gradient-text font-medium">Running {getToolDisplayName(activeTool)}...</span>
+              </motion.div>
             )}
+
             {streamingContent && (
-              <MessageBubble
-                message={{
-                  id: -1,
-                  conversationId: currentConversationId,
-                  senderId: -1,
-                  role: 'assistant',
-                  content: streamingContent,
-                  contentType: 'TEXT',
-                  createTime: new Date().toISOString(),
-                }}
-                isStreaming={true}
-              />
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <MessageBubble
+                  message={{
+                    id: -1,
+                    conversationId: currentConversationId,
+                    senderId: -1,
+                    role: 'assistant',
+                    content: streamingContent,
+                    contentType: 'TEXT',
+                    createTime: new Date().toISOString(),
+                  }}
+                  isStreaming={true}
+                />
+              </motion.div>
             )}
             <div ref={messagesEndRef} />
           </div>
         )}
       </div>
 
-      {/* Input */}
+      {/* Footer / Input Area */}
       <ChatInput
         isLoading={isLoading}
         onSend={handleSend}

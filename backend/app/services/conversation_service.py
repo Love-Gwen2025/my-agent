@@ -93,14 +93,15 @@ class ConversationService:
         await self.db.execute(delete(Conversation).where(Conversation.id == conversation_id))
         await self.db.commit()
 
-    async def history(self, user_id: int, conversation_id: int) -> list[dict]:
+    async def history(self, user_id: int, conversation_id: int) -> dict:
         """
-        查询会话消息历史，返回用户选择的分支链路。
+        返回完整消息树，让前端处理分支逻辑。
 
-        算法：
-        1. 获取所有消息
-        2. 如果有 current_message_id，从该消息回溯到根节点构建链路
-        3. 如果没有，使用默认策略（每个分支点选择最新的子消息）
+        返回:
+            {
+                "messages": [...],  # 所有消息
+                "currentMessageId": "..."  # 当前选中的消息 ID
+            }
         """
         # 1. 校验归属
         conversation = await self.ensure_owner(conversation_id, user_id)
@@ -113,49 +114,11 @@ class ConversationService:
         )
         all_messages = query.scalars().all()
 
-        if not all_messages:
-            return []
-
-        # 3. 构建辅助结构
-        msg_map = {msg.id: msg for msg in all_messages}
-        children_map: dict[int | None, list[Message]] = {}
-        for msg in all_messages:
-            parent_id = msg.parent_id
-            if parent_id not in children_map:
-                children_map[parent_id] = []
-            children_map[parent_id].append(msg)
-
-        # 4. 如果有保存的 current_message_id，从该消息回溯构建链路
-        current_msg_id = conversation.current_message_id
-        if current_msg_id and current_msg_id in msg_map:
-            # 从 current_message_id 回溯到根节点
-            path = []
-            current = msg_map[current_msg_id]
-            while current:
-                path.append(current)
-                if current.parent_id and current.parent_id in msg_map:
-                    current = msg_map[current.parent_id]
-                else:
-                    break
-            # 反转得到从根到叶的路径
-            path.reverse()
-            return [msg.to_vo() for msg in path]
-
-        # 5. 没有保存的状态，使用默认策略（选择最新的分支）
-        roots = children_map.get(None, [])
-        if not roots:
-            return [msg.to_vo() for msg in all_messages]
-
-        result = []
-        current = roots[0]
-        while current:
-            result.append(current)
-            children = children_map.get(current.id, [])
-            if not children:
-                break
-            current = max(children, key=lambda m: (m.create_time, m.id))
-
-        return [msg.to_vo() for msg in result]
+        # 3. 返回完整消息列表和当前选中消息ID
+        return {
+            "messages": [msg.to_vo() for msg in all_messages],
+            "currentMessageId": str(conversation.current_message_id) if conversation.current_message_id else None
+        }
 
     async def persist_message(
         self,
@@ -191,10 +154,16 @@ class ConversationService:
         self.db.add(message)
         await self.db.commit()
         await self.db.refresh(message)
+        # 同时更新 last_message_id 和 current_message_id
+        # current_message_id 用于分支切换后恢复位置
         await self.db.execute(
             update(Conversation)
             .where(Conversation.id == conversation_id)
-            .values(last_message_id=message.id, last_message_at=message.create_time)
+            .values(
+                last_message_id=message.id,
+                last_message_at=message.create_time,
+                current_message_id=message.id
+            )
         )
         await self.db.commit()
         return message
