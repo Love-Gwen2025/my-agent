@@ -43,6 +43,13 @@ async def list_conversations(
     """
     1. 查询当前用户会话列表。
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"[API list] current.id={current.id}, type={type(current.id)}, user_code={current.user_code}"
+    )
+
     service = ConversationService(db)
     # 1. 返回列表视图
     items = await service.list_conversations(current.id)
@@ -58,7 +65,7 @@ async def history(
 ) -> ApiResult[HistoryResponse]:
     """
     查询会话历史消息（返回完整消息树）
-    
+
     返回所有消息和当前选中的消息 ID，
     前端负责根据 parentId 构建树结构和计算显示路径。
     """
@@ -72,12 +79,16 @@ async def history(
 
         # 2. 获取完整消息树
         result = await conv_service.history(current.id, int(conversationId))
-        logger.info(f"[history] messages count: {len(result['messages'])}, conversationId={conversationId}")
+        logger.info(
+            f"[history] messages count: {len(result['messages'])}, conversationId={conversationId}"
+        )
 
-        return ApiResult.ok(HistoryResponse(
-            messages=[MessageVo(**item) for item in result['messages']],
-            currentMessageId=result['currentMessageId']
-        ))
+        return ApiResult.ok(
+            HistoryResponse(
+                messages=[MessageVo(**item) for item in result["messages"]],
+                currentMessageId=result["currentMessageId"],
+            )
+        )
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN
         return ApiResult.error("CONV-403", str(ex))
@@ -149,7 +160,9 @@ async def modify_conversation(
     service = ConversationService(db)
     try:
         # 1. 执行更新
-        await service.modify_conversation(current.id, int(payload.id) if payload.id else None, payload.title)
+        await service.modify_conversation(
+            current.id, int(payload.id) if payload.id else None, payload.title
+        )
         return ApiResult.ok()
     except PermissionError as ex:
         response.status_code = status.HTTP_403_FORBIDDEN

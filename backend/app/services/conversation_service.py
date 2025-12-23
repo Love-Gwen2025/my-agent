@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from loguru import logger
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,6 +53,8 @@ class ConversationService:
         """
         1. 查询当前用户会话列表，按更新时间降序。
         """
+        logger.info(f"[list_conversations] 开始查询, user_id={user_id}, type={type(user_id)}")
+
         # 1. 查询列表并转换视图
         query = await self.db.execute(
             select(Conversation)
@@ -59,6 +62,20 @@ class ConversationService:
             .order_by(Conversation.update_time.desc())
         )
         items = query.scalars().all()
+
+        logger.info(f"[list_conversations] 查询结果: count={len(items)}, user_id={user_id}")
+        if items:
+            logger.info(
+                f"[list_conversations] 第一条: id={items[0].id}, title={items[0].title}, user_id={items[0].user_id}"
+            )
+        else:
+            # 调试：直接查询所有会话看看
+            all_query = await self.db.execute(select(Conversation).limit(5))
+            all_items = all_query.scalars().all()
+            logger.warning(
+                f"[list_conversations] 没有找到数据! 数据库中前5条: {[(c.id, c.user_id, c.title) for c in all_items]}"
+            )
+
         return [item.to_vo() for item in items]
 
     async def get_conversation(self, conversation_id: int, user_id: int) -> dict:
