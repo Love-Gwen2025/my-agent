@@ -1,7 +1,7 @@
 /**
  * Gemini Sidebar - Premium Colorful Edition
  */
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Plus, MessageSquare, Trash2, Menu, Settings, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '../../store';
@@ -89,6 +89,15 @@ export function Sidebar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  // Settings按钮ref，用于定位ThemePanel
+  const settingsButtonRef = useRef<HTMLDivElement>(null);
+  // 存储Settings按钮位置
+  const [settingsAnchorRect, setSettingsAnchorRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
 
   const {
     conversations,
@@ -171,6 +180,20 @@ export function Sidebar() {
     setEditingId(null);
     setEditingTitle('');
   }
+
+  // 打开设置面板时获取按钮位置
+  const handleOpenThemePanel = useCallback(() => {
+    if (settingsButtonRef.current) {
+      const rect = settingsButtonRef.current.getBoundingClientRect();
+      setSettingsAnchorRect({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      });
+    }
+    setIsThemePanelOpen(true);
+  }, []);
 
   return (
     <motion.div
@@ -269,13 +292,16 @@ export function Sidebar() {
 
       {/* Bottom Section - Settings Only */}
       <div className="mt-auto px-2 space-y-1 pt-4 border-t border-gradient-to-r from-primary/20 to-secondary/20">
-        <SidebarItem
-          icon={Settings}
-          label="Settings"
-          onClick={() => setIsThemePanelOpen(true)}
-          isCollapsed={!sidebarOpen}
-          colorClass="text-rose-400"
-        />
+        {/* Settings按钮包装器，用于获取位置 */}
+        <div ref={settingsButtonRef}>
+          <SidebarItem
+            icon={Settings}
+            label="Settings"
+            onClick={handleOpenThemePanel}
+            isCollapsed={!sidebarOpen}
+            colorClass="text-rose-400"
+          />
+        </div>
 
         {/* User Profile - Colorful Avatar */}
         {sidebarOpen && (
@@ -298,7 +324,11 @@ export function Sidebar() {
         )}
       </div>
 
-      <ThemePanel isOpen={isThemePanelOpen} onClose={() => setIsThemePanelOpen(false)} />
+      <ThemePanel
+        isOpen={isThemePanelOpen}
+        onClose={() => setIsThemePanelOpen(false)}
+        anchorRect={settingsAnchorRect}
+      />
     </motion.div>
   );
 }

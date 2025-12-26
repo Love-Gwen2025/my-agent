@@ -327,7 +327,7 @@ export function ChatPanel() {
         {displayMessages.length === 0 && !streamingContent ? (
           <GreetingScreen userName={user?.userName || 'User'} onSuggestionClick={handleSend} />
         ) : (
-          <div className="max-w-3xl mx-auto py-20 pb-40 px-4">
+          <div className="max-w-3xl mx-auto py-20 pb-48 px-4">
             {displayMessages.map((message: Message, index: number) => (
               <motion.div
                 key={message.id}
