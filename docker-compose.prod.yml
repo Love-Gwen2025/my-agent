@@ -16,11 +16,12 @@ services:
     ports:
       - "127.0.0.1:8081:8080"
     environment:
+      # ==================== 应用基础 ====================
       - APP_ENV=prod
       - APP_NAME=couple-agent-py
       - APP_LOG_LEVEL=warning
 
-      # 连接已有的 postgres 容器 (你的配置)
+      # ==================== PostgreSQL 数据库 ====================
       - DB_HOST=pg_vector
       - DB_PORT=5432
       - DB_NAME=couple_agent
@@ -29,51 +30,51 @@ services:
       - DB_POOL_SIZE=10
       - DB_MAX_OVERFLOW=10
 
-      # 连接已有的 redis 容器 (你的配置)
+      # ==================== Redis 缓存 ====================
       - REDIS_HOST=redis_cache
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-123456}
       - REDIS_DB=0
 
-      # JWT 配置 (请修改为安全的密钥!)
+      # ==================== JWT 认证 ====================
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - JWT_EXPIRE_MINUTES=60
       - JWT_ISSUER=${JWT_ISSUER:-couple-agent}
 
-      # AI DeepSeek 配置
+      # ==================== AI 提供商选择 ====================
+      - AI_PROVIDER=${AI_PROVIDER:-deepseek}
+
+      # ==================== DeepSeek 配置 ====================
       - AI_DEEPSEEK_API_KEY=${AI_DEEPSEEK_API_KEY}
       - AI_DEEPSEEK_BASE_URL=${AI_DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       - AI_DEEPSEEK_MODEL_NAME=${AI_DEEPSEEK_MODEL_NAME:-deepseek-chat}
       - AI_DEEPSEEK_TEMPERATURE=${AI_DEEPSEEK_TEMPERATURE:-0.7}
       - AI_DEEPSEEK_TIMEOUT=${AI_DEEPSEEK_TIMEOUT:-30}
 
-      # AI OpenAI 配置 (可选)
+      # ==================== OpenAI 配置 ====================
       - AI_OPENAI_API_KEY=${AI_OPENAI_API_KEY:-}
       - AI_OPENAI_BASE_URL=${AI_OPENAI_BASE_URL:-https://api.openai.com/v1}
 
-      # AI 提供商选择 (deepseek / openai / gemini / custom)
-      - AI_PROVIDER=${AI_PROVIDER:-deepseek}
+      # ==================== Gemini 配置 ====================
+      - AI_GEMINI_API_KEY=${AI_GEMINI_API_KEY:-}
+      - AI_GEMINI_MODEL_NAME=${AI_GEMINI_MODEL_NAME:-gemini-2.0-flash}
+      - AI_GEMINI_TEMPERATURE=${AI_GEMINI_TEMPERATURE:-0.7}
 
-      # 中转站 API 配置 (当 AI_PROVIDER=custom 时生效)
+      # ==================== 自定义中转站 ====================
       - AI_CUSTOM_API_KEY=${AI_CUSTOM_API_KEY:-}
       - AI_CUSTOM_BASE_URL=${AI_CUSTOM_BASE_URL:-}
       - AI_CUSTOM_MODEL_NAME=${AI_CUSTOM_MODEL_NAME:-gpt-4}
       - AI_CUSTOM_TEMPERATURE=${AI_CUSTOM_TEMPERATURE:-0.7}
       - AI_CUSTOM_TIMEOUT=${AI_CUSTOM_TIMEOUT:-60}
 
-      # Google Gemini 配置 (当 AI_PROVIDER=gemini 时生效)
-      - AI_GEMINI_API_KEY=${AI_GEMINI_API_KEY:-}
-      - AI_GEMINI_MODEL_NAME=${AI_GEMINI_MODEL_NAME:-gemini-2.0-flash}
-      - AI_GEMINI_TEMPERATURE=${AI_GEMINI_TEMPERATURE:-0.7}
-
-      # Embedding 配置
+      # ==================== Embedding 向量化 ====================
       - AI_EMBEDDING_PROVIDER=${AI_EMBEDDING_PROVIDER:-local}
       - AI_EMBEDDING_MODEL=${AI_EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
       - AI_EMBEDDING_DIMENSION=${AI_EMBEDDING_DIMENSION:-512}
       - AI_EMBEDDING_API_KEY=${AI_EMBEDDING_API_KEY:-}
       - AI_EMBEDDING_BASE_URL=${AI_EMBEDDING_BASE_URL:-}
 
-      # 对话上下文配置
+      # ==================== 对话上下文 & RAG ====================
       - CONVERSATION_CACHE_TTL=${CONVERSATION_CACHE_TTL:-3600}
       - CONVERSATION_CACHE_MAX_MESSAGES=${CONVERSATION_CACHE_MAX_MESSAGES:-20}
       - MAX_HISTORY_MESSAGES=${MAX_HISTORY_MESSAGES:-20}
@@ -82,18 +83,19 @@ services:
       - RAG_TOP_K=${RAG_TOP_K:-5}
       - RAG_SIMILARITY_THRESHOLD=${RAG_SIMILARITY_THRESHOLD:-0.6}
 
-      # OSS 配置 (可选)
+      # ==================== Tavily 搜索 ====================
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - TAVILY_ENABLED=${TAVILY_ENABLED:-true}
+
+      # ==================== OSS 对象存储 ====================
       - OSS_BUCKET=${OSS_BUCKET:-}
       - OSS_REGION=${OSS_REGION:-cn-hangzhou}
       - OSS_ENDPOINT=${OSS_ENDPOINT:-}
       - OSS_CUSTOM_DOMAIN=${OSS_CUSTOM_DOMAIN:-}
       - OSS_OBJECT_PREFIX=${OSS_OBJECT_PREFIX:-}
       - OSS_AVATAR=${OSS_AVATAR:-}
-      # 搜索
-      - TAVILY_API_KEY=${TAVILY_API_KEY}
-      - TAVILY_ENABLED=${TAVILY_ENABLED:-true}
 
-      # 功能开关
+      # ==================== 功能开关 ====================
       - ENABLE_SSE_STREAMING=true
       - ENABLE_WEBSOCKET=true
     labels:

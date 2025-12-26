@@ -4,6 +4,7 @@ from loguru import logger
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ForbiddenError
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.message_embedding import MessageEmbedding
@@ -29,7 +30,7 @@ class ConversationService:
         )
         conversation = query.scalar_one_or_none()
         if conversation is None:
-            raise PermissionError("会话不存在或无权限")
+            raise ForbiddenError("会话不存在或无权限", code="CONV-403")
         return conversation
 
     async def create_conversation(

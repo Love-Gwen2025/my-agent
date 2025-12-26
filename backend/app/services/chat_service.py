@@ -17,10 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.graph import create_default_agent
 from app.core.checkpointer import create_checkpointer
+from app.core.constants import AI_SENDER_ID, MAX_TITLE_LENGTH
 from app.core.settings import Settings
 from app.services.conversation_service import ConversationService
 from app.services.embedding_service import EmbeddingService
 from app.services.model_service import ModelService
+from app.utils.content import extract_text_content
 
 # 系统提示词
 SYSTEM_PROMPT = """你是一个智能助手。你可以使用以下工具来帮助回答问题：
@@ -56,42 +58,122 @@ class ChatService:
         self.settings = settings
 
     async def _create_title(self, msg: str) -> str:
-        """根据消息内容自动生成会话标题"""
-        from app.core.settings import get_settings
+        """
+        根据消息内容自动生成会话标题
 
+        使用构造时注入的 model_service，避免每次创建新实例
+        """
         prompt = f"""
 根据传入的消息,生成一个5-10字左右的标题,内容力求准确,简明,扼要。
 只输出标题本身，不要加引号或其他内容。
 消息: {msg}
 标题:"""
-        settings = get_settings()
-        model_service = ModelService(settings)
-        response = await model_service.chat(prompt)
-        return response.strip()[:20]  # 限制最大 20 字符
+        # 使用已注入的 model_service，如果没有则返回截断的消息作为标题
+        if self.model_service:
+            response = await self.model_service.chat(prompt)
+            return response.strip()[:MAX_TITLE_LENGTH]
+        return msg[:MAX_TITLE_LENGTH]
 
-    def _ensure_string(self, content) -> str:
-        """
-        确保内容是纯字符串
-
-        处理 Gemini 格式: [{'type': 'text', 'text': '...'}]
-        """
-        if content is None:
-            return ""
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            texts = []
-            for part in content:
-                if isinstance(part, dict) and part.get("type") == "text":
-                    texts.append(part.get("text", ""))
-                elif isinstance(part, str):
-                    texts.append(part)
-            return "".join(texts)
-        return str(content)
+    # _ensure_string 已移除，使用 app.utils.content.extract_text_content 替代
 
     def _has_model(self) -> bool:
         """检查是否已配置模型服务"""
         return self.model_service is not None
+
+    def _build_langgraph_config(
+        self,
+        conversation_id: int,
+        db: AsyncSession | None,
+        checkpoint_id: str | None = None,
+    ) -> dict:
+        """
+        构建 LangGraph 配置
+
+        Args:
+            conversation_id: 会话 ID
+            db: 数据库会话（用于 RAG）
+            checkpoint_id: 可选的 checkpoint ID（用于 regenerate 回退）
+
+        Returns:
+            LangGraph 配置字典
+        """
+        config = {
+            "configurable": {
+                "thread_id": str(conversation_id),
+                "embedding_service": self.embedding_service,
+                "db_session": db,
+                "conversation_id": conversation_id,
+            }
+        }
+        if checkpoint_id:
+            config["configurable"]["checkpoint_id"] = checkpoint_id
+        return config
+
+    def _format_sse_event(self, event_type: str, conversation_id: int, **kwargs) -> str:
+        """
+        格式化 SSE 事件为 JSON
+
+        Args:
+            event_type: 事件类型 (chunk/tool_start/tool_end/done)
+            conversation_id: 会话 ID
+            **kwargs: 额外的事件数据
+
+        Returns:
+            JSON 格式的字符串
+        """
+        return json.dumps(
+            {"type": event_type, "conversationId": str(conversation_id), **kwargs},
+            ensure_ascii=False,
+        )
+
+    async def _prepare_stream_context(
+        self,
+        user_id: int,
+        conversation_id: int,
+        content: str,
+        model_code: str | None,
+        regenerate: bool,
+        parent_message_id: int | None,
+    ) -> tuple:
+        """
+        准备流式对话的上下文
+
+        Returns:
+            (conversation, generated_title, user_message, parent_checkpoint_id)
+        """
+        # 1. 校验会话归属
+        conversation = await self.conversation_service.ensure_owner(conversation_id, user_id)
+
+        # 2. 首次消息时生成标题
+        generated_title = None
+        if not conversation.current_message_id:
+            generated_title = await self._create_title(content)
+            await self.conversation_service.modify_conversation(
+                user_id, conversation_id, generated_title
+            )
+
+        # 3. 持久化用户消息（regenerate 模式跳过）
+        user_message = None
+        if not regenerate:
+            user_message = await self.conversation_service.persist_message(
+                conversation_id=conversation_id,
+                sender_id=user_id,
+                role="user",
+                content=content,
+                content_type="TEXT",
+                model_code=model_code,
+                parent_id=parent_message_id,
+            )
+
+        # 4. 处理 regenerate 回退
+        parent_checkpoint_id = None
+        if regenerate and parent_message_id:
+            parent_msg = await self.conversation_service.get_message_by_id(parent_message_id)
+            if parent_msg and parent_msg.checkpoint_id:
+                parent_checkpoint_id = parent_msg.checkpoint_id
+                logger.info(f"[stream] Rollback to checkpoint: {parent_checkpoint_id}")
+
+        return conversation, generated_title, user_message, parent_checkpoint_id
 
     async def stream(
         self,
@@ -127,57 +209,19 @@ class ChatService:
         Yields:
             JSON 格式的 SSE 数据
         """
-        # 1. 校验会话归属
-        conversation = await self.conversation_service.ensure_owner(conversation_id, user_id)
-
-        # 1.1 如果会话当前无消息，根据发来的消息生成标题，写入会话
-        generated_title: str | None = None
-        if not conversation.current_message_id:
-            generated_title = await self._create_title(content)
-            await self.conversation_service.modify_conversation(
-                user_id, conversation_id, generated_title
-            )
-
-        # 2. 持久化用户消息（regenerate 模式下跳过，因为是复用之前的用户消息）
-        user_message = None
-        if not regenerate:
-            user_message = await self.conversation_service.persist_message(
-                conversation_id=conversation_id,
-                sender_id=user_id,
-                role="user",
-                content=content,
-                content_type="TEXT",
-                model_code=model_code,
-                parent_id=parent_message_id,
-            )
+        # 1. 准备上下文（校验归属、生成标题、持久化用户消息、处理 regenerate）
+        _, generated_title, user_message, parent_checkpoint_id = await self._prepare_stream_context(
+            user_id, conversation_id, content, model_code, regenerate, parent_message_id
+        )
 
         full_reply = []
         placeholder_message_id = -1
 
-        # 4. 构建 LangGraph config（包含 RAG 依赖）
-        config = {
-            "configurable": {
-                "thread_id": str(conversation_id),
-                # RAG 工具依赖 - 通过 RunnableConfig 传递
-                "embedding_service": self.embedding_service,
-                "db_session": db,
-                "conversation_id": conversation_id,
-            }
-        }
-
-        # 5. 重新生成时，回退到父消息的 checkpoint
-        parent_checkpoint_id = None
-        if regenerate and parent_message_id:
-            # 查询父消息（用户消息）的上一条 AI 消息的 checkpoint_id
-            # 或者直接查父消息本身的 checkpoint（如果有）
-            parent_msg = await self.conversation_service.get_message_by_id(parent_message_id)
-            if parent_msg and parent_msg.checkpoint_id:
-                parent_checkpoint_id = parent_msg.checkpoint_id
-                config["configurable"]["checkpoint_id"] = parent_checkpoint_id
-                logger.info(f"[stream] Rollback to checkpoint: {parent_checkpoint_id}")
+        # 2. 构建 LangGraph config
+        config = self._build_langgraph_config(conversation_id, db, parent_checkpoint_id)
 
         logger.info(
-            f"[stream] regenerate={regenerate}, parent_message_id={parent_message_id}, parent_checkpoint_id={parent_checkpoint_id}, config={config}"
+            f"[stream] regenerate={regenerate}, parent_checkpoint_id={parent_checkpoint_id}"
         )
 
         if self._has_model():
@@ -213,68 +257,32 @@ class ChatService:
                     if kind == "on_chat_model_stream":
                         chunk = event.get("data", {}).get("chunk")
                         if chunk and hasattr(chunk, "content") and chunk.content:
-                            # 处理 Gemini 格式: [{'type': 'text', 'text': '...'}]
-                            content = chunk.content
-                            if isinstance(content, list):
-                                token_parts = []
-                                for part in content:
-                                    if isinstance(part, dict) and part.get("type") == "text":
-                                        token_parts.append(part.get("text", ""))
-                                    elif isinstance(part, str):
-                                        token_parts.append(part)
-                                token = "".join(token_parts)
-                            else:
-                                token = str(content)
-
+                            # 使用统一工具函数处理 Gemini 格式
+                            token = extract_text_content(chunk.content)
                             if token:  # 只处理非空 token
                                 full_reply.append(token)
-                                yield json.dumps(
-                                    {
-                                        "type": "chunk",
-                                        "content": token,
-                                        "conversationId": str(conversation_id),
-                                        "messageId": placeholder_message_id,
-                                    },
-                                    ensure_ascii=False,
+                                yield self._format_sse_event(
+                                    "chunk",
+                                    conversation_id,
+                                    content=token,
+                                    messageId=placeholder_message_id,
                                 )
 
-                    # 工具开始调用
                     elif kind == "on_tool_start":
                         tool_name = event.get("name", "unknown")
                         logger.info(f"Tool started: {tool_name}")
-                        yield json.dumps(
-                            {
-                                "type": "tool_start",
-                                "tool": tool_name,
-                                "conversationId": str(conversation_id),
-                            },
-                            ensure_ascii=False,
-                        )
+                        yield self._format_sse_event("tool_start", conversation_id, tool=tool_name)
 
-                    # 工具调用结束
                     elif kind == "on_tool_end":
                         tool_name = event.get("name", "unknown")
                         logger.info(f"Tool ended: {tool_name}")
-                        yield json.dumps(
-                            {
-                                "type": "tool_end",
-                                "tool": tool_name,
-                                "conversationId": str(conversation_id),
-                            },
-                            ensure_ascii=False,
-                        )
+                        yield self._format_sse_event("tool_end", conversation_id, tool=tool_name)
         else:
             # 未接入模型时的回退
             fallback = f"暂未接入模型，回显: {content}"
             full_reply.append(fallback)
-            yield json.dumps(
-                {
-                    "type": "chunk",
-                    "content": fallback,
-                    "conversationId": str(conversation_id),
-                    "messageId": placeholder_message_id,
-                },
-                ensure_ascii=False,
+            yield self._format_sse_event(
+                "chunk", conversation_id, content=fallback, messageId=placeholder_message_id
             )
 
         # 5. 持久化助手消息
@@ -290,7 +298,7 @@ class ChatService:
 
         assistant_message = await self.conversation_service.persist_message(
             conversation_id=conversation_id,
-            sender_id=-1,
+            sender_id=AI_SENDER_ID,
             role="assistant",
             content=reply_text,
             content_type="TEXT",
@@ -357,8 +365,8 @@ class ChatService:
         from app.core.db import SessionLocal
 
         # 确保内容是字符串
-        user_content = self._ensure_string(user_content)
-        assistant_content = self._ensure_string(assistant_content)
+        user_content = extract_text_content(user_content)
+        assistant_content = extract_text_content(assistant_content)
 
         async with SessionLocal() as db:
             try:
@@ -395,7 +403,7 @@ class ChatService:
         from app.core.db import SessionLocal
 
         # 确保内容是字符串
-        assistant_content = self._ensure_string(assistant_content)
+        assistant_content = extract_text_content(assistant_content)
 
         async with SessionLocal() as db:
             try:

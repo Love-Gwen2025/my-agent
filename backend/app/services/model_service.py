@@ -7,6 +7,7 @@ from langchain_openai import ChatOpenAI
 from loguru import logger
 
 from app.core.settings import Settings
+from app.utils.content import extract_text_content
 
 
 class ModelService:
@@ -131,31 +132,9 @@ class ModelService:
         """
         从模型响应中提取文本内容
 
-        处理不同模型的返回格式：
-        - 字符串: 直接返回
-        - 列表[dict]: Gemini 格式，提取 'text' 字段
-        - 列表[str]: 拼接返回
+        外部调用保留，内部委托给统一工具函数
         """
-        if content is None:
-            return ""
-
-        if isinstance(content, str):
-            return content
-
-        if isinstance(content, list):
-            texts = []
-            for part in content:
-                if isinstance(part, dict):
-                    # Gemini 格式: {'type': 'text', 'text': '...'}
-                    if part.get("type") == "text" and "text" in part:
-                        texts.append(part["text"])
-                elif isinstance(part, str):
-                    texts.append(part)
-                else:
-                    texts.append(str(part))
-            return "".join(texts)
-
-        return str(content)
+        return extract_text_content(content)
 
     async def chat_with_messages(self, messages: list[BaseMessage]) -> str:
         """
