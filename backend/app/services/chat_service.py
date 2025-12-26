@@ -58,6 +58,7 @@ class ChatService:
     async def _create_title(self, msg: str) -> str:
         """根据消息内容自动生成会话标题"""
         from app.core.settings import get_settings
+
         prompt = f"""
 根据传入的消息,生成一个5-10字左右的标题,内容力求准确,简明,扼要。
 只输出标题本身，不要加引号或其他内容。
@@ -67,6 +68,26 @@ class ChatService:
         model_service = ModelService(settings)
         response = await model_service.chat(prompt)
         return response.strip()[:20]  # 限制最大 20 字符
+
+    def _ensure_string(self, content) -> str:
+        """
+        确保内容是纯字符串
+
+        处理 Gemini 格式: [{'type': 'text', 'text': '...'}]
+        """
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            texts = []
+            for part in content:
+                if isinstance(part, dict) and part.get("type") == "text":
+                    texts.append(part.get("text", ""))
+                elif isinstance(part, str):
+                    texts.append(part)
+            return "".join(texts)
+        return str(content)
 
     def _has_model(self) -> bool:
         """检查是否已配置模型服务"""
@@ -192,17 +213,30 @@ class ChatService:
                     if kind == "on_chat_model_stream":
                         chunk = event.get("data", {}).get("chunk")
                         if chunk and hasattr(chunk, "content") and chunk.content:
-                            token = str(chunk.content)
-                            full_reply.append(token)
-                            yield json.dumps(
-                                {
-                                    "type": "chunk",
-                                    "content": token,
-                                    "conversationId": str(conversation_id),
-                                    "messageId": placeholder_message_id,
-                                },
-                                ensure_ascii=False,
-                            )
+                            # 处理 Gemini 格式: [{'type': 'text', 'text': '...'}]
+                            content = chunk.content
+                            if isinstance(content, list):
+                                token_parts = []
+                                for part in content:
+                                    if isinstance(part, dict) and part.get("type") == "text":
+                                        token_parts.append(part.get("text", ""))
+                                    elif isinstance(part, str):
+                                        token_parts.append(part)
+                                token = "".join(token_parts)
+                            else:
+                                token = str(content)
+
+                            if token:  # 只处理非空 token
+                                full_reply.append(token)
+                                yield json.dumps(
+                                    {
+                                        "type": "chunk",
+                                        "content": token,
+                                        "conversationId": str(conversation_id),
+                                        "messageId": placeholder_message_id,
+                                    },
+                                    ensure_ascii=False,
+                                )
 
                     # 工具开始调用
                     elif kind == "on_tool_start":
@@ -322,6 +356,10 @@ class ChatService:
         """异步存储消息的 embedding（使用独立 session）"""
         from app.core.db import SessionLocal
 
+        # 确保内容是字符串
+        user_content = self._ensure_string(user_content)
+        assistant_content = self._ensure_string(assistant_content)
+
         async with SessionLocal() as db:
             try:
                 await self.embedding_service.store_message_embedding(
@@ -355,6 +393,9 @@ class ChatService:
     ) -> None:
         """异步存储 AI 回复的 embedding（用于 regenerate 模式，使用独立 session）"""
         from app.core.db import SessionLocal
+
+        # 确保内容是字符串
+        assistant_content = self._ensure_string(assistant_content)
 
         async with SessionLocal() as db:
             try:

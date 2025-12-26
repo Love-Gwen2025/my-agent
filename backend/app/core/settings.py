@@ -90,6 +90,21 @@ class Settings(BaseSettings):
     ai_deepseek_temperature: float = Field(default=0.7, description="DeepSeek 温度参数")
     ai_deepseek_timeout: int = Field(default=30, description="DeepSeek 请求超时时间，秒")
 
+    # 中转站 API 配置（使用 Responses API）
+    ai_provider: str = Field(
+        default="deepseek", description="AI 提供商: deepseek / openai / gemini / custom"
+    )
+    ai_custom_api_key: str | None = Field(default=None, description="中转站 API Key")
+    ai_custom_base_url: str | None = Field(default=None, description="中转站 Base URL")
+    ai_custom_model_name: str = Field(default="gpt-4", description="中转站模型名称")
+    ai_custom_temperature: float = Field(default=0.7, description="中转站温度参数")
+    ai_custom_timeout: int = Field(default=60, description="中转站请求超时时间，秒")
+
+    # Google Gemini 配置
+    ai_gemini_api_key: str | None = Field(default=None, description="Google Gemini API Key")
+    ai_gemini_model_name: str = Field(default="gemini-2.0-flash", description="Gemini 模型名称")
+    ai_gemini_temperature: float = Field(default=0.7, description="Gemini 温度参数")
+
     oss_bucket: str | None = Field(default=None, description="OSS 存储桶名称")
     oss_region: str = Field(default="cn-hangzhou", description="OSS 地域")
     oss_endpoint: str | None = Field(default=None, description="OSS 访问域名")
@@ -107,7 +122,9 @@ class Settings(BaseSettings):
     ai_embedding_model: str = Field(
         default="BAAI/bge-small-zh-v1.5", description="Embedding 模型名称 (本地或远程)"
     )
-    ai_embedding_dimension: int = Field(default=512, description="Embedding 向量维度 (bge-small-zh: 512)")
+    ai_embedding_dimension: int = Field(
+        default=512, description="Embedding 向量维度 (bge-small-zh: 512)"
+    )
     ai_embedding_api_key: str | None = Field(
         default=None, description="Embedding API Key (远程模式使用)"
     )
@@ -117,10 +134,14 @@ class Settings(BaseSettings):
     conversation_cache_ttl: int = Field(default=3600, description="Redis 对话缓存 TTL (秒)")
     conversation_cache_max_messages: int = Field(default=20, description="缓存最近消息数量")
     max_history_messages: int = Field(default=20, description="发送给 LLM 的最大历史消息数")
-    max_history_tokens: int = Field(default=4000, description="历史消息最大 token 估算值 (按字符数/2估算)")
+    max_history_tokens: int = Field(
+        default=4000, description="历史消息最大 token 估算值 (按字符数/2估算)"
+    )
     rag_enabled: bool = Field(default=True, description="是否启用 RAG 检索")
     rag_top_k: int = Field(default=5, description="RAG 检索返回数量")
-    rag_similarity_threshold: float = Field(default=0.6, description="RAG 相似度阈值，低于此值的结果将被过滤")
+    rag_similarity_threshold: float = Field(
+        default=0.6, description="RAG 相似度阈值，低于此值的结果将被过滤"
+    )
 
     # Tavily 搜索配置
     tavily_api_key: str | None = Field(default=None, description="Tavily API Key")

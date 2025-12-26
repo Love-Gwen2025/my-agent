@@ -53,6 +53,21 @@ services:
       - AI_OPENAI_API_KEY=${AI_OPENAI_API_KEY:-}
       - AI_OPENAI_BASE_URL=${AI_OPENAI_BASE_URL:-https://api.openai.com/v1}
 
+      # AI 提供商选择 (deepseek / openai / gemini / custom)
+      - AI_PROVIDER=${AI_PROVIDER:-deepseek}
+
+      # 中转站 API 配置 (当 AI_PROVIDER=custom 时生效)
+      - AI_CUSTOM_API_KEY=${AI_CUSTOM_API_KEY:-}
+      - AI_CUSTOM_BASE_URL=${AI_CUSTOM_BASE_URL:-}
+      - AI_CUSTOM_MODEL_NAME=${AI_CUSTOM_MODEL_NAME:-gpt-5.1-codex-max}
+      - AI_CUSTOM_TEMPERATURE=${AI_CUSTOM_TEMPERATURE:-0.7}
+      - AI_CUSTOM_TIMEOUT=${AI_CUSTOM_TIMEOUT:-60}
+
+      # Google Gemini 配置 (当 AI_PROVIDER=gemini 时生效)
+      - AI_GEMINI_API_KEY=${AI_GEMINI_API_KEY:-}
+      - AI_GEMINI_MODEL_NAME=${AI_GEMINI_MODEL_NAME:-gemini-2.0-flash}
+      - AI_GEMINI_TEMPERATURE=${AI_GEMINI_TEMPERATURE:-0.7}
+
       # Embedding 配置
       - AI_EMBEDDING_PROVIDER=${AI_EMBEDDING_PROVIDER:-local}
       - AI_EMBEDDING_MODEL=${AI_EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}

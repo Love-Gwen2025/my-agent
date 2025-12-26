@@ -28,7 +28,15 @@ def create_chat_service(
     创建 ChatService 实例
     """
     conv_service = ConversationService(db)
-    model_service = ModelService(settings) if settings.ai_deepseek_api_key else None
+
+    # 根据 ai_provider 判断是否有可用的 API Key
+    has_api_key = (
+        (settings.ai_provider == "deepseek" and settings.ai_deepseek_api_key)
+        or (settings.ai_provider == "openai" and settings.ai_openai_api_key)
+        or (settings.ai_provider == "gemini" and settings.ai_gemini_api_key)
+        or (settings.ai_provider == "custom" and settings.ai_custom_api_key)
+    )
+    model_service = ModelService(settings) if has_api_key else None
 
     # 可选服务 - 根据配置启用
     # 本地模式不需要 API Key，远程模式需要
@@ -63,7 +71,9 @@ async def stream_chat(
     try:
         await conv_service.ensure_owner(int(payload.conversationId), current.id)
     except PermissionError as ex:
-        logger.warning(f"Permission denied: user={current.id}, conversation={payload.conversationId}")
+        logger.warning(
+            f"Permission denied: user={current.id}, conversation={payload.conversationId}"
+        )
         response.status_code = status.HTTP_403_FORBIDDEN
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -71,6 +81,7 @@ async def stream_chat(
         )
 
     async def event_generator():
+        
         async for chunk in chat_service.stream(
             user_id=current.id,
             conversation_id=int(payload.conversationId),
@@ -112,13 +123,16 @@ async def chat(
             db=db,
         ):
             import json
+
             data = json.loads(chunk)
             if data.get("type") == "chunk":
                 full_reply.append(data.get("content", ""))
 
         return ApiResult.ok("".join(full_reply))
     except PermissionError as ex:
-        logger.warning(f"Permission denied: user={current.id}, conversation={payload.conversationId}")
+        logger.warning(
+            f"Permission denied: user={current.id}, conversation={payload.conversationId}"
+        )
         response.status_code = status.HTTP_403_FORBIDDEN
         return ApiResult.error("CONV-403", str(ex))
 
