@@ -1,13 +1,12 @@
 /**
- * 消息组件 - Premium Edition
+ * 消息组件 - Refined Modern Edition
  */
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, Sparkles, RefreshCw, Pencil, ThumbsUp, ThumbsDown, Share2, MoreVertical } from 'lucide-react';
+import { Copy, Check, Sparkles, RefreshCw, Pencil, ThumbsUp, ThumbsDown, Share2, MoreHorizontal } from 'lucide-react';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import type { Message, SiblingInfo } from '../../types';
 import { BranchNavigator } from './BranchNavigator';
@@ -25,6 +24,8 @@ interface MessageBubbleProps {
   onEditChange?: (value: string) => void;
   onEditSubmit?: () => void;
   onEditCancel?: () => void;
+  /** 用户头像 URL */
+  userAvatar?: string;
 }
 
 function CodeBlock({ language, children }: { language: string; children: string }) {
@@ -37,17 +38,16 @@ function CodeBlock({ language, children }: { language: string; children: string 
   };
 
   return (
-    <div className="relative group/code rounded-2xl overflow-hidden my-4 glass-subtle">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/20">
-        <span className="text-xs font-semibold text-primary uppercase tracking-wider">{language || 'code'}</span>
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          className="p-1.5 rounded-lg hover:bg-surface-container-high transition-all opacity-0 group-hover/code:opacity-100"
+    <div className="relative group/code rounded-xl overflow-hidden my-4 border border-border/40 bg-surface-highlight/30">
+      <div className="flex items-center justify-between px-4 py-2 bg-surface-highlight/40 border-b border-border/40">
+        <span className="text-xs font-medium text-muted-foreground">{language || 'text'}</span>
+        <button
+          className="p-1 rounded hover:bg-surface-container-high transition-colors text-muted-foreground hover:text-foreground"
           onClick={handleCopy}
+          aria-label="Copy code"
         >
-          {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted" />}
-        </motion.button>
+          {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
       </div>
       <SyntaxHighlighter
         style={oneDark}
@@ -55,10 +55,13 @@ function CodeBlock({ language, children }: { language: string; children: string 
         PreTag="div"
         customStyle={{
           margin: 0,
-          padding: '1.25rem',
-          fontSize: '0.875rem',
-          background: 'transparent',
-          fontFamily: '"JetBrains Mono", "Fira Code", monospace'
+          padding: '1rem',
+          fontSize: '0.85rem',
+          background: 'transparent', // Let container bg handle it or oneDark
+          lineHeight: 1.5,
+        }}
+        codeTagProps={{
+          style: { fontFamily: '"JetBrains Mono", "Fira Code", monospace' }
         }}
       >
         {children}
@@ -80,93 +83,80 @@ export function MessageBubble({
   onEditChange,
   onEditSubmit,
   onEditCancel,
+  userAvatar,
 }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
   const showBranchNav = isAssistant && siblingInfo && siblingInfo.total > 1;
 
   return (
-    <div className={clsx("flex gap-4 p-2 mb-6 group/row w-full", isUser ? "flex-row-reverse" : "flex-row")}>
+    <div className={clsx("flex gap-4 p-2 mb-2 group/row w-full", isUser ? "flex-row-reverse" : "flex-row")}>
 
-      {/* Icon Area */}
+      {/* Avatar Area */}
       <div className="flex-shrink-0 mt-1">
         {isUser ? (
-          <motion.div
-            whileHover={{ scale: 1.1 }}
-            className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-primary font-semibold text-sm border border-primary/20"
-          >
-            U
-          </motion.div>
-        ) : (
-          <motion.div
-            whileHover={{ scale: 1.1 }}
-            className={clsx(
-              "w-9 h-9 rounded-full flex items-center justify-center",
-              isStreaming ? "animate-pulse-glow" : ""
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white text-xs font-medium shadow-sm overflow-hidden ring-2 ring-background">
+            {userAvatar ? (
+              <img src={userAvatar} alt="U" className="w-full h-full object-cover" />
+            ) : (
+              'U'
             )}
-          >
-            <div className={clsx(
-              "w-full h-full rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center",
-              isStreaming ? "animate-breathe" : ""
-            )}>
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-          </motion.div>
+          </div>
+        ) : (
+          <div className={clsx(
+            "w-8 h-8 rounded-full flex items-center justify-center border border-border bg-surface shadow-sm",
+            isStreaming && "animate-pulse-soft"
+          )}>
+            <Sparkles className="w-4 h-4 text-primary fill-primary/20" />
+          </div>
         )}
       </div>
 
       {/* Content Area */}
-      <div className={clsx("flex flex-col max-w-[90%] md:max-w-[85%]", isUser ? "items-end" : "items-start")}>
-
-        {/* Name */}
+      <div className={clsx("flex flex-col max-w-[85%] lg:max-w-[75%]", isUser ? "items-end" : "items-start")}>
+        
         <div className={clsx(
-          "text-sm font-semibold mb-1.5",
-          isUser ? "text-primary" : "gradient-text"
+          "text-xs font-medium mb-1 px-1 opacity-90",
+          isUser ? "text-muted" : "text-muted"
         )}>
           {isUser ? 'You' : 'AI Assistant'}
         </div>
 
         <div className={clsx(
-          "w-full",
-          // User messages get a premium bubble
-          isUser && !isEditing ? "bg-gradient-to-br from-surface-container-high to-surface-container text-foreground rounded-3xl rounded-tr-lg px-5 py-3.5 shadow-sm border border-border/30" : "",
-          // Assistant messages are plain text
-          isAssistant ? "px-0 text-foreground" : ""
+          "w-full relative",
+          // User messages: Clean solid color with subtle shadow
+          isUser && !isEditing ? "bg-surface-container-high text-foreground rounded-[20px] rounded-tr-sm px-5 py-3 shadow-sm border border-border/50" : "",
+          // Assistant messages: Transparent, clean typography
+          isAssistant ? "px-1 text-foreground" : ""
         )}>
 
           {isEditing ? (
-            <div className="gradient-border">
-              <div className="bg-surface-container rounded-2xl p-4 w-full">
-                <textarea
-                  className="w-full min-h-[100px] bg-transparent outline-none resize-none text-foreground"
-                  value={editingContent}
-                  onChange={(e) => onEditChange?.(e.target.value)}
-                  autoFocus
-                />
-                <div className="flex justify-end gap-2 mt-3">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={onEditCancel}
-                    className="px-5 py-2 rounded-xl text-sm font-medium text-muted hover:bg-surface-container-high transition-colors"
-                  >
-                    Cancel
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={onEditSubmit}
-                    className="px-5 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-primary to-secondary text-white hover:shadow-glow-sm transition-all"
-                  >
-                    Update
-                  </motion.button>
-                </div>
+            <div className="w-full bg-background border border-border rounded-xl shadow-lg p-3">
+              <textarea
+                className="w-full min-h-[100px] bg-transparent outline-none resize-none text-sm leading-relaxed p-1"
+                value={editingContent}
+                onChange={(e) => onEditChange?.(e.target.value)}
+                autoFocus
+              />
+              <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-border/50">
+                <button
+                  onClick={onEditCancel}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted hover:bg-surface-highlight transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={onEditSubmit}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  Update
+                </button>
               </div>
             </div>
           ) : (
             <div className={clsx(isUser ? "" : "markdown-body")}>
               {isUser ? (
-                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                <p className="whitespace-pre-wrap leading-relaxed text-[0.95rem]">{message.content}</p>
               ) : (
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -174,7 +164,7 @@ export function MessageBubble({
                     code({ className, children, ...props }) {
                       const match = /language-(\w+)/.exec(className || '');
                       return !match ? (
-                        <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-mono text-sm" {...props}>
+                        <code className="bg-surface-highlight px-1.5 py-0.5 rounded text-[0.85em] font-mono text-primary font-medium" {...props}>
                           {children}
                         </code>
                       ) : (
@@ -188,89 +178,71 @@ export function MessageBubble({
               )}
             </div>
           )}
-
         </div>
 
         {/* Toolbar for AI Messages */}
         {isAssistant && !isStreaming && (
-          <motion.div
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex items-center gap-1 mt-2 -ml-2 text-muted"
-          >
-            {showBranchNav && onNavigateBranch && (
+          <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity duration-200 pl-1">
+             {showBranchNav && onNavigateBranch && (
               <BranchNavigator
                 currentIndex={siblingInfo.current}
                 totalCount={siblingInfo.total}
                 onNavigate={onNavigateBranch}
               />
             )}
-
-            <div className="flex items-center">
-              {[
-                { icon: ThumbsUp, title: "Good response" },
-                { icon: ThumbsDown, title: "Bad response" },
-              ].map(({ icon: Icon, title }, i) => (
-                <motion.button
-                  key={i}
-                  whileHover={{ scale: 1.15 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2 hover:bg-surface-container-high hover:text-primary rounded-xl transition-all"
-                  title={title}
-                >
-                  <Icon className="w-4 h-4" />
-                </motion.button>
-              ))}
-
-              <motion.button
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 0.9 }}
+            
+            <div className="flex items-center gap-0.5 bg-surface-container border border-border/60 rounded-lg p-0.5 shadow-sm">
+              <button
+                className="p-1.5 hover:bg-surface-highlight rounded-md text-muted hover:text-foreground transition-colors"
+                title="Good response"
+              >
+                <ThumbsUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                className="p-1.5 hover:bg-surface-highlight rounded-md text-muted hover:text-foreground transition-colors"
+                title="Bad response"
+              >
+                <ThumbsDown className="w-3.5 h-3.5" />
+              </button>
+              <div className="w-px h-3 bg-border mx-0.5" />
+              <button
                 className={clsx(
-                  "p-2 hover:bg-surface-container-high hover:text-primary rounded-xl transition-all",
-                  isRegenerating && "animate-spin"
+                  "p-1.5 hover:bg-surface-highlight rounded-md text-muted hover:text-foreground transition-colors",
+                  isRegenerating && "animate-spin text-primary"
                 )}
                 onClick={onRegenerate}
                 title="Regenerate"
               >
-                <RefreshCw className="w-4 h-4" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 0.9 }}
-                className="p-2 hover:bg-surface-container-high hover:text-primary rounded-xl transition-all"
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+              <button
+                className="p-1.5 hover:bg-surface-highlight rounded-md text-muted hover:text-foreground transition-colors"
                 title="Share"
               >
-                <Share2 className="w-4 h-4" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 0.9 }}
-                className="p-2 hover:bg-surface-container-high hover:text-primary rounded-xl transition-all"
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                className="p-1.5 hover:bg-surface-highlight rounded-md text-muted hover:text-foreground transition-colors"
                 title="More"
               >
-                <MoreVertical className="w-4 h-4" />
-              </motion.button>
+                <MoreHorizontal className="w-3.5 h-3.5" />
+              </button>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Edit Button for User Messages */}
         {isUser && !isEditing && (
-          <div className="mt-1 mr-1 self-end opacity-0 group-hover/row:opacity-100 transition-opacity duration-300">
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+          <div className="mt-1 mr-1 self-end opacity-0 group-hover/row:opacity-100 transition-opacity duration-200">
+            <button
               onClick={onEdit}
-              className="p-2 rounded-xl hover:bg-surface-container-high text-muted hover:text-primary transition-all"
+              className="p-1.5 rounded-lg hover:bg-surface-highlight text-muted hover:text-primary transition-colors"
+              title="Edit"
             >
               <Pencil className="w-3.5 h-3.5" />
-            </motion.button>
+            </button>
           </div>
         )}
-
       </div>
     </div>
   );

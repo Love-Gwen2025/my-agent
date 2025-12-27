@@ -26,6 +26,8 @@ dependencies = [
     "fastembed>=0.4.0",
     "tavily-python>=0.7.17",
     "langchain-google-genai>=4.0.0",
+    "loguru>=0.7.3",
+    "alibabacloud-oss-v2>=1.2.2",
 ]
 
 [dependency-groups]
@@ -92,3 +94,4 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+pythonpath = ["."]

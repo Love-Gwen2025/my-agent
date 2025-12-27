@@ -31,6 +31,11 @@ class EmbeddingService:
         # 根据配置选择模型类型
         self.use_local = settings.ai_embedding_provider == "local"
 
+    def warmup(self) -> None:
+        """预加载模型（应用启动时调用）"""
+        if self.use_local:
+            self._get_local_model()
+
     def _get_local_model(self):
         """
         延迟加载本地 Embedding 模型 (使用 fastembed，比 sentence-transformers 更轻量)
@@ -144,19 +149,23 @@ class EmbeddingService:
         query_vector = await self.embed_text(query)
 
         # 构建查询 - 使用余弦相似度
+        # 使用 JSON 格式传递向量，避免 SQL 注入
+        import json
+        query_vec_json = json.dumps(query_vector)
+
         if conversation_id:
             sql = text("""
                 SELECT
                     content,
                     role,
-                    1 - (embedding <=> :query_vec::vector) as similarity
+                    1 - (embedding <=> CAST(:query_vec AS vector)) as similarity
                 FROM t_message_embedding
                 WHERE conversation_id = :conv_id
-                ORDER BY embedding <=> :query_vec::vector
+                ORDER BY embedding <=> CAST(:query_vec AS vector)
                 LIMIT :limit
             """)
             params = {
-                "query_vec": str(query_vector),
+                "query_vec": query_vec_json,
                 "conv_id": conversation_id,
                 "limit": top_k,
             }
@@ -165,13 +174,13 @@ class EmbeddingService:
                 SELECT
                     content,
                     role,
-                    1 - (embedding <=> :query_vec::vector) as similarity
+                    1 - (embedding <=> CAST(:query_vec AS vector)) as similarity
                 FROM t_message_embedding
-                ORDER BY embedding <=> :query_vec::vector
+                ORDER BY embedding <=> CAST(:query_vec AS vector)
                 LIMIT :limit
             """)
             params = {
-                "query_vec": str(query_vector),
+                "query_vec": query_vec_json,
                 "limit": top_k,
             }
 

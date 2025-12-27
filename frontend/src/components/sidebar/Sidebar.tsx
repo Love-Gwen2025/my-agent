@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { useAppStore } from '../../store';
 import { getConversations, createConversation, deleteConversation, updateConversationTitle } from '../../api';
 import clsx from 'clsx';
-import { ThemePanel } from '../settings';
+import { ThemePanel, UserProfileModal } from '../settings';
 
 function SidebarItem({
   icon: Icon,
@@ -50,7 +50,7 @@ function SidebarItem({
       {!isCollapsed && (
         <span className={clsx(
           "text-sm truncate flex-1 transition-colors duration-300",
-          isActive ? "font-semibold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" : "font-medium"
+          isActive ? "font-semibold text-primary" : "font-medium"
         )}>
           {label}
         </span>
@@ -85,12 +85,18 @@ function SidebarItem({
 
 export function Sidebar() {
   const [isThemePanelOpen, setIsThemePanelOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   // 编辑状态
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   // Settings按钮ref，用于定位ThemePanel
   const settingsButtonRef = useRef<HTMLDivElement>(null);
+  // 滚动容器ref
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // 分页状态
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   // 存储Settings按钮位置
   const [settingsAnchorRect, setSettingsAnchorRect] = useState<{
     top: number;
@@ -127,12 +133,39 @@ export function Sidebar() {
 
   async function loadConversations() {
     try {
-      const data = await getConversations();
-      setConversations(data);
+      const { items, hasMore: more } = await getConversations(20, 0);
+      setConversations(items);
+      setHasMore(more);
     } catch (error) {
       console.error('Failed to load conversations:', error);
     }
   }
+
+  // 加载更多会话
+  async function loadMoreConversations() {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const { items, hasMore: more } = await getConversations(20, conversations.length);
+      setConversations([...conversations, ...items]);
+      setHasMore(more);
+    } catch (error) {
+      console.error('Failed to load more conversations:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
+
+  // 滚动到底部时加载更多
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || isLoadingMore || !hasMore) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    if (scrollHeight - scrollTop - clientHeight < 100) {
+      loadMoreConversations();
+    }
+  }, [isLoadingMore, hasMore, conversations.length]);
 
   async function handleCreateConversation() {
     try {
@@ -247,7 +280,11 @@ export function Sidebar() {
       )}
 
       {/* Conversation List */}
-      <div className="flex-1 overflow-y-auto px-2 space-y-1 scrollbar-none">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-2 space-y-1 scrollbar-none"
+      >
         {conversations.map((conv, index) => (
           <motion.div
             key={conv.id}
@@ -288,6 +325,10 @@ export function Sidebar() {
             )}
           </motion.div>
         ))}
+        {/* 加载更多提示 */}
+        {isLoadingMore && (
+          <div className="py-2 text-center text-xs text-muted">加载中...</div>
+        )}
       </div>
 
       {/* Bottom Section - Settings Only */}
@@ -308,12 +349,17 @@ export function Sidebar() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-3 mx-2 pt-3 border-t border-border/30 flex items-center gap-3 px-2 py-2"
+            onClick={() => setIsProfileModalOpen(true)}
+            className="mt-3 mx-2 pt-3 border-t border-border/30 flex items-center gap-3 px-2 py-2 cursor-pointer hover:bg-surface-container-high/50 rounded-xl transition-colors"
           >
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-full blur-sm opacity-60"></div>
-              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold shadow-lg">
-                {user?.userName?.charAt(0).toUpperCase()}
+              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold shadow-lg overflow-hidden">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  user?.userName?.charAt(0).toUpperCase()
+                )}
               </div>
             </div>
             <div className="flex-1 min-w-0">
@@ -328,6 +374,11 @@ export function Sidebar() {
         isOpen={isThemePanelOpen}
         onClose={() => setIsThemePanelOpen(false)}
         anchorRect={settingsAnchorRect}
+      />
+
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
       />
     </motion.div>
   );

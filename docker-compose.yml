@@ -89,12 +89,13 @@ services:
       - TAVILY_ENABLED=${TAVILY_ENABLED:-true}
 
       # ==================== OSS 对象存储 ====================
+      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
+      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
       - OSS_BUCKET=${OSS_BUCKET}
-      - OSS_REGION=${OSS_REGION:-cn-hangzhou}
+      - OSS_REGION=${OSS_REGION:-us-west-1}
       - OSS_ENDPOINT=${OSS_ENDPOINT}
       - OSS_CUSTOM_DOMAIN=${OSS_CUSTOM_DOMAIN:-}
       - OSS_OBJECT_PREFIX=${OSS_OBJECT_PREFIX:-}
-      - OSS_AVATAR=${OSS_AVATAR:-}
 
       # ==================== 功能开关 ====================
       - ENABLE_SSE_STREAMING=${ENABLE_SSE_STREAMING:-true}

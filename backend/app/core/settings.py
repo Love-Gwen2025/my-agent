@@ -124,12 +124,13 @@ class Settings(BaseSettings):
     tavily_enabled: bool = Field(default=False, description="是否启用")
 
     # ==================== OSS 对象存储 ====================
+    oss_access_key_id: str | None = Field(default=None, description="AccessKey ID")
+    oss_access_key_secret: str | None = Field(default=None, description="AccessKey Secret")
     oss_bucket: str | None = Field(default=None, description="存储桶名称")
-    oss_region: str = Field(default="cn-hangzhou", description="地域")
+    oss_region: str = Field(default="us-west-1", description="地域")
     oss_endpoint: str | None = Field(default=None, description="访问域名")
     oss_custom_domain: str | None = Field(default=None, description="自定义域名")
     oss_object_prefix: str | None = Field(default=None, description="对象前缀")
-    oss_avatar: str | None = Field(default=None, description="默认头像路径")
 
     # ==================== 功能开关 ====================
     enable_sse_streaming: bool = Field(default=True, description="启用 SSE 流式输出")

@@ -40,18 +40,22 @@ async def create_assistant_conversation(
     return ApiResult.ok(ConversationConverter.from_dict(conversation))
 
 
-@router.get("/list", response_model=ApiResult[list[ConversationVo]])
+@router.get("/list", response_model=ApiResult[dict])
 async def list_conversations(
+    limit: int = 20,
+    offset: int = 0,
     db: AsyncSession = Depends(get_db_session),
     current: CurrentUser = Depends(get_current_user),
-) -> ApiResult[list[ConversationVo]]:
+) -> ApiResult[dict]:
     """
-    查询当前用户会话列表。
+    查询当前用户会话列表，支持分页。
     """
-    logger.info(f"[API list] current.id={current.id}, user_code={current.user_code}")
     service = ConversationService(db)
-    items = await service.list_conversations(current.id)
-    return ApiResult.ok([ConversationConverter.from_dict(item) for item in items])
+    items, has_more = await service.list_conversations(current.id, limit, offset)
+    return ApiResult.ok({
+        "items": [ConversationConverter.from_dict(item) for item in items],
+        "hasMore": has_more,
+    })
 
 
 @router.get("/history", response_model=ApiResult[HistoryResponse])

@@ -17,7 +17,10 @@
     response = await model.ainvoke([HumanMessage(content="你好")])
 """
 
+import asyncio
+import threading
 from collections.abc import AsyncIterator, Iterator, Sequence
+from queue import Empty, Queue
 from typing import Any
 
 from langchain_core.callbacks import CallbackManagerForLLMRun
@@ -178,8 +181,6 @@ class CustomChatModel(BaseChatModel):
         注意: OpenAI SDK 的 responses.create 目前没有原生异步版本，
         这里使用 asyncio.to_thread 包装同步调用
         """
-        import asyncio
-
         return await asyncio.to_thread(self._generate, messages, stop, run_manager, **kwargs)
 
     async def _astream(
@@ -192,35 +193,54 @@ class CustomChatModel(BaseChatModel):
         """
         异步流式生成回复
 
-        使用 asyncio 包装同步流式迭代器
+        使用 Queue + 线程实现真正的异步流式，避免阻塞事件循环
         """
-        import asyncio
-
         input_messages = self._convert_messages_to_input(messages)
+        queue: Queue = Queue()
+        error_holder: list[Exception] = []
 
-        # 在线程中运行同步 API 调用
-        def create_stream():
-            return self.client.responses.create(
-                model=self.model,
-                input=input_messages,
-                stream=True,
-            )
+        def run_stream():
+            """在独立线程中运行同步流式 API"""
+            try:
+                response = self.client.responses.create(
+                    model=self.model,
+                    input=input_messages,
+                    stream=True,
+                )
+                for event in response:
+                    text = ""
+                    if hasattr(event, "delta") and event.delta:
+                        text = event.delta
+                    elif hasattr(event, "output_text") and event.output_text:
+                        text = event.output_text
+                    if text:
+                        queue.put(text)
+            except Exception as e:
+                error_holder.append(e)
+            finally:
+                queue.put(None)  # 结束标记
 
-        response = await asyncio.to_thread(create_stream)
+        # 启动后台线程
+        thread = threading.Thread(target=run_stream, daemon=True)
+        thread.start()
 
-        # 异步迭代流式响应
-        for event in response:
-            text = ""
-            if hasattr(event, "delta") and event.delta:
-                text = event.delta
-            elif hasattr(event, "output_text") and event.output_text:
-                text = event.output_text
+        # 异步消费队列
+        while True:
+            try:
+                # 非阻塞获取，给其他协程执行机会
+                text = await asyncio.to_thread(queue.get, timeout=0.1)
+            except Empty:
+                await asyncio.sleep(0.01)
+                continue
 
-            if text:
-                chunk = ChatGenerationChunk(message=AIMessageChunk(content=text))
-                yield chunk
-                # 给其他协程执行机会
-                await asyncio.sleep(0)
+            if text is None:
+                # 检查是否有错误
+                if error_holder:
+                    raise error_holder[0]
+                break
+
+            chunk = ChatGenerationChunk(message=AIMessageChunk(content=text))
+            yield chunk
 
     def bind_tools(
         self,

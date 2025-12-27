@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,10 +8,30 @@ from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.router import api_router
+from app.core.checkpointer import close_checkpointer_pool, init_checkpointer_pool
 from app.core.exceptions import AppException
 from app.core.logging import setup_logging
 from app.core.settings import get_settings
 from app.schema.base import ApiResult
+from app.services.embedding_service import EmbeddingService
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    settings = get_settings()
+    # 启动时初始化 checkpointer 连接池
+    await init_checkpointer_pool(settings)
+    logger.info("Checkpointer pool initialized")
+    # 预加载 embedding 模型
+    if settings.ai_embedding_provider == "local":
+        embedding_service = EmbeddingService(settings)
+        embedding_service.warmup()
+        logger.info("Embedding model warmed up")
+    yield
+    # 关闭时清理连接池
+    await close_checkpointer_pool()
+    logger.info("Checkpointer pool closed")
 
 
 def create_app() -> FastAPI:
@@ -27,6 +49,7 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     # CORS 中间件

@@ -88,6 +88,8 @@ services:
       - TAVILY_ENABLED=${TAVILY_ENABLED:-true}
 
       # ==================== OSS 对象存储 ====================
+      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
+      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
       - OSS_BUCKET=${OSS_BUCKET:-}
       - OSS_REGION=${OSS_REGION:-cn-hangzhou}
       - OSS_ENDPOINT=${OSS_ENDPOINT:-}

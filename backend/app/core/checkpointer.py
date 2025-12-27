@@ -2,16 +2,19 @@
 LangGraph Checkpointer - PostgreSQL 实现
 
 使用 AsyncPostgresSaver 将对话状态持久化到 PostgreSQL。
+使用连接池避免每次请求都创建新连接。
 """
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg_pool import AsyncConnectionPool
 
 from app.core.settings import Settings
 
-# 标记是否已初始化表结构
+# 全局连接池
+_pool: AsyncConnectionPool | None = None
 _tables_initialized = False
 
 
@@ -23,26 +26,44 @@ def get_postgres_url(settings: Settings) -> str:
     )
 
 
+async def init_checkpointer_pool(settings: Settings) -> None:
+    """初始化全局连接池（应用启动时调用）"""
+    global _pool, _tables_initialized
+    if _pool is None:
+        _pool = AsyncConnectionPool(
+            conninfo=get_postgres_url(settings),
+            min_size=2,
+            max_size=10,
+            open=False,
+        )
+        await _pool.open()
+        # 初始化表结构
+        async with _pool.connection() as conn:
+            checkpointer = AsyncPostgresSaver(conn)
+            await checkpointer.setup()
+        _tables_initialized = True
+
+
+async def close_checkpointer_pool() -> None:
+    """关闭连接池（应用关闭时调用）"""
+    global _pool
+    if _pool:
+        await _pool.close()
+        _pool = None
+
+
 @asynccontextmanager
 async def create_checkpointer(settings: Settings) -> AsyncIterator[AsyncPostgresSaver]:
     """
-    创建 LangGraph 异步 PostgreSQL checkpointer
-
-    Args:
-        settings: 应用配置
-
-    Yields:
-        AsyncPostgresSaver 实例
+    创建 LangGraph 异步 PostgreSQL checkpointer（复用连接池）
     """
-    global _tables_initialized
+    global _pool, _tables_initialized
 
-    postgres_url = get_postgres_url(settings)
-    async with AsyncPostgresSaver.from_conn_string(postgres_url) as checkpointer:
-        # 首次使用时创建表结构
-        if not _tables_initialized:
-            await checkpointer.setup()
-            _tables_initialized = True
-        yield checkpointer
+    if _pool is None:
+        await init_checkpointer_pool(settings)
+
+    async with _pool.connection() as conn:
+        yield AsyncPostgresSaver(conn)
 
 
 # 兼容旧代码

@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends, File, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,8 +9,15 @@ from app.core.settings import get_settings
 from app.dependencies.auth import CurrentUser, get_current_user
 from app.models.user import User
 from app.schema.base import ApiResult
-from app.schema.user import UserLoginPayload, UserParamPayload, UserVo
+from app.schema.user import (
+    ChangePasswordPayload,
+    UserLoginPayload,
+    UserParamPayload,
+    UserUpdatePayload,
+    UserVo,
+)
 from app.services.auth_service import AuthService
+from app.utils.alioss_util import get_oss_client
 from app.utils.session_store import SessionStore
 
 router = APIRouter(prefix="/user", tags=["用户"])
@@ -44,7 +53,7 @@ async def update_user(
     current: CurrentUser = Depends(get_current_user),
 ):
     """
-    1. 用户信息修改：目前仅更新基本资料，密码修改可复用注册逻辑。
+    1. 用户信息修改：目前仅更新基本资料，密码修改单独接口
     """
     # 1. 读取用户并更新基础字段
     user: User | None = await db.get(User, current.id)
@@ -64,6 +73,7 @@ async def update_user(
         userPhone=user.user_phone,
         address=user.address,
         maxLoginNum=user.max_login_num,
+        avatar=user.avatar,
     )
     return ApiResult.ok(vo)
 
@@ -123,6 +133,7 @@ async def get_current_user_info(
         userPhone=user.user_phone,
         address=user.address,
         maxLoginNum=user.max_login_num,
+        avatar=user.avatar,
     )
     return ApiResult.ok(vo)
 
@@ -152,14 +163,134 @@ async def get_user_detail(
         userPhone=user.user_phone,
         address=user.address,
         maxLoginNum=user.max_login_num,
+        avatar=user.avatar,
     )
     return ApiResult.ok(vo)
 
 
-@router.post("/upload/image", response_model=ApiResult[str])
-async def upload_image(file: UploadFile = File(...), response: Response = None) -> ApiResult[str]:
+# 允许的图片类型
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+@router.post("/upload/avatar", response_model=ApiResult[str])
+async def upload_avatar(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db_session),
+    current: CurrentUser = Depends(get_current_user),
+) -> ApiResult[str]:
     """
-    1. 占位实现：上传 OSS/本地存储逻辑尚未迁移。
+    上传用户头像到 OSS
+
+    - 仅支持 JPEG, PNG, GIF, WebP 格式
+    - 文件大小限制 5MB
+    - 返回头像访问 URL
     """
-    response.status_code = status.HTTP_501_NOT_IMPLEMENTED
-    return ApiResult.error("NOT_IMPLEMENTED", "上传逻辑待迁移")
+    # 1. 验证文件类型
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        return ApiResult.error(
+            "UPLOAD-400",
+            f"不支持的文件类型: {file.content_type}，仅支持 JPEG/PNG/GIF/WebP",
+        )
+
+    # 2. 读取文件内容并验证大小
+    contents = await file.read()
+    file_size = len(contents)
+
+    if file_size == 0:
+        return ApiResult.error("UPLOAD-400", "文件内容为空")
+
+    if file_size > MAX_FILE_SIZE:
+        return ApiResult.error("UPLOAD-400", "文件大小超过 5MB 限制")
+
+    # 3. 生成唯一文件名
+    ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "jpg"
+    key = f"avatars/{current.id}/{uuid.uuid4().hex}.{ext}"
+
+    # 4. 上传到 OSS
+    from loguru import logger
+
+    logger.info(f"[upload_avatar] 准备上传: size={file_size}, key={key}")
+
+    oss = get_oss_client()
+    result = oss.upload_bytes(contents, key, content_type=file.content_type)
+
+    if not result["success"]:
+        return ApiResult.error("UPLOAD-500", "上传失败，请稍后重试")
+
+    avatar_url = result["url"]
+
+    # 5. 更新用户头像字段
+    user: User | None = await db.get(User, current.id)
+    if user:
+        user.avatar = avatar_url
+        await db.commit()
+
+    return ApiResult.ok(avatar_url)
+
+
+@router.post("/update-profile", response_model=ApiResult[UserVo])
+async def update_profile(
+    payload: UserUpdatePayload,
+    db: AsyncSession = Depends(get_db_session),
+    current: CurrentUser = Depends(get_current_user),
+) -> ApiResult[UserVo]:
+    """
+    更新用户基本资料（不含密码）
+    """
+    user: User | None = await db.get(User, current.id)
+    if user is None:
+        return ApiResult.error("USER-404", "用户不存在")
+
+    # 只更新非空字段
+    if payload.userName is not None:
+        user.user_name = payload.userName
+    if payload.userPhone is not None:
+        user.user_phone = payload.userPhone
+    if payload.address is not None:
+        user.address = payload.address
+    if payload.userSex is not None:
+        user.user_sex = payload.userSex
+
+    await db.commit()
+    await db.refresh(user)
+
+    vo = UserVo(
+        userCode=user.user_code,
+        userName=user.user_name,
+        userSex=user.user_sex,
+        userPhone=user.user_phone,
+        address=user.address,
+        maxLoginNum=user.max_login_num,
+        avatar=user.avatar,
+    )
+    return ApiResult.ok(vo)
+
+
+@router.post("/change-password", response_model=ApiResult[None])
+async def change_password(
+    payload: ChangePasswordPayload,
+    db: AsyncSession = Depends(get_db_session),
+    current: CurrentUser = Depends(get_current_user),
+) -> ApiResult[None]:
+    """
+    修改密码
+
+    - 需要验证旧密码
+    - 新密码至少 6 位
+    """
+    from app.utils.password import hash_password, verify_password
+
+    user: User | None = await db.get(User, current.id)
+    if user is None:
+        return ApiResult.error("USER-404", "用户不存在")
+
+    # 验证旧密码
+    if not verify_password(payload.oldPassword, user.user_password):
+        return ApiResult.error("USER-401", "旧密码不正确")
+
+    # 更新密码
+    user.user_password = hash_password(payload.newPassword)
+    await db.commit()
+
+    return ApiResult.ok()

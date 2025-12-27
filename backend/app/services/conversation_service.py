@@ -50,34 +50,30 @@ class ConversationService:
         await self.db.refresh(conversation)
         return conversation.id
 
-    async def list_conversations(self, user_id: int) -> list[dict]:
+    async def list_conversations(
+        self, user_id: int, limit: int = 20, offset: int = 0
+    ) -> tuple[list[dict], bool]:
         """
-        1. 查询当前用户会话列表，按更新时间降序。
-        """
-        logger.info(f"[list_conversations] 开始查询, user_id={user_id}, type={type(user_id)}")
+        查询当前用户会话列表，按更新时间降序，支持分页。
 
-        # 1. 查询列表并转换视图
+        Returns:
+            (items, has_more): 会话列表和是否有更多数据
+        """
+        # 多查一条用于判断是否有更多
         query = await self.db.execute(
             select(Conversation)
             .where(Conversation.user_id == user_id)
             .order_by(Conversation.update_time.desc())
+            .limit(limit + 1)
+            .offset(offset)
         )
         items = query.scalars().all()
 
-        logger.info(f"[list_conversations] 查询结果: count={len(items)}, user_id={user_id}")
-        if items:
-            logger.info(
-                f"[list_conversations] 第一条: id={items[0].id}, title={items[0].title}, user_id={items[0].user_id}"
-            )
-        else:
-            # 调试：直接查询所有会话看看
-            all_query = await self.db.execute(select(Conversation).limit(5))
-            all_items = all_query.scalars().all()
-            logger.warning(
-                f"[list_conversations] 没有找到数据! 数据库中前5条: {[(c.id, c.user_id, c.title) for c in all_items]}"
-            )
+        has_more = len(items) > limit
+        if has_more:
+            items = items[:limit]
 
-        return [item.to_vo() for item in items]
+        return [item.to_vo() for item in items], has_more
 
     async def get_conversation(self, conversation_id: int, user_id: int) -> dict:
         """
