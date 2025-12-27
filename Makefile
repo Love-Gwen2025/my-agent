@@ -1,11 +1,11 @@
-# Couple-Agent Makefile
+# MyAgent Makefile
 # 常用命令集合，简化开发流程
 
 .PHONY: help install backend-install frontend-install run backend-run frontend-run test lint clean db-migrate
 
 # 默认显示帮助
 help:
-	@echo "==================== Couple-Agent 命令 ===================="
+	@echo "==================== MyAgent 命令 ===================="
 	@echo ""
 	@echo "  安装依赖:"
 	@echo "    make install          - 安装所有依赖 (后端+前端)"

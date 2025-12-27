@@ -1,5 +1,5 @@
 [project]
-name = "couple-agent-py-backend"
+name = "my-agent-py-backend"
 version = "0.1.0"
 description = "Python backend for Couple-Agent (FastAPI, uv)"
 readme = "README.md"

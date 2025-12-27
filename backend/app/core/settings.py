@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     # ==================== 应用基础 ====================
     app_env: str = Field(default="dev", description="环境标识")
-    app_name: str = Field(default="couple-agent-py", description="应用名称")
+    app_name: str = Field(default="my-agent-py", description="应用名称")
     app_host: str = Field(default="0.0.0.0", description="监听地址")
     app_port: int = Field(default=8080, description="监听端口")
     app_log_level: str = Field(default="info", description="日志级别")
@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     # ==================== PostgreSQL 数据库 ====================
     db_host: str = Field(default="localhost", description="主机地址")
     db_port: int = Field(default=5432, description="端口")
-    db_name: str = Field(default="couple_agent", description="数据库名")
+    db_name: str = Field(default="my_agent", description="数据库名")
     db_user: str = Field(default="postgres", description="用户名")
     db_password: str = Field(default="123456", description="密码")
     db_pool_size: int = Field(default=5, description="连接池大小")
@@ -66,9 +66,9 @@ class Settings(BaseSettings):
     redis_db: int = Field(default=2, description="库序号")
 
     # ==================== JWT 认证 ====================
-    jwt_secret: str = Field(default="couple-agent", description="密钥")
+    jwt_secret: str = Field(default="my-agent", description="密钥")
     jwt_expire_minutes: int = Field(default=60, description="过期分钟数")
-    jwt_issuer: str = Field(default="couple-agent", description="颁发者")
+    jwt_issuer: str = Field(default="my-agent", description="颁发者")
 
     # ==================== AI 提供商选择 ====================
     ai_provider: str = Field(

@@ -1,4 +1,4 @@
-# Couple-Agent Python 版本骨架
+# MyAgent Python 版本骨架
 
 此目录用于承载 Python 后端与复用的前端代码，原 Java 项目保持不变。
 

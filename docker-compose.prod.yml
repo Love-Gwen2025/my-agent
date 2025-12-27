@@ -10,21 +10,21 @@ services:
   # 1. Backend 服务 (使用 GHCR 镜像)
   # ----------------------------------------------------------------
   backend:
-    image: ghcr.io/love-gwen2025/couple-agent/backend:latest
-    container_name: couple-agent-backend
+    image: ghcr.io/love-gwen2025/my-agent/backend:latest
+    container_name: my-agent-backend
     restart: always
     ports:
       - "127.0.0.1:8081:8080"
     environment:
       # ==================== 应用基础 ====================
       - APP_ENV=prod
-      - APP_NAME=couple-agent-py
+      - APP_NAME=my-agent-py
       - APP_LOG_LEVEL=warning
 
       # ==================== PostgreSQL 数据库 ====================
       - DB_HOST=pg_vector
       - DB_PORT=5432
-      - DB_NAME=couple_agent
+      - DB_NAME=my_agent
       - DB_USER=postgres
       - DB_PASSWORD=${DB_PASSWORD:-123456}
       - DB_POOL_SIZE=10
@@ -39,7 +39,7 @@ services:
       # ==================== JWT 认证 ====================
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - JWT_EXPIRE_MINUTES=60
-      - JWT_ISSUER=${JWT_ISSUER:-couple-agent}
+      - JWT_ISSUER=${JWT_ISSUER:-my-agent}
 
       # ==================== AI 提供商选择 ====================
       - AI_PROVIDER=${AI_PROVIDER:-deepseek}
@@ -115,9 +115,9 @@ services:
   # ----------------------------------------------------------------
   # 2. Frontend 服务 (使用 GHCR 镜像)
   # ----------------------------------------------------------------
-  couple-agent-frontend:
-    image: ghcr.io/love-gwen2025/couple-agent/frontend:latest
-    container_name: couple-agent-frontend
+  my-agent-frontend:
+    image: ghcr.io/love-gwen2025/my-agent/frontend:latest
+    container_name: my-agent-frontend
     restart: always
     ports:
       - "127.0.0.1:3001:80"

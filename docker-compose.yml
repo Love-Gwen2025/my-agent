@@ -12,20 +12,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: couple-agent-backend
+    container_name: my-agent-backend
     restart: unless-stopped
     ports:
       - "127.0.0.1:8081:8080"
     environment:
       # ==================== 应用基础 ====================
       - APP_ENV=${APP_ENV:-prod}
-      - APP_NAME=${APP_NAME:-couple-agent-py}
+      - APP_NAME=${APP_NAME:-my-agent-py}
       - APP_LOG_LEVEL=${APP_LOG_LEVEL:-info}
 
       # ==================== PostgreSQL 数据库 ====================
       - DB_HOST=postgres
       - DB_PORT=${DB_PORT:-5432}
-      - DB_NAME=${DB_NAME:-couple_agent}
+      - DB_NAME=${DB_NAME:-my_agent}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-123456}
       - DB_POOL_SIZE=${DB_POOL_SIZE:-5}
@@ -40,7 +40,7 @@ services:
       # ==================== JWT 认证 ====================
       - JWT_SECRET=${JWT_SECRET:-123456}
       - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES:-60}
-      - JWT_ISSUER=${JWT_ISSUER:-couple-agent}
+      - JWT_ISSUER=${JWT_ISSUER:-my-agent}
 
       # ==================== AI 提供商选择 ====================
       - AI_PROVIDER=${AI_PROVIDER:-deepseek}
@@ -106,7 +106,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - couple-agent-network
+      - my-agent-network
     healthcheck:
       test: [ "CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8080/api/chat/health')" ]
       interval: 30s
@@ -119,30 +119,30 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: couple-agent-frontend
+    container_name: my-agent-frontend
     restart: unless-stopped
     ports:
       - "127.0.0.1:3001:80"
     depends_on:
       - backend
     networks:
-      - couple-agent-network
+      - my-agent-network
 
   # ---------- PostgreSQL 数据库 ----------
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: couple-agent-postgres
+    container_name: my-agent-postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-123456}
-      - POSTGRES_DB=${DB_NAME:-couple_agent}
+      - POSTGRES_DB=${DB_NAME:-my_agent}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"
     networks:
-      - couple-agent-network
+      - my-agent-network
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
       interval: 10s
@@ -160,7 +160,7 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
     networks:
-      - couple-agent-network
+      - my-agent-network
     healthcheck:
       test: [ "CMD", "redis-cli", "-a", "123456", "ping" ]
       interval: 10s
@@ -174,5 +174,5 @@ volumes:
 
     # ---------- 网络 ----------
 networks:
-  couple-agent-network:
+  my-agent-network:
     driver: bridge
