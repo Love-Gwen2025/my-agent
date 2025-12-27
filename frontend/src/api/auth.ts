@@ -48,3 +48,61 @@ export async function register(params: LoginParams): Promise<User> {
   );
   return response.data.data;
 }
+
+/**
+ * 上传用户头像
+ *
+ * @param file 图片文件
+ * @returns 头像 URL
+ */
+export async function uploadAvatar(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await apiClient.post<ApiResponse<string>>(
+    '/user/upload/avatar',
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data.data;
+}
+
+/**
+ * 更新用户资料
+ *
+ * @param data 用户资料（不含密码）
+ * @returns 更新后的用户信息
+ */
+export async function updateProfile(data: {
+  userName?: string;
+  userPhone?: string;
+  address?: string;
+  userSex?: number;
+}): Promise<User> {
+  const response = await apiClient.post<ApiResponse<User>>(
+    '/user/update-profile',
+    data
+  );
+  return response.data.data;
+}
+
+/**
+ * 修改密码
+ *
+ * @param oldPassword 旧密码
+ * @param newPassword 新密码
+ */
+export async function changePassword(
+  oldPassword: string,
+  newPassword: string
+): Promise<void> {
+  await apiClient.post('/user/change-password', {
+    oldPassword,
+    newPassword,
+  });
+}
+

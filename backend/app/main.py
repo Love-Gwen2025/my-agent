@@ -1,16 +1,37 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.router import api_router
+from app.core.checkpointer import close_checkpointer_pool, init_checkpointer_pool
 from app.core.exceptions import AppException
-from app.core.logging import get_logger, setup_logging
+from app.core.logging import setup_logging
 from app.core.settings import get_settings
 from app.schema.base import ApiResult
+from app.services.embedding_service import EmbeddingService
 
-logger = get_logger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    settings = get_settings()
+    # 启动时初始化 checkpointer 连接池
+    await init_checkpointer_pool(settings)
+    logger.info("Checkpointer pool initialized")
+    # 预加载 embedding 模型
+    if settings.ai_embedding_provider == "local":
+        embedding_service = EmbeddingService(settings)
+        embedding_service.warmup()
+        logger.info("Embedding model warmed up")
+    yield
+    # 关闭时清理连接池
+    await close_checkpointer_pool()
+    logger.info("Checkpointer pool closed")
 
 
 def create_app() -> FastAPI:
@@ -28,6 +49,7 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
 
     # CORS 中间件
@@ -44,6 +66,12 @@ def create_app() -> FastAPI:
 
     # 挂载路由
     app.include_router(api_router)
+
+    # 根级别健康检查端点（供 Docker/K8s/监控服务使用）
+    @app.get("/health")
+    async def health_check():
+        """根级别健康检查端点"""
+        return {"status": "ok"}
 
     logger.info(f"Application {settings.app_name} started in {settings.app_env} mode")
 
@@ -67,7 +95,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         """处理 HTTP 异常"""
-        logger.warning(f"HTTPException: {exc.status_code} - {exc.detail}")
+        # 日志包含请求路径，方便排查 404 等问题
+        logger.warning(f"HTTPException: {exc.status_code} - {exc.detail} | Path: {request.url.path}")
         return JSONResponse(
             status_code=exc.status_code,
             content=ApiResult.error(str(exc.status_code), str(exc.detail)).model_dump(),

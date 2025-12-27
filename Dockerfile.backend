@@ -15,6 +15,8 @@ WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock* ./
 
 # 安装依赖到虚拟环境（不包含 dev 依赖）
+# 增加超时时间，避免下载大型包（如 numpy）时超时
+ENV UV_HTTP_TIMEOUT=120
 RUN uv sync --frozen --no-dev --no-install-project
 
 # ---------- 运行阶段 ----------
@@ -41,7 +43,7 @@ EXPOSE 8080
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8080/health')" || exit 1
+    CMD python -c "import httpx; httpx.get('http://localhost:8080/api/chat/health')" || exit 1
 
 # 启动命令
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

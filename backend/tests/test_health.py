@@ -1,13 +1,14 @@
 """
 健康检查接口测试。
 """
+
 import pytest
 
 
 @pytest.mark.asyncio
 async def test_chat_health(client):
     """测试聊天服务健康检查接口"""
-    response = await client.get("/chat/health")
+    response = await client.get("/api/chat/health")
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True

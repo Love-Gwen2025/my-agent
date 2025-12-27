@@ -1,4 +1,4 @@
-# Couple-Agent Dev Script (Windows PowerShell)
+# MyAgent Dev Script (Windows PowerShell)
 # Usage: .\dev.ps1 <command>
 
 param(
@@ -8,7 +8,7 @@ param(
 
 function Show-Help {
     Write-Host ""
-    Write-Host "==================== Couple-Agent Commands ====================" -ForegroundColor Cyan
+    Write-Host "==================== MyAgent Commands ====================" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "  Install:" -ForegroundColor Yellow
     Write-Host "    .\dev.ps1 install          - Install all dependencies"

@@ -46,17 +46,12 @@ class AuthService:
         return user.id
 
     async def login(self, payload: dict) -> str:
-        """
-        1. 登录校验，兼容旧明文；生成 JWT 并写入 Redis。
-        """
         user_code = payload.get("userCode")
         # 1. 拉取用户信息
         query = await self.db.execute(select(User).where(User.user_code == user_code))
         user = query.scalar_one_or_none()
-        if user is None:
-            raise ValueError("用户不存在")
-        # 2. 校验密码
-        if not verify_password(payload.get("userPassword"), user.user_password):
+        # 2. 统一错误消息，避免泄露用户是否存在
+        if user is None or not verify_password(payload.get("userPassword"), user.user_password):
             raise ValueError("账号或密码错误")
         # 3. 生成 JWT 并写入 Redis 会话
         token, expire_at = create_access_token(user.id, user.user_name, self.settings)

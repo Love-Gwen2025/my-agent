@@ -32,6 +32,8 @@ interface UseMessageTreeReturn {
     addMessage: (message: Message) => void;
     /** 更新消息（替换指定 ID 的消息） */
     updateMessage: (messageId: string, updater: (msg: Message) => Message) => void;
+    /** 替换消息 ID（用于将临时 ID 替换为服务器返回的真实 ID） */
+    replaceMessageId: (oldId: string, newId: string) => void;
     /** 清空消息树 */
     clear: () => void;
 }
@@ -264,6 +266,32 @@ export function useMessageTree(
     );
 
     /**
+     * 替换消息 ID（用于将临时 ID 替换为服务器返回的真实 ID）
+     */
+    const replaceMessageId = useCallback(
+        (oldId: string, newId: string) => {
+            setAllMessages((prev) =>
+                prev.map((msg) => {
+                    // 替换消息自身的 ID
+                    if (String(msg.id) === oldId) {
+                        return { ...msg, id: newId };
+                    }
+                    // 替换其他消息的 parentId 引用
+                    if (msg.parentId === oldId) {
+                        return { ...msg, parentId: newId };
+                    }
+                    return msg;
+                })
+            );
+            // 同时更新 currentPath
+            setCurrentPath((prev) =>
+                prev.map((id) => (id === oldId ? newId : id))
+            );
+        },
+        []
+    );
+
+    /**
      * 清空消息树
      */
     const clear = useCallback(() => {
@@ -289,6 +317,7 @@ export function useMessageTree(
         getSiblingInfo,
         addMessage,
         updateMessage,
+        replaceMessageId,
         clear,
     };
 }

@@ -1,5 +1,5 @@
 -- =============================================
--- Couple-Agent 数据库初始化脚本
+-- MyAgent 数据库初始化脚本
 -- 包含所有表结构的完整定义
 -- ID 使用雪花算法在应用层生成
 -- =============================================
@@ -109,9 +109,8 @@ COMMENT ON COLUMN t_message.checkpoint_id IS 'LangGraph checkpoint ID，用于�
 -- 消息向量表 (t_message_embedding)
 -- 用于 RAG 语义检索
 -- =============================================
--- 注意: 向量维度 1536 适用于 OpenAI text-embedding-3-small
---       如使用本地模型 bge-small-zh-v1.5，维度为 512
---       建议保持 1536 以兼容多种模型
+-- 注意: 向量维度 512 适用于本地模型 bge-small-zh-v1.5
+--       如使用 OpenAI text-embedding-3-small，维度为 1536
 CREATE TABLE IF NOT EXISTS t_message_embedding (
     id BIGINT PRIMARY KEY,  -- 雪花 ID，由应用层生成
     message_id BIGINT NOT NULL,
@@ -119,7 +118,7 @@ CREATE TABLE IF NOT EXISTS t_message_embedding (
     user_id BIGINT NOT NULL,
     role VARCHAR(20) NOT NULL,  -- user/assistant
     content TEXT NOT NULL,
-    embedding vector(1536),  -- 向量维度
+    embedding vector(512),  -- 向量维度（512 适配 bge-small-zh-v1.5）
     create_time TIMESTAMP DEFAULT NOW() NOT NULL,
     update_time TIMESTAMP DEFAULT NOW() NOT NULL,
     version INTEGER DEFAULT 0
@@ -140,7 +139,7 @@ COMMENT ON COLUMN t_message_embedding.conversation_id IS '所属会话 ID';
 COMMENT ON COLUMN t_message_embedding.user_id IS '所属用户 ID';
 COMMENT ON COLUMN t_message_embedding.role IS '消息角色: user/assistant';
 COMMENT ON COLUMN t_message_embedding.content IS '消息文本内容';
-COMMENT ON COLUMN t_message_embedding.embedding IS '消息的向量表示（1536维）';
+COMMENT ON COLUMN t_message_embedding.embedding IS '消息的向量表示（512维）';
 
 -- =============================================
 -- 外键约束（可选，根据业务需求启用）

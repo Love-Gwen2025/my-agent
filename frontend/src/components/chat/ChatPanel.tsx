@@ -1,8 +1,8 @@
 /**
- * 聊天面板组件 - Premium Edition
+ * 聊天面板组件 - Refined Modern Edition
  */
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Compass, Lightbulb, Code, Pencil } from 'lucide-react';
+import { Compass, Lightbulb, Code, Pencil, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '../../store';
 import { useSSEChat, getToolDisplayName, useMessageTree } from '../../hooks';
@@ -13,44 +13,33 @@ import { ChatInput } from './ChatInput';
 import { ModelSelector } from './ModelSelector';
 import type { Message } from '../../types';
 
-// Premium Colorful Suggestion Card
-function SuggestionCard({ icon: Icon, text, onClick, delay = 0, colorFrom = "from-indigo-500", colorTo = "to-purple-500" }: {
+// Refined Clean Suggestion Card
+function SuggestionCard({ icon: Icon, text, onClick, delay = 0, colorClass = "text-indigo-500" }: {
   icon: any,
   text: string,
   onClick: () => void,
   delay?: number,
-  colorFrom?: string,
-  colorTo?: string
+  colorClass?: string
 }) {
   return (
     <motion.button
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: delay * 0.1, duration: 0.4 }}
-      whileHover={{ scale: 1.05, y: -6 }}
+      transition={{ delay: delay * 0.05, duration: 0.4 }}
+      whileHover={{ scale: 1.02, y: -2 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="gemini-card flex flex-col justify-between p-5 h-52 text-left group relative overflow-hidden"
+      className="flex flex-col justify-between p-4 h-40 text-left group relative overflow-hidden bg-surface-container rounded-2xl border border-border/60 hover:border-border hover:shadow-lg transition-all duration-300"
     >
-      {/* Colorful glow effect on hover */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${colorFrom}/10 ${colorTo}/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-      <div className={`absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br ${colorFrom} ${colorTo} rounded-full blur-2xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
+      <div className="absolute inset-0 bg-gradient-to-br from-transparent to-surface-highlight/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-      <span className="text-foreground font-medium text-base leading-relaxed relative z-10">{text}</span>
+      <span className="text-foreground/80 font-medium text-[15px] leading-relaxed relative z-10 group-hover:text-foreground transition-colors">
+        {text}
+      </span>
 
-      <div className="self-end relative z-10">
-        <div className={`p-3 rounded-xl bg-gradient-to-br ${colorFrom}/15 ${colorTo}/15 group-hover:${colorFrom}/25 group-hover:${colorTo}/25 transition-all duration-300 group-hover:shadow-lg`}>
-          <Icon className={`w-5 h-5 bg-gradient-to-r ${colorFrom} ${colorTo} bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-300`}
-            style={{ color: 'transparent', fill: 'url(#icon-gradient)' }}
-          />
-          <svg width="0" height="0">
-            <defs>
-              <linearGradient id="icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style={{ stopColor: '#6366f1' }} />
-                <stop offset="100%" style={{ stopColor: '#a855f7' }} />
-              </linearGradient>
-            </defs>
-          </svg>
+      <div className="self-end relative z-10 mt-auto">
+        <div className={`p-2 rounded-xl bg-surface-highlight/50 group-hover:bg-surface-highlight transition-colors duration-300`}>
+          <Icon className={`w-5 h-5 ${colorClass}`} />
         </div>
       </div>
     </motion.button>
@@ -58,75 +47,56 @@ function SuggestionCard({ icon: Icon, text, onClick, delay = 0, colorFrom = "fro
 }
 
 /**
- * Premium Greeting Screen
+ * Refined Greeting Screen
  */
 function GreetingScreen({ userName, onSuggestionClick }: { userName: string, onSuggestionClick: (text: string) => void }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-4xl mx-auto w-full">
-      {/* Premium Glow Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-      </div>
-
+    <div className="flex-1 flex flex-col items-center justify-center p-6 max-w-5xl mx-auto w-full min-h-[60vh]">
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="mb-12 text-left self-start w-full relative z-10"
+        className="mb-16 text-center w-full relative z-10"
       >
-        <h1 className="text-5xl md:text-6xl font-medium mb-4 tracking-tight">
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="gradient-text-animated block"
-          >
-            Hello, {userName}
-          </motion.span>
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="text-muted/50 font-medium block mt-2"
-          >
-            How can I help today?
-          </motion.span>
+        <div className="w-16 h-16 rounded-2xl bg-surface-container-high border border-border flex items-center justify-center mx-auto mb-6 shadow-sm">
+          <Sparkles className="w-8 h-8 text-primary" />
+        </div>
+        <h1 className="text-4xl md:text-5xl font-semibold mb-3 tracking-tight text-foreground">
+          Welcome back, {userName}
         </h1>
+        <p className="text-xl text-muted font-light">
+          How can I help you today?
+        </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 w-full relative z-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full relative z-10">
         <SuggestionCard
           icon={Compass}
-          text="Plan a trip to explore the city's hidden gems"
-          onClick={() => onSuggestionClick("Plan a trip to explore the city's hidden gems")}
+          text="Plan a trip to explore hidden gems in Kyoto"
+          onClick={() => onSuggestionClick("Plan a trip to explore hidden gems in Kyoto")}
           delay={1}
-          colorFrom="from-teal-500"
-          colorTo="to-cyan-500"
+          colorClass="text-teal-500"
         />
         <SuggestionCard
           icon={Lightbulb}
-          text="Brainstorm clear and catchy tagline for my product"
-          onClick={() => onSuggestionClick("Brainstorm clear and catchy tagline for my product")}
+          text="Brainstorm catchy taglines for a coffee brand"
+          onClick={() => onSuggestionClick("Brainstorm catchy taglines for a coffee brand")}
           delay={2}
-          colorFrom="from-amber-500"
-          colorTo="to-orange-500"
+          colorClass="text-amber-500"
         />
         <SuggestionCard
           icon={Code}
-          text="Refactor this React component to be more performant"
-          onClick={() => onSuggestionClick("Refactor this React component to be more performant")}
+          text="Explain how React useEffect works with examples"
+          onClick={() => onSuggestionClick("Explain how React useEffect works with examples")}
           delay={3}
-          colorFrom="from-indigo-500"
-          colorTo="to-purple-500"
+          colorClass="text-indigo-500"
         />
         <SuggestionCard
           icon={Pencil}
-          text="Write a thank you note to my interviewer"
-          onClick={() => onSuggestionClick("Write a thank you note to my interviewer")}
+          text="Write a polite email declining a job offer"
+          onClick={() => onSuggestionClick("Write a polite email declining a job offer")}
           delay={4}
-          colorFrom="from-rose-500"
-          colorTo="to-pink-500"
+          colorClass="text-rose-500"
         />
       </div>
     </div>
@@ -142,6 +112,7 @@ export function ChatPanel() {
     clearStreamingContent,
     user,
     setCurrentCheckpointId,
+    updateConversation,
   } = useAppStore();
 
   const {
@@ -149,6 +120,8 @@ export function ChatPanel() {
     setMessageTree,
     switchBranch,
     getSiblingInfo,
+    addMessage,
+    replaceMessageId,
   } = useMessageTree({
     onSaveCurrentMessage: async (messageId) => {
       if (currentConversationId) {
@@ -160,6 +133,7 @@ export function ChatPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const latestStreamingRef = useRef<string>('');
   const latestMessageIdRef = useRef<number | string | null>(null);
+  const pendingTempUserIdRef = useRef<string | null>(null); // 跟踪待替换的临时用户消息 ID
   const [navLoadingId, setNavLoadingId] = useState<string | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const regeneratingIdRef = useRef<string | null>(null);
@@ -171,14 +145,27 @@ export function ChatPanel() {
       latestStreamingRef.current = `${latestStreamingRef.current}${chunk}`;
       setStreamingContent(latestStreamingRef.current);
     },
-    onComplete: (event, finalContent) => {
+    onComplete: async (event, finalContent) => {
       const contentToSave = finalContent || latestStreamingRef.current;
       if (contentToSave) {
-        setTimeout(() => loadHistory(), 100);
         latestMessageIdRef.current = event.messageId ?? null;
+
+        // 替换临时用户消息 ID 为服务器返回的真实 ID
+        if (pendingTempUserIdRef.current && event.userMessageId) {
+          replaceMessageId(pendingTempUserIdRef.current, String(event.userMessageId));
+          pendingTempUserIdRef.current = null;
+        }
+
+        // 先静默刷新历史，等加载完成后再清空流式内容，实现平滑过渡
+        await loadHistory();
         setRegeneratingId(null);
         setNavLoadingId(null);
       }
+      // 如果后端返回了新标题，更新会话列表中的标题
+      if (event.title && event.conversationId) {
+        updateConversation(event.conversationId, { title: event.title });
+      }
+      // 历史加载完成后再清空流式内容，避免闪烁
       latestStreamingRef.current = '';
       clearStreamingContent();
     },
@@ -277,6 +264,22 @@ export function ChatPanel() {
     if (!currentConversationId || !user) return;
     const lastMessage = displayMessages.length > 0 ? displayMessages[displayMessages.length - 1] : null;
     const parentMessageId = lastMessage ? String(lastMessage.id) : undefined;
+
+    // 乐观更新：立即显示用户消息，无需等待服务器
+    const tempId = `temp-${Date.now()}`;
+    const tempUserMessage: Message = {
+      id: tempId,
+      conversationId: currentConversationId,
+      senderId: user.id,
+      role: 'user',
+      content,
+      contentType: 'TEXT',
+      createTime: new Date().toISOString(),
+      parentId: parentMessageId,
+    };
+    addMessage(tempUserMessage);
+    pendingTempUserIdRef.current = tempId; // 保存临时 ID 以便后续替换
+
     latestStreamingRef.current = '';
     clearStreamingContent();
     sendMessage({
@@ -285,14 +288,14 @@ export function ChatPanel() {
       modelCode: currentModelCode || undefined,
       parentMessageId,
     });
-  }, [currentConversationId, currentModelCode, user, displayMessages, sendMessage, clearStreamingContent]);
+  }, [currentConversationId, currentModelCode, user, displayMessages, sendMessage, clearStreamingContent, addMessage]);
 
   if (!currentConversationId) {
-    return <GreetingScreen userName={user?.userName || 'Traveler'} onSuggestionClick={() => { }} />;
+    return <GreetingScreen userName={user?.userName || 'Traveler'} onSuggestionClick={handleSend} />; // Fix: passed handleSend directly
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full relative">
+    <div className="flex-1 flex flex-col h-full relative bg-surface">
       {/* Header with Model Selector */}
       <div className="absolute top-0 left-0 right-0 p-4 z-10 flex justify-between items-start pointer-events-none">
         <div className="pointer-events-auto">
@@ -305,7 +308,7 @@ export function ChatPanel() {
         {displayMessages.length === 0 && !streamingContent ? (
           <GreetingScreen userName={user?.userName || 'User'} onSuggestionClick={handleSend} />
         ) : (
-          <div className="max-w-3xl mx-auto py-20 pb-40 px-4">
+          <div className="max-w-3xl mx-auto py-20 pb-48 px-4">
             {displayMessages.map((message: Message, index: number) => (
               <motion.div
                 key={message.id}
@@ -326,6 +329,7 @@ export function ChatPanel() {
                   onEditChange={setEditingContent}
                   onEditSubmit={() => submitEditMessage(message)}
                   onEditCancel={() => { setEditingMessageId(null); setEditingContent(''); }}
+                  userAvatar={message.role === 'user' ? user?.avatar : undefined}
                 />
               </motion.div>
             ))}

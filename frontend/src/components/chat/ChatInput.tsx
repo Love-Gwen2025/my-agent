@@ -1,8 +1,8 @@
 /**
- * 消息输入框组件 - Premium Edition
+ * 消息输入框组件 - Refined Modern Edition
  */
 import { useState, useRef, useEffect } from 'react';
-import { Send, StopCircle, Plus, Mic, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Send, StopCircle, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
@@ -46,41 +46,31 @@ export function ChatInput({
   };
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-background via-background/95 to-transparent z-20">
-      <div className="max-w-3xl mx-auto relative">
+    <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-background via-background/90 to-transparent z-20 pointer-events-none">
+      <div className="max-w-3xl mx-auto relative pointer-events-auto">
         <motion.div
           initial={false}
           animate={{
             boxShadow: isFocused
-              ? '0 0 0 3px rgba(var(--primary), 0.15), 0 8px 32px rgba(var(--primary), 0.12)'
-              : '0 4px 20px rgba(0, 0, 0, 0.08)'
+              ? '0 0 0 2px rgba(var(--primary), 0.15), 0 8px 32px rgba(0, 0, 0, 0.08)'
+              : '0 4px 12px rgba(0, 0, 0, 0.05)'
           }}
           className={clsx(
-            'flex items-end gap-2 p-3 rounded-[28px] transition-all duration-300',
-            'glass border',
-            isFocused ? 'border-primary/30' : 'border-transparent'
+            'flex items-end gap-2 p-2 rounded-[26px] transition-all duration-300',
+            'glass bg-surface/80 backdrop-blur-xl', // Stronger blur
+            isFocused ? 'border-primary/20' : 'border-border/50'
           )}
         >
           {/* Left Actions */}
-          <motion.button
-            whileHover={{ scale: 1.1, rotate: 90 }}
-            whileTap={{ scale: 0.9 }}
-            className="p-2.5 rounded-xl hover:bg-surface-container-high text-muted hover:text-primary transition-all"
+          <button
+            className="p-2.5 rounded-full hover:bg-surface-highlight text-muted hover:text-foreground transition-colors"
           >
             <Plus className="w-5 h-5" />
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="p-2.5 rounded-xl hover:bg-surface-container-high text-muted hover:text-primary transition-all hidden sm:block"
-          >
-            <ImageIcon className="w-5 h-5" />
-          </motion.button>
+          </button>
 
           <textarea
             ref={textareaRef}
-            className="flex-1 bg-transparent text-foreground resize-none outline-none py-3 px-2 max-h-[200px] placeholder:text-muted/60 text-base min-h-[52px]"
+            className="flex-1 bg-transparent text-foreground resize-none outline-none py-3 px-1 max-h-[200px] placeholder:text-muted/60 text-[15px] min-h-[48px] leading-relaxed"
             placeholder="Ask anything..."
             rows={1}
             value={input}
@@ -93,69 +83,47 @@ export function ChatInput({
 
           {/* Right Actions */}
           <div className="flex items-center gap-1 pb-1">
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="p-2.5 rounded-xl hover:bg-surface-container-high text-muted hover:text-primary transition-all hidden sm:block"
-            >
-              <Mic className="w-5 h-5" />
-            </motion.button>
-
             <AnimatePresence mode="wait">
               {isLoading ? (
                 <motion.button
                   key="stop"
-                  initial={{ scale: 0, rotate: -180 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  exit={{ scale: 0, rotate: 180 }}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-2.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors shadow-lg"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  className="p-2 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
                   onClick={onAbort}
                 >
-                  <StopCircle className="w-5 h-5 fill-current" />
+                  <StopCircle className="w-6 h-6 fill-current" />
                 </motion.button>
               ) : (
-                input.trim() && (
-                  <motion.button
-                    key="send"
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    exit={{ scale: 0, rotate: 180 }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="p-2.5 rounded-xl bg-gradient-to-r from-primary to-secondary text-white shadow-glow-sm hover:shadow-glow-md transition-all"
-                    onClick={handleSend}
-                  >
-                    <Send className="w-5 h-5 ml-0.5" />
-                  </motion.button>
-                )
+                <motion.button
+                  key="send"
+                  disabled={!input.trim()}
+                  initial={{ scale: 0.9, opacity: 0.5 }}
+                  animate={{ 
+                    scale: input.trim() ? 1 : 0.9, 
+                    opacity: input.trim() ? 1 : 0.5 
+                  }}
+                  className={clsx(
+                    "p-2 rounded-full transition-all",
+                    input.trim() 
+                      ? "bg-primary text-primary-foreground shadow-sm hover:shadow-glow-sm" 
+                      : "bg-surface-highlight text-muted"
+                  )}
+                  onClick={handleSend}
+                >
+                  <Send className="w-5 h-5 ml-0.5" />
+                </motion.button>
               )}
             </AnimatePresence>
-
-            {/* AI indicator when idle and no input */}
-            {!isLoading && !input.trim() && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-2.5 rounded-xl text-muted"
-              >
-                <Sparkles className="w-5 h-5" />
-              </motion.div>
-            )}
           </div>
         </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-center mt-3"
-        >
-          <p className="text-xs text-muted/60">
-            AI may generate inaccurate information. Verify important facts.
+        
+        <div className="text-center mt-3">
+           <p className="text-[10px] text-muted/50 font-medium tracking-wide uppercase">
+            AI Generated Content • Verify Important Info
           </p>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

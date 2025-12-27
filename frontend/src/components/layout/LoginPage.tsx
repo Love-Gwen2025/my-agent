@@ -1,12 +1,11 @@
 /**
- * 登录页面组件
- * 
- * Modern glassmorphism design with gradient background
+ * 登录页面组件 - Refined Modern Edition
  */
 import { useState } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, ArrowRight } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { login, register } from '../../api';
+import clsx from 'clsx';
 
 /**
  * 登录页面
@@ -22,7 +21,7 @@ export function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setError('请输入用户名和密码');
+      setError('Username and password are required');
       return;
     }
 
@@ -46,7 +45,7 @@ export function LoginPage() {
         setUser({ id: 0, userCode: username, userName: username });
       } catch (registerErr) {
         // 4. 注册也失败，说明是密码错误
-        setError('登录失败，请检查用户名和密码');
+        setError('Login failed. Please check your credentials.');
       }
     } finally {
       setIsLoading(false);
@@ -54,114 +53,94 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated gradient background */}
-      <div
-        className="absolute inset-0 opacity-30"
-        style={{
-          background: 'linear-gradient(-45deg, #667eea, #764ba2, #00d4ff, #a855f7)',
-          backgroundSize: '400% 400%',
-          animation: 'gradient-shift 15s ease infinite',
-        }}
-      />
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
+      {/* Subtle Background Elements */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-background opacity-50" />
+      <div className="absolute bottom-0 left-0 right-0 h-[50vh] bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-secondary/10 via-background to-background opacity-50" />
+      
+      {/* Grid Pattern */}
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
 
-      {/* Floating orbs */}
-      <div
-        className="absolute w-72 h-72 rounded-full opacity-20 blur-3xl"
-        style={{
-          background: 'var(--accent-gradient)',
-          top: '10%',
-          left: '10%',
-          animation: 'float 6s ease-in-out infinite',
-        }}
-      />
-      <div
-        className="absolute w-96 h-96 rounded-full opacity-15 blur-3xl"
-        style={{
-          background: 'linear-gradient(135deg, #00d4ff 0%, #a855f7 100%)',
-          bottom: '10%',
-          right: '10%',
-          animation: 'float 8s ease-in-out infinite reverse',
-        }}
-      />
-
-      <div className="w-full max-w-md relative z-10 animate-fade-in-up">
+      <div className="w-full max-w-[400px] relative z-10 animate-fade-in-up">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg animate-float"
-            style={{ background: 'var(--accent-gradient)' }}
-          >
-            <Sparkles className="w-10 h-10 text-white" />
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary mb-6 shadow-glow-sm">
+            <Sparkles className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold gradient-text">
-            AI Chat
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground mb-2">
+            Welcome back
           </h1>
-          <p className="text-[var(--text-secondary)] mt-2 text-lg">
-            智能对话助手
+          <p className="text-muted text-sm">
+            Enter your details to access your workspace
           </p>
         </div>
 
-        {/* Login form - Glass effect */}
+        {/* Login form */}
         <form
           onSubmit={handleLogin}
-          className="glass-effect rounded-3xl p-8 shadow-lg"
+          className="glass-card rounded-3xl p-8 shadow-2xl backdrop-blur-2xl"
         >
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center gap-2">
-              <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+            <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-600 dark:text-red-400 text-xs font-medium flex items-center gap-2">
+              <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
               {error}
             </div>
           )}
 
-          <div className="mb-5">
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-              用户名
-            </label>
-            <input
-              type="text"
-              className="w-full px-4 py-3 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-xl text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:shadow-lg transition-all duration-300 placeholder:text-[var(--text-secondary)]"
-              placeholder="请输入用户名"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+          <div className="space-y-5">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 ml-1">
+                Username
+              </label>
+              <input
+                type="text"
+                className="w-full px-4 py-3 bg-surface-highlight/50 border border-border/50 rounded-xl text-foreground outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all duration-300 placeholder:text-muted/40"
+                placeholder="Enter username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 ml-1">
+                Password
+              </label>
+              <input
+                type="password"
+                className="w-full px-4 py-3 bg-surface-highlight/50 border border-border/50 rounded-xl text-foreground outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all duration-300 placeholder:text-muted/40"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className={clsx(
+                "w-full py-3.5 mt-2 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all duration-300",
+                "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg hover:-translate-y-0.5",
+                isLoading && "opacity-70 cursor-not-allowed"
+              )}
               disabled={isLoading}
-            />
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
           </div>
 
-          <div className="mb-8">
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-              密码
-            </label>
-            <input
-              type="password"
-              className="w-full px-4 py-3 bg-[var(--bg-primary)] border-2 border-[var(--border-color)] rounded-xl text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:shadow-lg transition-all duration-300 placeholder:text-[var(--text-secondary)]"
-              placeholder="请输入密码"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-3 text-white rounded-xl font-medium text-lg btn-gradient flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                登录中...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5" />
-                开始体验
-              </>
-            )}
-          </button>
-
-          <p className="text-center text-[var(--text-secondary)] text-sm mt-6">
-            首次使用？系统将自动为您创建账号
+          <p className="text-center text-muted/60 text-xs mt-8">
+            New here? Account will be created automatically.
           </p>
         </form>
       </div>

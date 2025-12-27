@@ -18,7 +18,7 @@ export default {
         accent: "rgb(var(--accent) / <alpha-value>)",
         muted: "rgb(var(--muted) / <alpha-value>)",
         border: "rgb(var(--border) / <alpha-value>)",
-        foreground: "rgb(var(--muted) / <alpha-value>)",
+        foreground: "rgb(var(--foreground) / <alpha-value>)",
         "gemini-blue": "#667eea",
       },
       fontFamily: {

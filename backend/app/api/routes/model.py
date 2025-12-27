@@ -27,7 +27,7 @@ async def list_models() -> ApiResult[list[ModelVo]]:
                 modelCode=settings.ai_deepseek_model_name,
                 modelName="DeepSeek Chat",
                 provider="deepseek",
-                isDefault=True,
+                isDefault=(settings.ai_provider == "deepseek"),
                 status=1,
             )
         )
@@ -40,7 +40,33 @@ async def list_models() -> ApiResult[list[ModelVo]]:
                 modelCode=settings.ai_openai_deployment_name,
                 modelName="OpenAI GPT",
                 provider="openai",
-                isDefault=not bool(settings.ai_deepseek_api_key),
+                isDefault=(settings.ai_provider == "openai"),
+                status=1,
+            )
+        )
+
+    # 中转站模型 (Custom)
+    if settings.ai_custom_api_key:
+        models.append(
+            ModelVo(
+                id=3,
+                modelCode=settings.ai_custom_model_name,
+                modelName=f"Custom ({settings.ai_custom_model_name})",
+                provider="custom",
+                isDefault=(settings.ai_provider == "custom"),
+                status=1,
+            )
+        )
+
+    # Google Gemini 模型
+    if settings.ai_gemini_api_key:
+        models.append(
+            ModelVo(
+                id=4,
+                modelCode=settings.ai_gemini_model_name,
+                modelName=f"Gemini ({settings.ai_gemini_model_name})",
+                provider="gemini",
+                isDefault=(settings.ai_provider == "gemini"),
                 status=1,
             )
         )

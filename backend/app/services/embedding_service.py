@@ -31,17 +31,24 @@ class EmbeddingService:
         # 根据配置选择模型类型
         self.use_local = settings.ai_embedding_provider == "local"
 
+    def warmup(self) -> None:
+        """预加载模型（应用启动时调用）"""
+        if self.use_local:
+            self._get_local_model()
+
     def _get_local_model(self):
         """
-        延迟加载本地 Embedding 模型
+        延迟加载本地 Embedding 模型 (使用 fastembed，比 sentence-transformers 更轻量)
+        fastembed 使用 ONNX Runtime，无需 PyTorch，镜像大小从 11GB 降至 ~500MB
         """
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
+            from fastembed import TextEmbedding
 
             model_name = self.settings.ai_embedding_model
-            print(f"📥 Loading local embedding model: {model_name}")
-            self._model = SentenceTransformer(model_name)
-            print(f"✅ Model loaded successfully")
+            print(f"📥 Loading local embedding model (fastembed): {model_name}")
+            # fastembed 会自动下载并缓存模型到 ~/.cache/fastembed
+            self._model = TextEmbedding(model_name=model_name)
+            print("✅ Model loaded successfully")
 
         return self._model
 
@@ -69,9 +76,9 @@ class EmbeddingService:
         """
         if self.use_local:
             model = self._get_local_model()
-            # SentenceTransformer 是同步的，但很快
-            vector = model.encode(text, normalize_embeddings=True)
-            return vector.tolist()
+            # fastembed.embed() 返回生成器，需要转换为 list 取第一个结果
+            vectors = list(model.embed([text]))
+            return vectors[0].tolist()
         else:
             embeddings = self._get_remote_embeddings()
             return await embeddings.aembed_query(text)
@@ -82,8 +89,9 @@ class EmbeddingService:
         """
         if self.use_local:
             model = self._get_local_model()
-            vectors = model.encode(texts, normalize_embeddings=True)
-            return vectors.tolist()
+            # fastembed.embed() 返回生成器，批量转换为列表
+            vectors = list(model.embed(texts))
+            return [v.tolist() for v in vectors]
         else:
             embeddings = self._get_remote_embeddings()
             return await embeddings.aembed_documents(texts)
@@ -141,19 +149,23 @@ class EmbeddingService:
         query_vector = await self.embed_text(query)
 
         # 构建查询 - 使用余弦相似度
+        # 使用 JSON 格式传递向量，避免 SQL 注入
+        import json
+        query_vec_json = json.dumps(query_vector)
+
         if conversation_id:
             sql = text("""
                 SELECT
                     content,
                     role,
-                    1 - (embedding <=> :query_vec::vector) as similarity
+                    1 - (embedding <=> CAST(:query_vec AS vector)) as similarity
                 FROM t_message_embedding
                 WHERE conversation_id = :conv_id
-                ORDER BY embedding <=> :query_vec::vector
+                ORDER BY embedding <=> CAST(:query_vec AS vector)
                 LIMIT :limit
             """)
             params = {
-                "query_vec": str(query_vector),
+                "query_vec": query_vec_json,
                 "conv_id": conversation_id,
                 "limit": top_k,
             }
@@ -162,13 +174,13 @@ class EmbeddingService:
                 SELECT
                     content,
                     role,
-                    1 - (embedding <=> :query_vec::vector) as similarity
+                    1 - (embedding <=> CAST(:query_vec AS vector)) as similarity
                 FROM t_message_embedding
-                ORDER BY embedding <=> :query_vec::vector
+                ORDER BY embedding <=> CAST(:query_vec AS vector)
                 LIMIT :limit
             """)
             params = {
-                "query_vec": str(query_vector),
+                "query_vec": query_vec_json,
                 "limit": top_k,
             }
 

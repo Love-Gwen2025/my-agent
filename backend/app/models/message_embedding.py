@@ -21,5 +21,5 @@ class MessageEmbedding(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     role: Mapped[str] = mapped_column(Text, nullable=False)  # user / assistant
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    # pgvector 向量列 - 维度可配置，默认 1536 (OpenAI text-embedding-3-small)
-    embedding = mapped_column(Vector(1536), nullable=True)
+    # pgvector 向量列 - 512 维适配 bge-small-zh-v1.5 本地模型
+    embedding = mapped_column(Vector(512), nullable=True)

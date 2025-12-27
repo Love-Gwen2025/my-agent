@@ -10,15 +10,21 @@ import type {
 } from '../types';
 
 /**
- * 获取会话列表
+ * 获取会话列表（分页）
  *
- * @returns 会话列表
+ * @param limit 每页数量
+ * @param offset 偏移量
+ * @returns 会话列表和是否有更多
  */
-export async function getConversations(): Promise<Conversation[]> {
-  const response = await apiClient.get<ApiResponse<Conversation[]>>(
-    '/conversation/list'
+export async function getConversations(
+  limit: number = 20,
+  offset: number = 0
+): Promise<{ items: Conversation[]; hasMore: boolean }> {
+  const response = await apiClient.get<ApiResponse<{ items: Conversation[]; hasMore: boolean }>>(
+    '/conversation/list',
+    { params: { limit, offset } }
   );
-  return response.data.data || [];
+  return response.data.data || { items: [], hasMore: false };
 }
 
 /**

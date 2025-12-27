@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="mechGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4F46E5"/>
+      <stop offset="100%" style="stop-color:#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <!-- 外圈齿轮 -->
+  <path fill="url(#mechGradient)" d="M16 2l2 3h3l1.5 2.5 3-.5 1 2.8-2.5 1.7.5 3-2.5 1.5.5 3-3-.5L18 20h-4l-1.5 2.5-3-.5-.5-3-2.5-1.5.5-3-2.5-1.7 1-2.8 3 .5L10 5h3l3-3z"/>
+  <!-- 内圈 -->
+  <circle cx="16" cy="12" r="5" fill="#1E1B4B"/>
+  <!-- 机器人眼睛 -->
+  <circle cx="14" cy="11" r="1.2" fill="#06B6D4"/>
+  <circle cx="18" cy="11" r="1.2" fill="#06B6D4"/>
+  <!-- 机器人嘴巴 -->
+  <rect x="13" y="13.5" width="6" height="1.5" rx="0.5" fill="#06B6D4"/>
+</svg>

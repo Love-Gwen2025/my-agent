@@ -52,6 +52,8 @@ interface AppActions {
   addConversation: (conversation: Conversation) => void;
   /** 删除会话 */
   removeConversation: (id: string) => void;
+  /** 更新会话信息 */
+  updateConversation: (id: string, updates: Partial<Conversation>) => void;
   /** 设置当前会话 */
   setCurrentConversationId: (id: string | null) => void;
   /** 设置消息列表 */
@@ -134,6 +136,12 @@ export const useAppStore = create<AppState & AppActions>()(
             state.currentConversationId === id
               ? null
               : state.currentConversationId,
+        })),
+      updateConversation: (id, updates) =>
+        set((state) => ({
+          conversations: state.conversations.map((c) =>
+            c.id === id ? { ...c, ...updates } : c
+          ),
         })),
       setCurrentConversationId: (id) =>
         set({ currentConversationId: id, messages: [], streamingContent: '', currentCheckpointId: null }),

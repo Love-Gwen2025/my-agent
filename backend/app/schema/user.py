@@ -35,3 +35,20 @@ class UserVo(BaseModel):
     userPhone: str | None = Field(default=None, description="手机号")
     address: str | None = Field(default=None, description="地址")
     maxLoginNum: int | None = Field(default=None, description="最大登录设备数")
+    avatar: str | None = Field(default=None, description="头像 URL")
+
+
+class UserUpdatePayload(BaseModel):
+    """用户信息更新请求体（不含密码）"""
+
+    userName: str | None = Field(default=None, description="用户昵称")
+    userPhone: str | None = Field(default=None, description="手机号")
+    address: str | None = Field(default=None, description="地址")
+    userSex: int | None = Field(default=None, description="性别 0/1")
+
+
+class ChangePasswordPayload(BaseModel):
+    """修改密码请求体"""
+
+    oldPassword: str = Field(..., description="旧密码")
+    newPassword: str = Field(..., min_length=6, description="新密码（至少6位）")
