@@ -39,6 +39,7 @@ class StreamChatParam(BaseModel):
     systemPrompt: str | None = Field(default=None, description="系统提示词")
     parentMessageId: str | None = Field(default=None, description="父消息 ID，用于构建消息树")
     regenerate: bool = Field(default=False, description="重新生成模式，从父消息分叉生成新回复")
+    mode: str = Field(default="chat", description="对话模式: chat/deep_search")
 
 
 class MessageVo(BaseModel):
@@ -61,6 +62,7 @@ class MessageVo(BaseModel):
 
 class HistoryResponse(BaseModel):
     """消息历史响应，包含完整消息树"""
+
     messages: list[MessageVo] = Field(..., description="所有消息列表")
     currentMessageId: str | None = Field(default=None, description="当前选中的消息 ID")
 

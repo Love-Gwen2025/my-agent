@@ -92,6 +92,8 @@ export interface StreamChatRequest {
   parentMessageId?: string;
   /** 是否重新生成 */
   regenerate?: boolean;
+  /** 对话模式: chat/deep_search */
+  mode?: string;
 }
 
 /** 流式聊天事件 */

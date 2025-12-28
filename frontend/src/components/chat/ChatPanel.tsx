@@ -257,7 +257,7 @@ export function ChatPanel() {
     }
   }, [clearStreamingContent, currentConversationId, currentModelCode, editingContent, sendMessage, user]);
 
-  const handleSend = useCallback((content: string) => {
+  const handleSend = useCallback((content: string, mode?: string) => {
     if (!currentConversationId || !user) return;
     const lastMessage = displayMessages.length > 0 ? displayMessages[displayMessages.length - 1] : null;
     const parentMessageId = lastMessage ? String(lastMessage.id) : undefined;
@@ -284,6 +284,7 @@ export function ChatPanel() {
       content,
       modelCode: currentModelCode || undefined,
       parentMessageId,
+      mode: mode || 'chat',
     });
   }, [currentConversationId, currentModelCode, user, displayMessages, sendMessage, clearStreamingContent, addMessage]);
 

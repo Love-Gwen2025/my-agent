@@ -124,6 +124,13 @@ class Settings(BaseSettings):
     tavily_api_key: str | None = Field(default=None, description="API Key")
     tavily_enabled: bool = Field(default=False, description="是否启用")
 
+    # ==================== DeepSearch 深度搜索 ====================
+    deep_search_enabled: bool = Field(default=True, description="启用深度搜索模式")
+    deep_search_max_rounds: int = Field(default=5, description="最大规划轮次")
+    deep_search_model: str | None = Field(
+        default=None, description="推理模型名称（留空则使用当前 provider 的模型）"
+    )
+
     # ==================== OSS 对象存储 ====================
     oss_access_key_id: str | None = Field(default=None, description="AccessKey ID")
     oss_access_key_secret: str | None = Field(default=None, description="AccessKey Secret")

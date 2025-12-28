@@ -3,6 +3,9 @@
  */
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check, Sparkles, RefreshCw, Pencil, ThumbsUp, ThumbsDown, Share2, MoreHorizontal } from 'lucide-react';
@@ -114,7 +117,7 @@ export function MessageBubble({
 
       {/* Content Area */}
       <div className={clsx("flex flex-col max-w-[85%] lg:max-w-[75%]", isUser ? "items-end" : "items-start")}>
-        
+
         <div className={clsx(
           "text-xs font-medium mb-1 px-1 opacity-90",
           isUser ? "text-muted" : "text-muted"
@@ -159,7 +162,8 @@ export function MessageBubble({
                 <p className="whitespace-pre-wrap leading-relaxed text-[0.95rem]">{message.content}</p>
               ) : (
                 <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
                   components={{
                     code({ className, children, ...props }) {
                       const match = /language-(\w+)/.exec(className || '');
@@ -183,14 +187,14 @@ export function MessageBubble({
         {/* Toolbar for AI Messages */}
         {isAssistant && !isStreaming && (
           <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity duration-200 pl-1">
-             {showBranchNav && onNavigateBranch && (
+            {showBranchNav && onNavigateBranch && (
               <BranchNavigator
                 currentIndex={siblingInfo.current}
                 totalCount={siblingInfo.total}
                 onNavigate={onNavigateBranch}
               />
             )}
-            
+
             <div className="flex items-center gap-0.5 bg-surface-container border border-border/60 rounded-lg p-0.5 shadow-sm">
               <button
                 className="p-1.5 hover:bg-surface-highlight rounded-md text-muted hover:text-foreground transition-colors"

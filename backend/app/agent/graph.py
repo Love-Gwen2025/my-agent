@@ -1,17 +1,19 @@
 """
-LangGraph Agent 构建模块 (v2)
+LangGraph Agent 构建模块 (v3 - 统一图架构)
 
-新架构：
-- RewriteNode: 代词消解
-- ChatbotNode: 决定调用工具 or 直接回复
-- ToolsNode: 执行工具（RAG/搜索等）
+新架构支持两种模式：
+1. 普通对话模式 (mode="chat"):
+   START → rewrite → chatbot → [tools → chatbot]* → END
 
-流程:
-  START → rewrite → chatbot → [tools → chatbot]* → END
+2. 深度搜索模式 (mode="deep_search"):
+   START → planning → [search → planning]* → summary → END
+
+通过 state["mode"] 在入口处路由到不同的分支。
 
 支持：
 - checkpoint_id 分支（时间旅行）
 - 工具自主调用（模型决定是否调用）
+- DeepSearch 多轮搜索规划
 """
 
 from typing import Annotated, Literal
@@ -25,23 +27,51 @@ from langgraph.prebuilt import ToolNode
 from loguru import logger
 from typing_extensions import TypedDict
 
+from app.nodes.chatbot_node import create_chatbot_node
+from app.nodes.planning_node import create_planning_node
 from app.nodes.rewrite_node import create_rewrite_node
+from app.nodes.search_node import create_search_node
+from app.nodes.summary_node import create_summary_node
 
 # ========== 1. 定义 Agent 状态 ==========
 
 
 class AgentState(TypedDict):
     """
-    Agent 的状态定义。
+    Agent 的状态定义 (v3 - 统一状态)。
 
     Attributes:
         messages: 对话消息历史（使用 add_messages reducer 自动追加）
+        mode: 对话模式 ("chat" | "deep_search")
+        question: 用户原始问题（DeepSearch 用）
+        search_queries: 待搜索的关键词列表（DeepSearch 用）
+        references: 累积的参考资料 {query: [results]}（DeepSearch 用）
+        planning_rounds: 当前规划轮次（DeepSearch 用）
     """
 
     messages: Annotated[list[AnyMessage], add_messages]
+    # DeepSearch 专用字段
+    mode: str
+    question: str
+    search_queries: list[str]
+    references: dict[str, list[str]]
+    planning_rounds: int
 
 
 # ========== 2. 路由逻辑 ==========
+
+
+def mode_router(state: AgentState) -> Literal["rewrite", "planning"]:
+    """
+    入口路由：根据 mode 决定进入普通对话还是深度搜索。
+    """
+    mode = state.get("mode", "chat")
+    if mode == "deep_search":
+        logger.info("🔬 Entering DeepSearch mode")
+        return "planning"
+    else:
+        logger.info("💬 Entering Chat mode")
+        return "rewrite"
 
 
 def tools_condition(state: AgentState) -> Literal["tools", "__end__"]:
@@ -59,7 +89,34 @@ def tools_condition(state: AgentState) -> Literal["tools", "__end__"]:
     return "__end__"
 
 
-# ========== 3. 构建 Agent 图 ==========
+def planning_router(state: AgentState) -> Literal["search", "summary"]:
+    """
+    DeepSearch 规划路由：决定是继续搜索还是进入总结。
+    """
+    from app.core.settings import get_settings
+
+    settings = get_settings()
+    max_rounds = settings.deep_search_max_rounds
+
+    planning_rounds = state.get("planning_rounds", 0)
+    search_queries = state.get("search_queries", [])
+
+    # 超过最大轮次，强制进入总结
+    if planning_rounds >= max_rounds:
+        logger.warning(f"⚠️ Max planning rounds ({max_rounds}) reached, forcing summary")
+        return "summary"
+
+    # 有搜索词，继续搜索
+    if search_queries:
+        logger.info(f"🔍 Search queries: {search_queries}")
+        return "search"
+
+    # 无搜索词，进入总结
+    logger.info("✅ No more queries, proceeding to summary")
+    return "summary"
+
+
+# ========== 3. 构建统一 Agent 图 ==========
 
 
 def create_agent_graph(
@@ -69,28 +126,26 @@ def create_agent_graph(
     enable_rewrite: bool = True,
 ) -> StateGraph:
     """
-    创建 LangGraph Agent 工作流 (v2)。
+    创建 LangGraph Agent 工作流 (v3 - 统一图)。
 
-    新流程:
-    ```
-           ┌─────────┐
-           │  START  │
-           └────┬────┘
-                ▼
-           ┌─────────┐
-           │ rewrite │ (可选：代词消解)
-           └────┬────┘
-                ▼
-           ┌─────────┐
-    ┌─────►│ chatbot │◄────┐
-    │      └────┬────┘     │
-    │     有 tool_calls?   │
-    │        Y     N       │
-    │       ▼       ▼      │
-    │   ┌───────┐  ┌────┐  │
-    └───┤ tools │  │ END│  │
-        └───────┘  └────┘
-    ```
+    统一图架构:
+    ┌───────────────────────────────────────────────────────┐
+    │                        START                          │
+    │                          │                            │
+    │                       router                          │
+    │                    ↙         ↘                        │
+    │   ┌─────────────────┐   ┌─────────────────┐          │
+    │   │  💬 Chat Mode   │   │  🔬 DeepSearch  │          │
+    │   │                 │   │                 │          │
+    │   │  rewrite        │   │  planning ◄──┐  │          │
+    │   │     ↓           │   │     ↓        │  │          │
+    │   │  chatbot ◄──┐   │   │  search? ────┘  │          │
+    │   │     ↓       │   │   │     ↓           │          │
+    │   │  tools? ────┘   │   │  summary        │          │
+    │   │     ↓           │   │     ↓           │          │
+    │   │    END          │   │    END          │          │
+    │   └─────────────────┘   └─────────────────┘          │
+    └───────────────────────────────────────────────────────┘
 
     Args:
         model: LLM 实例
@@ -101,6 +156,10 @@ def create_agent_graph(
     Returns:
         编译后的 CompiledStateGraph
     """
+    from app.core.settings import get_settings
+
+    settings = get_settings()
+
     # 绑定工具到模型
     if tools:
         logger.info(f"🔧 Binding {len(tools)} tools to model: {[t.name for t in tools]}")
@@ -109,46 +168,46 @@ def create_agent_graph(
         logger.warning("⚠️ No tools provided to agent")
         model_with_tools = model
 
-    # 定义 chatbot 节点
-    async def chatbot(state: AgentState) -> dict:
-        """Chatbot 节点：调用 LLM 获取回复或工具调用决策。"""
-        logger.info(f"🤖 Chatbot receiving {len(state['messages'])} messages")
-        response = await model_with_tools.ainvoke(state["messages"])
-        logger.info(
-            f"🤖 Chatbot response: has_tool_calls={bool(response.tool_calls)}, content_len={len(response.content) if response.content else 0}"
-        )
-        if response.tool_calls:
-            logger.info(f"🔧 Tool calls: {[tc['name'] for tc in response.tool_calls]}")
-        return {"messages": [response]}
-
-    # 创建 tools 节点
+    # 创建节点
     tool_node = ToolNode(tools) if tools else None
+    rewrite_node = create_rewrite_node(model) if enable_rewrite else None
+    chatbot_node = create_chatbot_node(model_with_tools)
+    planning_node = create_planning_node(model, settings)
+    search_node = create_search_node(settings)
+    summary_node = create_summary_node(model)
 
     # 构建状态图
     workflow = StateGraph(AgentState)
 
-    # 添加节点
-    if enable_rewrite:
-        rewrite_node = create_rewrite_node(model)
+    # ===== 添加所有节点 =====
+    # 普通对话分支
+    if rewrite_node:
         workflow.add_node("rewrite", rewrite_node)
-        workflow.add_node("chatbot", chatbot)
-        if tool_node:
-            workflow.add_node("tools", tool_node)
+    workflow.add_node("chatbot", chatbot_node)
+    if tool_node:
+        workflow.add_node("tools", tool_node)
 
-        # 设置入口点
-        workflow.set_entry_point("rewrite")
+    # DeepSearch 分支
+    workflow.add_node("planning", planning_node)
+    workflow.add_node("search", search_node)
+    workflow.add_node("summary", summary_node)
 
-        # rewrite -> chatbot
+    # ===== 入口路由 =====
+    workflow.set_entry_point("router")
+    workflow.add_node("router", lambda state: state)  # 透传节点
+    workflow.add_conditional_edges(
+        "router",
+        mode_router,
+        {
+            "rewrite": "rewrite" if rewrite_node else "chatbot",
+            "planning": "planning",
+        },
+    )
+
+    # ===== 普通对话分支边 =====
+    if rewrite_node:
         workflow.add_edge("rewrite", "chatbot")
-    else:
-        workflow.add_node("chatbot", chatbot)
-        if tool_node:
-            workflow.add_node("tools", tool_node)
 
-        # 设置入口点
-        workflow.set_entry_point("chatbot")
-
-    # 添加条件边
     if tool_node:
         workflow.add_conditional_edges(
             "chatbot",
@@ -158,11 +217,21 @@ def create_agent_graph(
                 "__end__": END,
             },
         )
-        # tools -> chatbot
         workflow.add_edge("tools", "chatbot")
     else:
-        # 没有工具，直接结束
         workflow.add_edge("chatbot", END)
+
+    # ===== DeepSearch 分支边 =====
+    workflow.add_conditional_edges(
+        "planning",
+        planning_router,
+        {
+            "search": "search",
+            "summary": "summary",
+        },
+    )
+    workflow.add_edge("search", "planning")  # 循环回到 planning
+    workflow.add_edge("summary", END)
 
     # 编译并返回
     return workflow.compile(checkpointer=checkpointer)

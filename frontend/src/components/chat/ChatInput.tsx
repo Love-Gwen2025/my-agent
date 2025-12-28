@@ -1,15 +1,19 @@
 /**
  * 消息输入框组件 - Refined Modern Edition
+ * 
+ * 支持：
+ * - 普通对话模式
+ * - DeepSearch 深度搜索模式
  */
 import { useState, useRef, useEffect } from 'react';
-import { Send, StopCircle, Plus } from 'lucide-react';
+import { Send, StopCircle, Plus, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
 interface ChatInputProps {
   isLoading?: boolean;
   disabled?: boolean;
-  onSend: (content: string) => void;
+  onSend: (content: string, mode?: string) => void;
   onAbort?: () => void;
 }
 
@@ -21,6 +25,7 @@ export function ChatInput({
 }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [isDeepSearch, setIsDeepSearch] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -34,7 +39,7 @@ export function ChatInput({
   const handleSend = () => {
     const content = input.trim();
     if (!content || isLoading || disabled) return;
-    onSend(content);
+    onSend(content, isDeepSearch ? 'deep_search' : 'chat');
     setInput('');
   };
 
@@ -57,7 +62,7 @@ export function ChatInput({
           }}
           className={clsx(
             'flex items-end gap-2 p-2 rounded-[26px] transition-all duration-300',
-            'glass bg-surface/80 backdrop-blur-xl', // Stronger blur
+            'glass bg-surface/80 backdrop-blur-xl',
             isFocused ? 'border-primary/20' : 'border-border/50'
           )}
         >
@@ -68,10 +73,24 @@ export function ChatInput({
             <Plus className="w-5 h-5" />
           </button>
 
+          {/* DeepSearch Toggle */}
+          <button
+            onClick={() => setIsDeepSearch(!isDeepSearch)}
+            className={clsx(
+              "p-2.5 rounded-full transition-all duration-200",
+              isDeepSearch
+                ? "bg-primary/20 text-primary ring-1 ring-primary/30"
+                : "hover:bg-surface-highlight text-muted hover:text-foreground"
+            )}
+            title={isDeepSearch ? "深度搜索模式（已开启）" : "切换到深度搜索模式"}
+          >
+            <Search className="w-5 h-5" />
+          </button>
+
           <textarea
             ref={textareaRef}
             className="flex-1 bg-transparent text-foreground resize-none outline-none py-3 px-1 max-h-[200px] placeholder:text-muted/60 text-[15px] min-h-[48px] leading-relaxed"
-            placeholder="Ask anything..."
+            placeholder={isDeepSearch ? "深度研究：输入复杂问题..." : "Ask anything..."}
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -119,9 +138,10 @@ export function ChatInput({
           </div>
         </motion.div>
 
+        {/* Mode Indicator */}
         <div className="text-center mt-3">
           <p className="text-[10px] text-muted/50 font-medium tracking-wide uppercase">
-            AI Generated Content • Verify Important Info
+            {isDeepSearch ? '🔬 DeepSearch Mode • 多轮搜索 + 深度分析' : 'AI Generated Content • Verify Important Info'}
           </p>
         </div>
       </div>

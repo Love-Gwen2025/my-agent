@@ -184,6 +184,7 @@ class ChatService:
         regenerate: bool = False,
         parent_message_id: int | None = None,
         db: AsyncSession | None = None,
+        mode: str = "chat",
     ) -> AsyncIterator[str]:
         """
         流式对话 - 使用 LangGraph 原生状态管理
@@ -250,14 +251,34 @@ class ChatService:
                         HumanMessage(content=content),
                     ]
 
+                # 构建 Graph 输入状态
+                # DeepSearch 模式需要额外的状态字段
+                graph_input = {
+                    "messages": input_messages,
+                    "mode": mode,
+                    "question": content,
+                    "search_queries": [],
+                    "references": {},
+                    "planning_rounds": 0,
+                }
+
                 # 使用 astream_events 获得 token 级流式输出
-                async for event in graph.astream_events(
-                    {"messages": input_messages}, config=config, version="v2"
-                ):
+                logger.info(f"[stream] Starting graph with mode={mode}")
+                async for event in graph.astream_events(graph_input, config=config, version="v2"):
                     kind = event.get("event", "")
 
                     # LLM 生成的 token
                     if kind == "on_chat_model_stream":
+                        # 过滤掉非最终输出的节点（planning、search 等中间节点）
+                        # 只输出 chatbot（普通聊天）和 summary（DeepSearch 总结）节点的内容
+                        metadata = event.get("metadata", {})
+                        node_name = metadata.get("langgraph_node", "")
+
+                        # 允许输出的节点白名单
+                        output_nodes = {"chatbot", "summary"}
+                        if node_name and node_name not in output_nodes:
+                            continue  # 跳过中间节点的输出
+
                         chunk = event.get("data", {}).get("chunk")
                         if chunk and hasattr(chunk, "content") and chunk.content:
                             # 使用统一工具函数处理 Gemini 格式

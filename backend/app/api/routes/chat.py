@@ -54,6 +54,7 @@ async def stream_chat(
             regenerate=payload.regenerate,
             parent_message_id=int(payload.parentMessageId) if payload.parentMessageId else None,
             db=db,
+            mode=payload.mode,
         ):
             yield f"data: {chunk}\n\n"
 
@@ -83,6 +84,7 @@ async def chat(
             regenerate=payload.regenerate,
             parent_message_id=int(payload.parentMessageId) if payload.parentMessageId else None,
             db=db,
+            mode=payload.mode,
         ):
             data = json.loads(chunk)
             if data.get("type") == "chunk":
