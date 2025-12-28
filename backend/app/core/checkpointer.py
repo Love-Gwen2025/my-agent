@@ -9,6 +9,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from loguru import logger
+from psycopg import AsyncConnection
 from psycopg_pool import AsyncConnectionPool
 
 from app.core.settings import Settings
@@ -16,6 +18,15 @@ from app.core.settings import Settings
 # 全局连接池
 _pool: AsyncConnectionPool | None = None
 _tables_initialized = False
+
+
+async def check_connection(conn: AsyncConnection) -> None:
+    """
+    连接健康检查回调函数。
+    在从连接池获取连接时调用，验证连接是否仍然有效。
+    如果连接无效，抛出异常，连接池会自动丢弃该连接并获取新连接。
+    """
+    await conn.execute("SELECT 1")
 
 
 def get_postgres_url(settings: Settings) -> str:
@@ -34,8 +45,11 @@ async def init_checkpointer_pool(settings: Settings) -> None:
             conninfo=get_postgres_url(settings),
             min_size=2,
             max_size=10,
+            max_idle=300,  # 空闲连接最多保持 5 分钟
+            check=check_connection,  # 获取连接前验证有效性
             open=False,
         )
+        logger.info("Checkpointer pool created with health check enabled")
         await _pool.open()
         # 初始化表结构（需要在 autocommit 模式下执行，因为 CREATE INDEX CONCURRENTLY 不能在事务中运行）
         async with _pool.connection() as conn:
