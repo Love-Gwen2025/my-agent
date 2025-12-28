@@ -53,7 +53,8 @@ async def init_checkpointer_pool(settings: Settings) -> None:
         await _pool.open()
         # 初始化表结构（需要在 autocommit 模式下执行，因为 CREATE INDEX CONCURRENTLY 不能在事务中运行）
         async with _pool.connection() as conn:
-            # 设置 autocommit 模式
+            # 回滚任何可能的事务（健康检查可能隐式开启事务），然后设置 autocommit 模式
+            await conn.rollback()
             await conn.set_autocommit(True)
             try:
                 checkpointer = AsyncPostgresSaver(conn)
