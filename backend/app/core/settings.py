@@ -140,6 +140,14 @@ class Settings(BaseSettings):
     oss_custom_domain: str | None = Field(default=None, description="自定义域名")
     oss_object_prefix: str | None = Field(default=None, description="对象前缀")
 
+    # ==================== Langfuse 可观测性 ====================
+    langfuse_enabled: bool = Field(default=True, description="启用 Langfuse 追踪")
+    langfuse_public_key: str | None = Field(default=None, description="Langfuse Public Key")
+    langfuse_secret_key: str | None = Field(default=None, description="Langfuse Secret Key")
+    langfuse_host: str = Field(
+        default="https://cloud.langfuse.com", description="Langfuse 服务地址"
+    )
+
     # ==================== 功能开关 ====================
     enable_sse_streaming: bool = Field(default=True, description="启用 SSE 流式输出")
     enable_websocket: bool = Field(default=True, description="启用 WebSocket")

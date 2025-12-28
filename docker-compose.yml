@@ -97,6 +97,12 @@ services:
       - OSS_CUSTOM_DOMAIN=${OSS_CUSTOM_DOMAIN:-}
       - OSS_OBJECT_PREFIX=${OSS_OBJECT_PREFIX:-}
 
+      # ==================== Langfuse 可观测性 ====================
+      - LANGFUSE_ENABLED=${LANGFUSE_ENABLED:-true}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
+
       # ==================== 功能开关 ====================
       - ENABLE_SSE_STREAMING=${ENABLE_SSE_STREAMING:-true}
       - ENABLE_WEBSOCKET=${ENABLE_WEBSOCKET:-true}

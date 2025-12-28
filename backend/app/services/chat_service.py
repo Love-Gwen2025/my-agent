@@ -21,6 +21,7 @@ from app.core.constants import AI_SENDER_ID, MAX_TITLE_LENGTH
 from app.core.settings import Settings
 from app.services.conversation_service import ConversationService
 from app.services.embedding_service import EmbeddingService
+from app.services.langfuse_service import get_langfuse_service
 from app.services.model_service import ModelService
 from app.utils.content import extract_text_content
 
@@ -264,6 +265,19 @@ class ChatService:
 
                 # 使用 astream_events 获得 token 级流式输出
                 logger.info(f"[stream] Starting graph with mode={mode}")
+
+                # 注入 Langfuse callback（如果启用）
+                langfuse_service = get_langfuse_service(self.settings)
+                langfuse_handler = langfuse_service.get_callback_handler(
+                    user_id=str(user_id) if user_id else None,
+                    session_id=str(conversation_id),
+                    trace_name=f"{mode}_chat",
+                    metadata={"mode": mode, "regenerate": regenerate},
+                )
+                if langfuse_handler:
+                    config["callbacks"] = [langfuse_handler]
+                    logger.info("📊 Langfuse tracing enabled")
+
                 async for event in graph.astream_events(graph_input, config=config, version="v2"):
                     kind = event.get("event", "")
 
