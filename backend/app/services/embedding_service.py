@@ -8,6 +8,7 @@ Embedding 服务 - 支持本地模型和远程 API
 
 from typing import Any
 
+from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -45,10 +46,10 @@ class EmbeddingService:
             from fastembed import TextEmbedding
 
             model_name = self.settings.ai_embedding_model
-            print(f"📥 Loading local embedding model (fastembed): {model_name}")
+            logger.info(f"Loading local embedding model (fastembed): {model_name}")
             # fastembed 会自动下载并缓存模型到 ~/.cache/fastembed
             self._model = TextEmbedding(model_name=model_name)
-            print("✅ Model loaded successfully")
+            logger.info("Embedding model loaded successfully")
 
         return self._model
 
@@ -151,6 +152,7 @@ class EmbeddingService:
         # 构建查询 - 使用余弦相似度
         # 使用 JSON 格式传递向量，避免 SQL 注入
         import json
+
         query_vec_json = json.dumps(query_vector)
 
         if conversation_id:

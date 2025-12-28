@@ -137,6 +137,8 @@ services:
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-123456}
       - POSTGRES_DB=${DB_NAME:-my_agent}
+      - TZ=Asia/Shanghai
+      - PGTZ=Asia/Shanghai
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:

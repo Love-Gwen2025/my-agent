@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.router import api_router
 from app.core.checkpointer import close_checkpointer_pool, init_checkpointer_pool
+from app.core.context import RequestContextMiddleware
 from app.core.exceptions import AppException
 from app.core.logging import setup_logging
 from app.core.settings import get_settings
@@ -61,6 +62,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # 请求上下文中间件（自动注入 request_id 到日志）
+    app.add_middleware(RequestContextMiddleware)
+
     # 注册全局异常处理器
     register_exception_handlers(app)
 
@@ -96,7 +100,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         """处理 HTTP 异常"""
         # 日志包含请求路径，方便排查 404 等问题
-        logger.warning(f"HTTPException: {exc.status_code} - {exc.detail} | Path: {request.url.path}")
+        logger.warning(
+            f"HTTPException: {exc.status_code} - {exc.detail} | Path: {request.url.path}"
+        )
         return JSONResponse(
             status_code=exc.status_code,
             content=ApiResult.error(str(exc.status_code), str(exc.detail)).model_dump(),

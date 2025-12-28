@@ -1,7 +1,4 @@
-from datetime import datetime
-
-from loguru import logger
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ForbiddenError
@@ -89,13 +86,9 @@ class ConversationService:
         """
         1. 修改会话标题。
         """
-        # 1. 校验归属后更新
-        await self.ensure_owner(conversation_id, user_id)
-        await self.db.execute(
-            update(Conversation)
-            .where(Conversation.id == conversation_id)
-            .values(title=title, update_time=datetime.now())
-        )
+        # 1. 校验归属后更新（使用 ORM 方式，update_time 自动更新）
+        conversation = await self.ensure_owner(conversation_id, user_id)
+        conversation.title = title
         await self.db.commit()
 
     async def delete_conversation(self, user_id: int, conversation_id: int) -> None:
@@ -172,19 +165,14 @@ class ConversationService:
             checkpoint_id=checkpoint_id,
         )
         self.db.add(message)
-        await self.db.commit()
+        await self.db.flush()  # flush 同步到数据库获取自增 ID，但不提交事务
         await self.db.refresh(message)
-        # 同时更新 last_message_id 和 current_message_id
-        # current_message_id 用于分支切换后恢复位置
-        await self.db.execute(
-            update(Conversation)
-            .where(Conversation.id == conversation_id)
-            .values(
-                last_message_id=message.id,
-                last_message_at=message.create_time,
-                current_message_id=message.id,
-            )
-        )
+        # 同时更新 last_message_id 和 current_message_id（使用 ORM 方式，update_time 自动更新）
+        conversation = await self.db.get(Conversation, conversation_id)
+        if conversation:
+            conversation.last_message_id = message.id
+            conversation.last_message_at = message.create_time
+            conversation.current_message_id = message.id
         await self.db.commit()
         return message
 
@@ -240,11 +228,10 @@ class ConversationService:
         当用户通过分支导航器切换分支时调用，
         刷新页面后 history 会从这个消息开始回溯构建链路。
         """
-        await self.db.execute(
-            update(Conversation)
-            .where(Conversation.id == conversation_id)
-            .values(current_message_id=message_id, update_time=datetime.now())
-        )
+        # 使用 ORM 方式，update_time 自动更新
+        conversation = await self.db.get(Conversation, conversation_id)
+        if conversation:
+            conversation.current_message_id = message_id
         await self.db.commit()
 
     async def get_current_message_id(self, conversation_id: int) -> int | None:

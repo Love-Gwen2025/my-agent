@@ -37,10 +37,18 @@ async def init_checkpointer_pool(settings: Settings) -> None:
             open=False,
         )
         await _pool.open()
-        # 初始化表结构
+        # 初始化表结构（需要在 autocommit 模式下执行，因为 CREATE INDEX CONCURRENTLY 不能在事务中运行）
         async with _pool.connection() as conn:
-            checkpointer = AsyncPostgresSaver(conn)
-            await checkpointer.setup()
+            # 设置 autocommit 模式
+            await conn.set_autocommit(True)
+            try:
+                checkpointer = AsyncPostgresSaver(conn)
+                await checkpointer.setup()
+            except Exception:
+                # 表可能已存在，忽略错误
+                pass
+            finally:
+                await conn.set_autocommit(False)
         _tables_initialized = True
 
 

@@ -14,7 +14,6 @@ LangGraph Agent 构建模块 (v2)
 - 工具自主调用（模型决定是否调用）
 """
 
-import logging
 from typing import Annotated, Literal
 
 from langchain_core.messages import AIMessage, AnyMessage
@@ -23,11 +22,10 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
+from loguru import logger
 from typing_extensions import TypedDict
 
 from app.nodes.rewrite_node import create_rewrite_node
-
-logger = logging.getLogger(__name__)
 
 # ========== 1. 定义 Agent 状态 ==========
 
@@ -35,10 +33,11 @@ logger = logging.getLogger(__name__)
 class AgentState(TypedDict):
     """
     Agent 的状态定义。
-    
+
     Attributes:
         messages: 对话消息历史（使用 add_messages reducer 自动追加）
     """
+
     messages: Annotated[list[AnyMessage], add_messages]
 
 
@@ -115,7 +114,9 @@ def create_agent_graph(
         """Chatbot 节点：调用 LLM 获取回复或工具调用决策。"""
         logger.info(f"🤖 Chatbot receiving {len(state['messages'])} messages")
         response = await model_with_tools.ainvoke(state["messages"])
-        logger.info(f"🤖 Chatbot response: has_tool_calls={bool(response.tool_calls)}, content_len={len(response.content) if response.content else 0}")
+        logger.info(
+            f"🤖 Chatbot response: has_tool_calls={bool(response.tool_calls)}, content_len={len(response.content) if response.content else 0}"
+        )
         if response.tool_calls:
             logger.info(f"🔧 Tool calls: {[tc['name'] for tc in response.tool_calls]}")
         return {"messages": [response]}
@@ -177,7 +178,7 @@ def create_default_agent(
 ) -> StateGraph:
     """
     使用默认工具集创建 Agent。
-    
+
     包含：
     - 时间/计算器工具
     - RAG 检索工具

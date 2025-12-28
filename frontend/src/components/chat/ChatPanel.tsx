@@ -198,9 +198,6 @@ export function ChatPanel() {
     }
   }
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [displayMessages, streamingContent]);
 
   const handleNavigateBranch = useCallback((messageId: string, direction: 'prev' | 'next') => {
     if (!currentConversationId || navLoadingId) return;
@@ -290,8 +287,18 @@ export function ChatPanel() {
     });
   }, [currentConversationId, currentModelCode, user, displayMessages, sendMessage, clearStreamingContent, addMessage]);
 
+  // 滚动相关
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 消息变化时滚动到底部
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [displayMessages.length, streamingContent]);
+
   if (!currentConversationId) {
-    return <GreetingScreen userName={user?.userName || 'Traveler'} onSuggestionClick={handleSend} />; // Fix: passed handleSend directly
+    return <GreetingScreen userName={user?.userName || 'Traveler'} onSuggestionClick={handleSend} />;
   }
 
   return (
@@ -304,67 +311,70 @@ export function ChatPanel() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto w-full">
+      <div ref={containerRef} className="flex-1 overflow-hidden w-full pt-16">
         {displayMessages.length === 0 && !streamingContent ? (
           <GreetingScreen userName={user?.userName || 'User'} onSuggestionClick={handleSend} />
         ) : (
-          <div className="max-w-3xl mx-auto py-20 pb-48 px-4">
-            {displayMessages.map((message: Message, index: number) => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <MessageBubble
-                  message={message}
-                  siblingInfo={message.role === 'assistant' ? getSiblingInfo(String(message.id)) ?? undefined : undefined}
-                  onNavigateBranch={message.role === 'assistant' ? (direction) => handleNavigateBranch(String(message.id), direction) : undefined}
-                  onRegenerate={message.role === 'assistant' ? () => handleRegenerate(message, index) : undefined}
-                  isRegenerating={regeneratingId === String(message.id) || navLoadingId === String(message.id)}
-                  isStreaming={streamingContent !== '' && message.id === -1}
-                  onEdit={message.role === 'user' ? () => startEditMessage(message) : undefined}
-                  isEditing={editingMessageId === String(message.id)}
-                  editingContent={editingContent}
-                  onEditChange={setEditingContent}
-                  onEditSubmit={() => submitEditMessage(message)}
-                  onEditCancel={() => { setEditingMessageId(null); setEditingContent(''); }}
-                  userAvatar={message.role === 'user' ? user?.avatar : undefined}
-                />
-              </motion.div>
-            ))}
+          <div className="h-full overflow-y-auto scrollbar-thin pb-8">
+            <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
+              {displayMessages.map((message, index) => (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <MessageBubble
+                    message={message}
+                    siblingInfo={message.role === 'assistant' ? getSiblingInfo(String(message.id)) ?? undefined : undefined}
+                    onNavigateBranch={message.role === 'assistant' ? (direction) => handleNavigateBranch(String(message.id), direction) : undefined}
+                    onRegenerate={message.role === 'assistant' ? () => handleRegenerate(message, index) : undefined}
+                    isRegenerating={regeneratingId === String(message.id) || navLoadingId === String(message.id)}
+                    isStreaming={streamingContent !== '' && message.id === -1}
+                    onEdit={message.role === 'user' ? () => startEditMessage(message) : undefined}
+                    isEditing={editingMessageId === String(message.id)}
+                    editingContent={editingContent}
+                    onEditChange={setEditingContent}
+                    onEditSubmit={() => submitEditMessage(message)}
+                    onEditCancel={() => { setEditingMessageId(null); setEditingContent(''); }}
+                    userAvatar={message.role === 'user' ? user?.avatar : undefined}
+                  />
+                </motion.div>
+              ))}
 
-            {activeTool && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center gap-3 p-4 text-sm text-muted"
-              >
-                <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                <span className="gradient-text font-medium">Running {getToolDisplayName(activeTool)}...</span>
-              </motion.div>
-            )}
+              {/* 流式内容和工具状态 */}
+              {activeTool && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center gap-3 p-4 text-sm text-muted"
+                >
+                  <div className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  <span className="gradient-text font-medium">Running {getToolDisplayName(activeTool)}...</span>
+                </motion.div>
+              )}
 
-            {streamingContent && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <MessageBubble
-                  message={{
-                    id: -1,
-                    conversationId: currentConversationId,
-                    senderId: -1,
-                    role: 'assistant',
-                    content: streamingContent,
-                    contentType: 'TEXT',
-                    createTime: new Date().toISOString(),
-                  }}
-                  isStreaming={true}
-                />
-              </motion.div>
-            )}
-            <div ref={messagesEndRef} />
+              {streamingContent && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <MessageBubble
+                    message={{
+                      id: -1,
+                      conversationId: currentConversationId,
+                      senderId: -1,
+                      role: 'assistant',
+                      content: streamingContent,
+                      contentType: 'TEXT',
+                      createTime: new Date().toISOString(),
+                    }}
+                    isStreaming={true}
+                  />
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
         )}
       </div>

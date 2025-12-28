@@ -46,8 +46,8 @@ export function ChatInput({
   };
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-background via-background/90 to-transparent z-20 pointer-events-none">
-      <div className="max-w-3xl mx-auto relative pointer-events-auto">
+    <div className="shrink-0 p-4 pb-6 bg-background border-t border-border/30">
+      <div className="max-w-3xl mx-auto relative">
         <motion.div
           initial={false}
           animate={{
@@ -100,14 +100,14 @@ export function ChatInput({
                   key="send"
                   disabled={!input.trim()}
                   initial={{ scale: 0.9, opacity: 0.5 }}
-                  animate={{ 
-                    scale: input.trim() ? 1 : 0.9, 
-                    opacity: input.trim() ? 1 : 0.5 
+                  animate={{
+                    scale: input.trim() ? 1 : 0.9,
+                    opacity: input.trim() ? 1 : 0.5
                   }}
                   className={clsx(
                     "p-2 rounded-full transition-all",
-                    input.trim() 
-                      ? "bg-primary text-primary-foreground shadow-sm hover:shadow-glow-sm" 
+                    input.trim()
+                      ? "bg-primary text-primary-foreground shadow-sm hover:shadow-glow-sm"
                       : "bg-surface-highlight text-muted"
                   )}
                   onClick={handleSend}
@@ -118,9 +118,9 @@ export function ChatInput({
             </AnimatePresence>
           </div>
         </motion.div>
-        
+
         <div className="text-center mt-3">
-           <p className="text-[10px] text-muted/50 font-medium tracking-wide uppercase">
+          <p className="text-[10px] text-muted/50 font-medium tracking-wide uppercase">
             AI Generated Content • Verify Important Info
           </p>
         </div>

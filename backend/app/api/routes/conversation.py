@@ -1,6 +1,5 @@
-import logging
-
 from fastapi import APIRouter, Depends
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.converter.converter import (
@@ -18,9 +17,6 @@ from app.schema.conversation import (
     MessageVo,
 )
 from app.services.conversation_service import ConversationService
-
-# 模块级别的 logger，避免每次调用都创建
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/conversation", tags=["会话"])
 
@@ -52,10 +48,12 @@ async def list_conversations(
     """
     service = ConversationService(db)
     items, has_more = await service.list_conversations(current.id, limit, offset)
-    return ApiResult.ok({
-        "items": [ConversationConverter.from_dict(item) for item in items],
-        "hasMore": has_more,
-    })
+    return ApiResult.ok(
+        {
+            "items": [ConversationConverter.from_dict(item) for item in items],
+            "hasMore": has_more,
+        }
+    )
 
 
 @router.get("/history", response_model=ApiResult[HistoryResponse])

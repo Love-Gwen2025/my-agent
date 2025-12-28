@@ -5,6 +5,7 @@
 """
 
 import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -24,10 +25,10 @@ def get_env_file() -> str:
     else:
         env_file = root_dir / f".env.{app_env}"
         if not env_file.exists():
-            print(f"⚠️ 配置文件 {env_file} 不存在，回退使用 .env")
+            sys.stderr.write(f"⚠️ 配置文件 {env_file} 不存在，回退使用 .env\n")
             env_file = root_dir / ".env"
 
-    print(f"📋 加载配置文件: {env_file}")
+    sys.stderr.write(f"📋 加载配置文件: {env_file}\n")
     return str(env_file)
 
 
@@ -62,7 +63,7 @@ class Settings(BaseSettings):
     # ==================== Redis 缓存 ====================
     redis_host: str = Field(default="localhost", description="主机地址")
     redis_port: int = Field(default=6379, description="端口")
-    redis_password: str | None = Field(default=123456, description="密码")
+    redis_password: str | None = Field(default="123456", description="密码")
     redis_db: int = Field(default=2, description="库序号")
 
     # ==================== JWT 认证 ====================

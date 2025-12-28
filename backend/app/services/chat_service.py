@@ -322,29 +322,20 @@ class ChatService:
         # 6. 异步存储 embedding（使用独立 session，避免请求结束后 session 已关闭）
         if self.embedding_service:
             if user_message:
-                # 正常模式：存储用户消息和 AI 回复
+                # 正常模式：存储用户消息
                 task = asyncio.create_task(
-                    self._store_embeddings_async(
-                        user_message.id,
-                        assistant_message.id,
-                        conversation_id,
-                        user_id,
-                        content,
-                        reply_text,
+                    self._store_embedding_async(
+                        user_message.id, conversation_id, user_id, "user", content
                     )
                 )
                 task.add_done_callback(self._handle_task_exception)
-            else:
-                # regenerate 模式：只存储 AI 回复（用户消息已存过）
-                task = asyncio.create_task(
-                    self._store_ai_embedding_async(
-                        assistant_message.id,
-                        conversation_id,
-                        user_id,
-                        reply_text,
-                    )
+            # 存储 AI 回复
+            task = asyncio.create_task(
+                self._store_embedding_async(
+                    assistant_message.id, conversation_id, user_id, "assistant", reply_text
                 )
-                task.add_done_callback(self._handle_task_exception)
+            )
+            task.add_done_callback(self._handle_task_exception)
 
         # 7. 发送完成信号
         # 获取用户消息 ID（regenerate 时使用 parent_message_id）
@@ -363,80 +354,35 @@ class ChatService:
             ensure_ascii=False,
         )
 
-    async def _store_embeddings_async(
+    async def _store_embedding_async(
         self,
-        user_message_id: int,
-        assistant_message_id: int,
+        message_id: int,
         conversation_id: int,
         user_id: int,
-        user_content: str,
-        assistant_content: str,
+        role: str,
+        content: str,
         timeout: int = 30,
     ) -> None:
-        """异步存储消息的 embedding（使用独立 session，带超时控制）"""
+        """异步存储单条消息的 embedding（使用独立 session，带超时控制）"""
         from app.core.db import SessionLocal
 
-        # 确保内容是字符串
-        user_content = extract_text_content(user_content)
-        assistant_content = extract_text_content(assistant_content)
-
+        content = extract_text_content(content)
         try:
             async with asyncio.timeout(timeout):
                 async with SessionLocal() as db:
                     await self.embedding_service.store_message_embedding(
                         db=db,
-                        message_id=user_message_id,
+                        message_id=message_id,
                         conversation_id=conversation_id,
                         user_id=user_id,
-                        role="user",
-                        content=user_content,
+                        role=role,
+                        content=content,
                     )
-                    await self.embedding_service.store_message_embedding(
-                        db=db,
-                        message_id=assistant_message_id,
-                        conversation_id=conversation_id,
-                        user_id=user_id,
-                        role="assistant",
-                        content=assistant_content,
-                    )
-                    logger.info(
-                        f"Stored embeddings for messages {user_message_id}, {assistant_message_id}"
-                    )
-        except asyncio.TimeoutError:
+                    logger.info(f"Stored {role} embedding for message {message_id}")
+        except TimeoutError:
             logger.warning(f"Embedding store timeout after {timeout}s")
         except Exception as e:
-            logger.error(f"Failed to store embeddings: {e}")
-
-    async def _store_ai_embedding_async(
-        self,
-        assistant_message_id: int,
-        conversation_id: int,
-        user_id: int,
-        assistant_content: str,
-        timeout: int = 30,
-    ) -> None:
-        """异步存储 AI 回复的 embedding（用于 regenerate 模式，带超时控制）"""
-        from app.core.db import SessionLocal
-
-        # 确保内容是字符串
-        assistant_content = extract_text_content(assistant_content)
-
-        try:
-            async with asyncio.timeout(timeout):
-                async with SessionLocal() as db:
-                    await self.embedding_service.store_message_embedding(
-                        db=db,
-                        message_id=assistant_message_id,
-                        conversation_id=conversation_id,
-                        user_id=user_id,
-                        role="assistant",
-                        content=assistant_content,
-                    )
-                    logger.info(f"Stored AI embedding for message {assistant_message_id}")
-        except asyncio.TimeoutError:
-            logger.warning(f"AI embedding store timeout after {timeout}s")
-        except Exception as e:
-            logger.error(f"Failed to store AI embedding: {e}")
+            logger.error(f"Failed to store embedding: {e}")
 
     def _handle_task_exception(self, task: asyncio.Task) -> None:
         """处理异步任务异常"""
