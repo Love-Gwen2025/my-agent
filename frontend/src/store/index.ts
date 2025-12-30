@@ -26,6 +26,8 @@ interface AppState {
   models: AiModel[];
   /** 当前选中的模型编码 */
   currentModelCode: string | null;
+  /** 当前选中的用户模型 ID（系统默认模型为 null） */
+  currentModelId: string | null;
   /** 侧边栏是否展开 */
   sidebarOpen: boolean;
   /** 是否正在加载 */
@@ -36,6 +38,8 @@ interface AppState {
   themeMode: ThemeMode;
   /** 强调色主题 */
   accentColor: AccentColor;
+  /** 当前页面 */
+  currentPage: 'chat' | 'model-settings';
 }
 
 /** 应用操作接口 */
@@ -64,6 +68,8 @@ interface AppActions {
   setModels: (models: AiModel[]) => void;
   /** 设置当前模型 */
   setCurrentModelCode: (code: string | null) => void;
+  /** 设置当前用户模型 ID */
+  setCurrentModelId: (id: string | null) => void;
   /** 设置当前 checkpoint ID */
   setCurrentCheckpointId: (checkpointId: string | null) => void;
   /** 切换侧边栏 */
@@ -80,6 +86,8 @@ interface AppActions {
   setThemeMode: (mode: ThemeMode) => void;
   /** 设置强调色 */
   setAccentColor: (color: AccentColor) => void;
+  /** 设置当前页面 */
+  setCurrentPage: (page: 'chat' | 'model-settings') => void;
 }
 
 /** 应用 Store */
@@ -95,11 +103,13 @@ export const useAppStore = create<AppState & AppActions>()(
       currentCheckpointId: null,
       models: [],
       currentModelCode: null,
+      currentModelId: null,
       sidebarOpen: true,
       isLoading: false,
       streamingContent: '',
       themeMode: 'system',
       accentColor: 'blue',
+      currentPage: 'chat',
 
       // 用户相关操作
       setUser: (user) => set({ user }),
@@ -156,6 +166,7 @@ export const useAppStore = create<AppState & AppActions>()(
       // 模型相关操作
       setModels: (models) => set({ models }),
       setCurrentModelCode: (code) => set({ currentModelCode: code }),
+      setCurrentModelId: (id) => set({ currentModelId: id }),
       setCurrentCheckpointId: (checkpointId) => set({ currentCheckpointId: checkpointId }),
 
       // UI 相关操作
@@ -173,6 +184,8 @@ export const useAppStore = create<AppState & AppActions>()(
       // 主题相关操作
       setThemeMode: (mode) => set({ themeMode: mode }),
       setAccentColor: (color) => set({ accentColor: color }),
+      // 页面导航
+      setCurrentPage: (page) => set({ currentPage: page }),
     }),
     {
       name: 'app-storage',
@@ -180,6 +193,7 @@ export const useAppStore = create<AppState & AppActions>()(
         token: state.token,
         user: state.user,
         currentModelCode: state.currentModelCode,
+        currentModelId: state.currentModelId,
         themeMode: state.themeMode,
         accentColor: state.accentColor,
       }),

@@ -71,36 +71,13 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = Field(default=60, description="过期分钟数")
     jwt_issuer: str = Field(default="my-agent", description="颁发者")
 
-    # ==================== AI 提供商选择 ====================
-    ai_provider: str = Field(
-        default="deepseek", description="AI 提供商: deepseek / openai / gemini / custom"
-    )
-
-    # ==================== OpenAI 配置 ====================
-    ai_openai_api_key: str | None = Field(default=None, description="API Key")
-    ai_openai_base_url: str = Field(default="https://api.openai.com/v1", description="基础地址")
-    ai_openai_deployment_name: str | None = Field(default=None, description="模型/部署名称")
-    ai_openai_temperature: float = Field(default=0.7, description="温度")
-    ai_openai_timeout: int = Field(default=30, description="超时(秒)")
-
-    # ==================== DeepSeek 配置 ====================
+    # ==================== DeepSeek 配置（系统默认模型） ====================
+    # 其他提供商通过用户自定义模型功能配置
     ai_deepseek_api_key: str | None = Field(default=None, description="API Key")
     ai_deepseek_base_url: str = Field(default="https://api.deepseek.com", description="基础地址")
     ai_deepseek_model_name: str = Field(default="deepseek-chat", description="模型名称")
     ai_deepseek_temperature: float = Field(default=0.7, description="温度")
     ai_deepseek_timeout: int = Field(default=30, description="超时(秒)")
-
-    # ==================== Gemini 配置 ====================
-    ai_gemini_api_key: str | None = Field(default=None, description="API Key")
-    ai_gemini_model_name: str = Field(default="gemini-2.0-flash", description="模型名称")
-    ai_gemini_temperature: float = Field(default=0.7, description="温度")
-
-    # ==================== 自定义中转站配置 ====================
-    ai_custom_api_key: str | None = Field(default=None, description="API Key")
-    ai_custom_base_url: str | None = Field(default=None, description="Base URL")
-    ai_custom_model_name: str = Field(default="gpt-4", description="模型名称")
-    ai_custom_temperature: float = Field(default=0.7, description="温度")
-    ai_custom_timeout: int = Field(default=60, description="超时(秒)")
 
     # ==================== Embedding 向量化 ====================
     ai_embedding_provider: str = Field(default="local", description="提供商: local/openai/deepseek")
@@ -116,16 +93,13 @@ class Settings(BaseSettings):
     max_history_tokens: int = Field(default=4000, description="历史最大 Token 估算")
 
     # ==================== RAG 检索 ====================
-    rag_enabled: bool = Field(default=True, description="是否启用")
     rag_top_k: int = Field(default=5, description="检索返回数量")
     rag_similarity_threshold: float = Field(default=0.6, description="相似度阈值")
 
     # ==================== Tavily 搜索 ====================
     tavily_api_key: str | None = Field(default=None, description="API Key")
-    tavily_enabled: bool = Field(default=False, description="是否启用")
 
     # ==================== DeepSearch 深度搜索 ====================
-    deep_search_enabled: bool = Field(default=True, description="启用深度搜索模式")
     deep_search_max_rounds: int = Field(default=5, description="最大规划轮次")
     deep_search_model: str | None = Field(
         default=None, description="推理模型名称（留空则使用当前 provider 的模型）"
@@ -147,10 +121,6 @@ class Settings(BaseSettings):
     langfuse_host: str = Field(
         default="https://cloud.langfuse.com", description="Langfuse 服务地址"
     )
-
-    # ==================== 功能开关 ====================
-    enable_sse_streaming: bool = Field(default=True, description="启用 SSE 流式输出")
-    enable_websocket: bool = Field(default=True, description="启用 WebSocket")
 
     # ==================== Celery 消息队列 ====================
     celery_broker_db: int = Field(default=1, description="Celery Broker Redis DB")

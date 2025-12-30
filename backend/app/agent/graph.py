@@ -264,11 +264,10 @@ def create_default_agent(
     all_tools = list(AVAILABLE_TOOLS)
 
     # 添加 RAG 工具
-    if settings.rag_enabled:
-        all_tools.append(rag_search)
+    all_tools.append(rag_search)
 
     # 添加 Tavily 搜索工具
-    if settings.tavily_enabled and settings.tavily_api_key:
+    if settings.tavily_api_key:
         all_tools.append(web_search)
 
     return create_agent_graph(

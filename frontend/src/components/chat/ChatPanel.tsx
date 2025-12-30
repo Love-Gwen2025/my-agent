@@ -107,6 +107,7 @@ export function ChatPanel() {
   const {
     currentConversationId,
     currentModelCode,
+    currentModelId,
     streamingContent,
     setStreamingContent,
     clearStreamingContent,
@@ -228,10 +229,11 @@ export function ChatPanel() {
       conversationId: currentConversationId,
       content: lastUser.content,
       modelCode: currentModelCode || undefined,
+      modelId: currentModelId || undefined,
       parentMessageId: parentMessageId,
       regenerate: true,
     });
-  }, [clearStreamingContent, currentConversationId, currentModelCode, displayMessages, sendMessage, user]);
+  }, [clearStreamingContent, currentConversationId, currentModelCode, currentModelId, displayMessages, sendMessage, user]);
 
   const startEditMessage = useCallback((message: Message) => {
     setEditingMessageId(String(message.id));
@@ -247,6 +249,7 @@ export function ChatPanel() {
         conversationId: currentConversationId,
         content: editingContent,
         modelCode: currentModelCode || undefined,
+        modelId: currentModelId || undefined,
         parentMessageId: message.parentId || undefined,
       });
     } catch (error) {
@@ -255,7 +258,7 @@ export function ChatPanel() {
       setEditingMessageId(null);
       setEditingContent('');
     }
-  }, [clearStreamingContent, currentConversationId, currentModelCode, editingContent, sendMessage, user]);
+  }, [clearStreamingContent, currentConversationId, currentModelCode, currentModelId, editingContent, sendMessage, user]);
 
   const handleSend = useCallback((content: string, mode?: string) => {
     if (!currentConversationId || !user) return;
@@ -283,10 +286,11 @@ export function ChatPanel() {
       conversationId: currentConversationId,
       content,
       modelCode: currentModelCode || undefined,
+      modelId: currentModelId || undefined,
       parentMessageId,
       mode: mode || 'chat',
     });
-  }, [currentConversationId, currentModelCode, user, displayMessages, sendMessage, clearStreamingContent, addMessage]);
+  }, [currentConversationId, currentModelCode, currentModelId, user, displayMessages, sendMessage, clearStreamingContent, addMessage]);
 
   // 滚动相关
   const containerRef = useRef<HTMLDivElement>(null);

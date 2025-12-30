@@ -39,6 +39,8 @@ dependencies = [
     "langchain-text-splitters>=0.3.0",  # 文本分块器
     # Celery 消息队列
     "celery[redis]>=5.4.0",
+    # 加密
+    "cryptography>=43.0.0",
 ]
 
 [dependency-groups]

@@ -35,7 +35,10 @@ class StreamChatParam(BaseModel):
 
     conversationId: str = Field(..., description="会话 ID")
     content: str = Field(..., description="用户消息内容")
-    modelCode: str | None = Field(default=None, description="模型编码")
+    modelCode: str | None = Field(default=None, description="模型编码（保留兼容）")
+    modelId: str | None = Field(
+        default=None, description="用户模型 ID，传此参数则使用用户自定义模型"
+    )
     systemPrompt: str | None = Field(default=None, description="系统提示词")
     parentMessageId: str | None = Field(default=None, description="父消息 ID，用于构建消息树")
     regenerate: bool = Field(default=False, description="重新生成模式，从父消息分叉生成新回复")

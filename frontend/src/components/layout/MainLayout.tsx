@@ -3,6 +3,8 @@
  */
 import { Sidebar } from '../sidebar';
 import { ChatPanel } from '../chat';
+import { ModelSettingsPage } from '../settings';
+import { useAppStore } from '../../store';
 
 /**
  * 主布局组件
@@ -12,6 +14,13 @@ import { ChatPanel } from '../chat';
  * - Main: White (light) / #131314 (dark), rounded corners
  */
 export function MainLayout() {
+  const { currentPage } = useAppStore();
+
+  // 模型设置页面使用独立布局
+  if (currentPage === 'model-settings') {
+    return <ModelSettingsPage />;
+  }
+
   return (
     <div className="h-screen flex bg-surface text-foreground overflow-hidden selection:bg-primary/20">
       <Sidebar />
@@ -26,3 +35,4 @@ export function MainLayout() {
     </div>
   );
 }
+

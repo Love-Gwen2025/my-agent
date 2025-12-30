@@ -12,10 +12,12 @@ from app.models.knowledge_base import KnowledgeBase
 from app.models.message import Message
 from app.models.message_embedding import MessageEmbedding
 from app.models.user import User
+from app.models.user_model import UserModel
 
 __all__ = [
     "Base",
     "User",
+    "UserModel",
     "Conversation",
     "Message",
     "MessageEmbedding",

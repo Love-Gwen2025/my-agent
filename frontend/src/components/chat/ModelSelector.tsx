@@ -9,7 +9,7 @@ import { getModels } from '../../api';
 import clsx from 'clsx';
 
 export function ModelSelector() {
-  const { models, currentModelCode, setModels, setCurrentModelCode, token } =
+  const { models, currentModelCode, setModels, setCurrentModelCode, setCurrentModelId, token } =
     useAppStore();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -24,6 +24,8 @@ export function ModelSelector() {
       if (!currentModelCode && data.length > 0) {
         const defaultModel = data.find((m) => m.isDefault) || data[0];
         setCurrentModelCode(defaultModel.modelCode);
+        // 系统默认模型 id=0，用户模型 id>0
+        setCurrentModelId(defaultModel.id > 0 ? String(defaultModel.id) : null);
       }
     } catch (error) {
       console.error('加载模型列表失败:', error);
@@ -78,6 +80,8 @@ export function ModelSelector() {
                   )}
                   onClick={() => {
                     setCurrentModelCode(model.modelCode);
+                    // 系统默认模型 id=0，用户模型 id>0
+                    setCurrentModelId(model.id > 0 ? String(model.id) : null);
                     setIsOpen(false);
                   }}
                 >

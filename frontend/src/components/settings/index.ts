@@ -3,3 +3,4 @@
  */
 export { ThemePanel } from './ThemePanel';
 export { UserProfileModal } from './UserProfileModal';
+export { ModelSettingsPage } from './ModelSettingsPage';

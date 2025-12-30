@@ -81,6 +81,47 @@ class ChatService:
         """检查是否已配置模型服务"""
         return self.model_service is not None
 
+    async def _get_model_for_user(
+        self,
+        user_id: int,
+        model_id: str | None,
+        db: AsyncSession | None,
+    ):
+        """
+        根据 model_id 获取对应的模型
+
+        逻辑：
+        1. 如果没有传 model_id，使用系统默认配置的 ModelService
+        2. 如果传了 model_id，查询用户模型并创建对应的 ModelService
+
+        Returns:
+            ChatModel 实例（LangChain 兼容）
+        """
+        from app.services.user_model_service import UserModelService
+
+        # 没有传 model_id，使用系统默认模型
+        if not model_id:
+            if self.model_service:
+                return self.model_service.get_model()
+            return None
+
+        # 有 model_id，查询用户模型
+        if db:
+            user_model_service = UserModelService(db)
+            # 直接根据 ID 获取并解密
+            target_model = await user_model_service.get_with_decrypted_key(user_id, int(model_id))
+
+            if target_model:
+                model_service = ModelService.from_user_model(target_model)
+                logger.info(f"Using user model: {target_model.model_name} (id={model_id})")
+                return model_service.get_model()
+
+        # 回退到系统模型
+        logger.warning(f"User model {model_id} not found, using system default")
+        if self.model_service:
+            return self.model_service.get_model()
+        return None
+
     def _build_langgraph_config(
         self,
         conversation_id: int,
@@ -182,6 +223,7 @@ class ChatService:
         conversation_id: int,
         content: str,
         model_code: str | None = None,
+        model_id: str | None = None,
         regenerate: bool = False,
         parent_message_id: int | None = None,
         db: AsyncSession | None = None,
@@ -203,7 +245,8 @@ class ChatService:
             user_id: 用户 ID
             conversation_id: 会话 ID
             content: 用户消息内容
-            model_code: 模型编码（可选）
+            model_code: 模型编码（保留兼容）
+            model_id: 用户模型 ID，传此参数则使用用户自定义模型
             regenerate: 重新生成模式，跳过用户消息持久化
             parent_message_id: 父消息 ID，用于构建消息树
             db: 数据库会话（用于 RAG）
@@ -229,10 +272,11 @@ class ChatService:
         # 用于在 checkpointer 上下文外访问的变量
         latest_checkpoint_id = None
 
-        if self._has_model():
-            async with create_checkpointer(self.settings) as checkpointer:
-                model = self.model_service.get_model()
+        # 动态获取模型（根据 model_id 选择用户模型或系统默认模型）
+        model = await self._get_model_for_user(user_id, model_id, db)
 
+        if model:
+            async with create_checkpointer(self.settings) as checkpointer:
                 # 创建带工具的 Agent
                 graph = create_default_agent(
                     model=model,
@@ -356,7 +400,6 @@ class ChatService:
 
         # 6. 使用 Celery 异步存储 embedding（完全解耦，不阻塞响应）
         if self.embedding_service and self.settings:
-
             db_url = str(self.settings.database_url)
             if user_message:
                 # 正常模式：存储用户消息

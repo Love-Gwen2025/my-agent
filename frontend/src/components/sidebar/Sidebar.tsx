@@ -2,7 +2,7 @@
  * Gemini Sidebar - Premium Colorful Edition
  */
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Plus, MessageSquare, Trash2, Menu, Settings, Pencil } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Menu, Settings, Pencil, Bot } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '../../store';
 import { getConversations, createConversation, deleteConversation, updateConversationTitle } from '../../api';
@@ -11,6 +11,7 @@ import { ThemePanel, UserProfileModal } from '../settings';
 import { KnowledgeSidebar } from './KnowledgeSidebar';
 import { KnowledgeDetailModal, RecallTestModal } from '../knowledge';
 import type { KnowledgeBase } from '../../api/knowledge';
+
 
 function SidebarItem({
   icon: Icon,
@@ -353,6 +354,15 @@ export function Sidebar() {
 
       {/* Bottom Section - Settings Only */}
       <div className="mt-auto px-2 space-y-1 pt-4 border-t border-gradient-to-r from-primary/20 to-secondary/20">
+        {/* 模型设置按钮 */}
+        <SidebarItem
+          icon={Bot}
+          label="模型设置"
+          onClick={() => useAppStore.getState().setCurrentPage('model-settings')}
+          isCollapsed={!sidebarOpen}
+          colorClass="text-emerald-400"
+        />
+
         {/* Settings按钮包装器，用于获取位置 */}
         <div ref={settingsButtonRef}>
           <SidebarItem

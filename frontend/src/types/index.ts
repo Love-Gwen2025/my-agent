@@ -76,6 +76,56 @@ export interface AiModel {
   status: number;
 }
 
+/** 用户自定义模型配置 */
+export interface UserModel {
+  id: string;
+  modelName: string;
+  provider: string;  // 'openai' | 'deepseek' | 'gemini' | 'custom'
+  modelCode: string;
+  baseUrl?: string;
+  temperature: number;
+  timeout: number;
+  isDefault: boolean;
+  status: number;
+}
+
+/** 添加用户模型请求 */
+export interface UserModelPayload {
+  modelName: string;
+  provider: string;
+  modelCode: string;
+  apiKey: string;
+  baseUrl?: string;
+  temperature?: number;
+  timeout?: number;
+}
+
+/** 更新用户模型请求（apiKey 可选） */
+export interface UserModelUpdatePayload {
+  modelName?: string;
+  provider?: string;
+  modelCode?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  temperature?: number;
+  timeout?: number;
+}
+
+/** 测试模型连接请求 */
+export interface UserModelTestPayload {
+  provider: string;
+  modelCode: string;
+  apiKey: string;
+  baseUrl?: string;
+}
+
+/** 测试模型连接响应 */
+export interface UserModelTestResult {
+  success: boolean;
+  message: string;
+  response?: string;
+}
+
 /** 创建会话参数 */
 export interface CreateConversationParams {
   title?: string;
@@ -87,6 +137,8 @@ export interface StreamChatRequest {
   conversationId: string;
   content: string;
   modelCode?: string;
+  /** 用户模型 ID，传此参数则使用用户自定义模型 */
+  modelId?: string;
   systemPrompt?: string;
   /** 父消息 ID，用于构建消息树 */
   parentMessageId?: string;

@@ -60,8 +60,8 @@ class EmbeddingService:
         if self._embeddings is None:
             from langchain_openai import OpenAIEmbeddings
 
-            api_key = self.settings.ai_embedding_api_key or self.settings.ai_openai_api_key
-            base_url = self.settings.ai_embedding_base_url or self.settings.ai_openai_base_url
+            api_key = self.settings.ai_embedding_api_key
+            base_url = self.settings.ai_embedding_base_url
 
             self._embeddings = OpenAIEmbeddings(
                 model=self.settings.ai_embedding_model,
