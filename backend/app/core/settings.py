@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     redis_host: str = Field(default="localhost", description="主机地址")
     redis_port: int = Field(default=6379, description="端口")
     redis_password: str | None = Field(default="123456", description="密码")
-    redis_db: int = Field(default=2, description="库序号")
+    redis_db: int = Field(default=3, description="库序号")
 
     # ==================== JWT 认证 ====================
     jwt_secret: str = Field(default="my-agent", description="密钥")
@@ -152,6 +152,10 @@ class Settings(BaseSettings):
     enable_sse_streaming: bool = Field(default=True, description="启用 SSE 流式输出")
     enable_websocket: bool = Field(default=True, description="启用 WebSocket")
 
+    # ==================== Celery 消息队列 ====================
+    celery_broker_db: int = Field(default=1, description="Celery Broker Redis DB")
+    celery_result_db: int = Field(default=2, description="Celery Result Redis DB")
+
     model_config = SettingsConfigDict(
         env_file=get_env_file(),
         env_file_encoding="utf-8",
@@ -170,6 +174,18 @@ class Settings(BaseSettings):
         """生成 Redis 连接 URL"""
         auth = f":{self.redis_password}@" if self.redis_password else ""
         return f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.redis_db}"
+
+    @property
+    def celery_broker_url(self) -> str:
+        """Celery Broker URL (使用单独的 Redis DB)"""
+        auth = f":{self.redis_password}@" if self.redis_password else ""
+        return f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.celery_broker_db}"
+
+    @property
+    def celery_result_url(self) -> str:
+        """Celery Result Backend URL (使用单独的 Redis DB)"""
+        auth = f":{self.redis_password}@" if self.redis_password else ""
+        return f"redis://{auth}{self.redis_host}:{self.redis_port}/{self.celery_result_db}"
 
 
 @lru_cache

@@ -7,7 +7,6 @@
 3. 每轮结束持久化到数据库（用于展示和审计）
 """
 
-import asyncio
 import json
 from collections.abc import AsyncIterator
 
@@ -23,6 +22,7 @@ from app.services.conversation_service import ConversationService
 from app.services.embedding_service import EmbeddingService
 from app.services.langfuse_service import get_langfuse_service
 from app.services.model_service import ModelService
+from app.tasks.embedding_tasks import store_message_embedding_task
 from app.utils.content import extract_text_content
 
 # 系统提示词
@@ -354,23 +354,20 @@ class ChatService:
             checkpoint_id=latest_checkpoint_id,
         )
 
-        # 6. 异步存储 embedding（使用独立 session，避免请求结束后 session 已关闭）
-        if self.embedding_service:
+        # 6. 使用 Celery 异步存储 embedding（完全解耦，不阻塞响应）
+        if self.embedding_service and self.settings:
+
+            db_url = str(self.settings.database_url)
             if user_message:
                 # 正常模式：存储用户消息
-                task = asyncio.create_task(
-                    self._store_embedding_async(
-                        user_message.id, conversation_id, user_id, "user", content
-                    )
+                store_message_embedding_task.delay(
+                    db_url, user_message.id, conversation_id, user_id, "user", content
                 )
-                task.add_done_callback(self._handle_task_exception)
             # 存储 AI 回复
-            task = asyncio.create_task(
-                self._store_embedding_async(
-                    assistant_message.id, conversation_id, user_id, "assistant", reply_text
-                )
+            store_message_embedding_task.delay(
+                db_url, assistant_message.id, conversation_id, user_id, "assistant", reply_text
             )
-            task.add_done_callback(self._handle_task_exception)
+            logger.debug(f"Queued embedding tasks for conversation {conversation_id}")
 
         # 7. 发送完成信号
         # 获取用户消息 ID（regenerate 时使用 parent_message_id）
@@ -388,45 +385,6 @@ class ChatService:
             },
             ensure_ascii=False,
         )
-
-    async def _store_embedding_async(
-        self,
-        message_id: int,
-        conversation_id: int,
-        user_id: int,
-        role: str,
-        content: str,
-        timeout: int = 30,
-    ) -> None:
-        """异步存储单条消息的 embedding（使用独立 session，带超时控制）"""
-        from app.core.db import SessionLocal
-
-        content = extract_text_content(content)
-        try:
-            async with asyncio.timeout(timeout):
-                async with SessionLocal() as db:
-                    await self.embedding_service.store_message_embedding(
-                        db=db,
-                        message_id=message_id,
-                        conversation_id=conversation_id,
-                        user_id=user_id,
-                        role=role,
-                        content=content,
-                    )
-                    logger.info(f"Stored {role} embedding for message {message_id}")
-        except TimeoutError:
-            logger.warning(f"Embedding store timeout after {timeout}s")
-        except Exception as e:
-            logger.error(f"Failed to store embedding: {e}")
-
-    def _handle_task_exception(self, task: asyncio.Task) -> None:
-        """处理异步任务异常"""
-        try:
-            task.result()
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            logger.error(f"Background task failed: {e}")
 
     async def _get_latest_checkpoint_id(
         self,

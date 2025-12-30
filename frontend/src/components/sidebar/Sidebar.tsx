@@ -8,6 +8,9 @@ import { useAppStore } from '../../store';
 import { getConversations, createConversation, deleteConversation, updateConversationTitle } from '../../api';
 import clsx from 'clsx';
 import { ThemePanel, UserProfileModal } from '../settings';
+import { KnowledgeSidebar } from './KnowledgeSidebar';
+import { KnowledgeDetailModal, RecallTestModal } from '../knowledge';
+import type { KnowledgeBase } from '../../api/knowledge';
 
 function SidebarItem({
   icon: Icon,
@@ -104,6 +107,10 @@ export function Sidebar() {
     width: number;
     height: number;
   } | null>(null);
+  // 知识库弹窗状态
+  const [selectedKb, setSelectedKb] = useState<KnowledgeBase | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isRecallModalOpen, setIsRecallModalOpen] = useState(false);
 
   const {
     conversations,
@@ -331,6 +338,19 @@ export function Sidebar() {
         )}
       </div>
 
+      {/* 知识库区域 */}
+      <KnowledgeSidebar
+        isCollapsed={!sidebarOpen}
+        onOpenDetail={(kb) => {
+          setSelectedKb(kb);
+          setIsDetailModalOpen(true);
+        }}
+        onOpenRecallTest={(kb) => {
+          setSelectedKb(kb);
+          setIsRecallModalOpen(true);
+        }}
+      />
+
       {/* Bottom Section - Settings Only */}
       <div className="mt-auto px-2 space-y-1 pt-4 border-t border-gradient-to-r from-primary/20 to-secondary/20">
         {/* Settings按钮包装器，用于获取位置 */}
@@ -379,6 +399,20 @@ export function Sidebar() {
       <UserProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+      />
+
+      {/* 知识库详情弹窗 */}
+      <KnowledgeDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        knowledgeBase={selectedKb}
+      />
+
+      {/* 召回测试弹窗 */}
+      <RecallTestModal
+        isOpen={isRecallModalOpen}
+        onClose={() => setIsRecallModalOpen(false)}
+        knowledgeBase={selectedKb}
       />
     </motion.div>
   );

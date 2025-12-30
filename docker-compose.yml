@@ -35,7 +35,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-123456}
-      - REDIS_DB=${REDIS_DB:-0}
+      - REDIS_DB=${REDIS_DB:-3}
 
       # ==================== JWT 认证 ====================
       - JWT_SECRET=${JWT_SECRET:-123456}
@@ -119,6 +119,58 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  # ---------- Celery Worker ----------
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: my-agent-celery
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=4 -I app.tasks.document_tasks,app.tasks.embedding_tasks
+    environment:
+      # ==================== 应用基础 ====================
+      - APP_ENV=${APP_ENV:-prod}
+      - APP_NAME=${APP_NAME:-my-agent-py}
+      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-info}
+
+      # ==================== PostgreSQL 数据库 ====================
+      - DB_HOST=postgres
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-my_agent}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-123456}
+
+      # ==================== Redis 缓存 ====================
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-123456}
+      - REDIS_DB=${REDIS_DB:-3}
+
+      # ==================== Celery 消息队列 ====================
+      - CELERY_BROKER_DB=${CELERY_BROKER_DB:-1}
+      - CELERY_RESULT_DB=${CELERY_RESULT_DB:-2}
+
+      # ==================== Embedding 向量化 ====================
+      - AI_EMBEDDING_PROVIDER=${AI_EMBEDDING_PROVIDER:-local}
+      - AI_EMBEDDING_MODEL=${AI_EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
+      - AI_EMBEDDING_DIMENSION=${AI_EMBEDDING_DIMENSION:-512}
+
+      # ==================== OSS 对象存储 ====================
+      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
+      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
+      - OSS_BUCKET=${OSS_BUCKET}
+      - OSS_REGION=${OSS_REGION:-us-west-1}
+      - OSS_ENDPOINT=${OSS_ENDPOINT}
+      - OSS_CUSTOM_DOMAIN=${OSS_CUSTOM_DOMAIN:-}
+      - OSS_OBJECT_PREFIX=${OSS_OBJECT_PREFIX:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - my-agent-network
 
   # ---------- 前端服务 ----------
   frontend:
