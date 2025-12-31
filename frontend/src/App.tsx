@@ -1,10 +1,10 @@
 /**
  * 应用根组件
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAppStore } from './store';
-import { MainLayout, LoginPage } from './components/layout';
+import { MainLayout, LoginPage, WelcomePage } from './components/layout';
 
 /** React Query 客户端 */
 const queryClient = new QueryClient({
@@ -21,6 +21,7 @@ const queryClient = new QueryClient({
  */
 function AppContent() {
   const { token, themeMode, accentColor } = useAppStore();
+  const [view, setView] = useState<'welcome' | 'login'>('welcome');
 
   /**
    * 主题初始化效果
@@ -52,9 +53,12 @@ function AppContent() {
     }
   }, [themeMode, accentColor]);
 
-  // 未登录显示登录页
+  // 未登录显示欢迎页或登录页
   if (!token) {
-    return <LoginPage />;
+    if (view === 'welcome') {
+      return <WelcomePage onSignIn={() => setView('login')} onSignUp={() => setView('login')} />;
+    }
+    return <LoginPage onBack={() => setView('welcome')} />;
   }
 
   // 已登录显示主界面

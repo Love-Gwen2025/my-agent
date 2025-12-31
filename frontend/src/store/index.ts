@@ -39,7 +39,9 @@ interface AppState {
   /** 强调色主题 */
   accentColor: AccentColor;
   /** 当前页面 */
-  currentPage: 'chat' | 'model-settings';
+  currentPage: 'chat' | 'model-settings' | 'knowledge' | 'knowledge-detail';
+  /** 选中的知识库ID（用于详情页） */
+  selectedKnowledgeBaseId: string | null;
 }
 
 /** 应用操作接口 */
@@ -87,7 +89,11 @@ interface AppActions {
   /** 设置强调色 */
   setAccentColor: (color: AccentColor) => void;
   /** 设置当前页面 */
-  setCurrentPage: (page: 'chat' | 'model-settings') => void;
+  setCurrentPage: (page: 'chat' | 'model-settings' | 'knowledge' | 'knowledge-detail') => void;
+  /** 设置选中的知识库ID */
+  setSelectedKnowledgeBaseId: (id: string | null) => void;
+  /** 进入知识库详情页 */
+  openKnowledgeDetail: (id: string) => void;
 }
 
 /** 应用 Store */
@@ -110,6 +116,7 @@ export const useAppStore = create<AppState & AppActions>()(
       themeMode: 'system',
       accentColor: 'blue',
       currentPage: 'chat',
+      selectedKnowledgeBaseId: null,
 
       // 用户相关操作
       setUser: (user) => set({ user }),
@@ -186,6 +193,8 @@ export const useAppStore = create<AppState & AppActions>()(
       setAccentColor: (color) => set({ accentColor: color }),
       // 页面导航
       setCurrentPage: (page) => set({ currentPage: page }),
+      setSelectedKnowledgeBaseId: (id) => set({ selectedKnowledgeBaseId: id }),
+      openKnowledgeDetail: (id) => set({ currentPage: 'knowledge-detail', selectedKnowledgeBaseId: id }),
     }),
     {
       name: 'app-storage',

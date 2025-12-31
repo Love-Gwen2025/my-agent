@@ -85,6 +85,10 @@ export interface UserModel {
   baseUrl?: string;
   temperature: number;
   timeout: number;
+  // 高级参数
+  topP?: number;
+  maxTokens?: number;
+  topK?: number;
   isDefault: boolean;
   status: number;
 }
@@ -98,6 +102,10 @@ export interface UserModelPayload {
   baseUrl?: string;
   temperature?: number;
   timeout?: number;
+  // 高级参数
+  topP?: number;
+  maxTokens?: number;
+  topK?: number;
 }
 
 /** 更新用户模型请求（apiKey 可选） */
@@ -109,6 +117,10 @@ export interface UserModelUpdatePayload {
   baseUrl?: string;
   temperature?: number;
   timeout?: number;
+  // 高级参数
+  topP?: number;
+  maxTokens?: number;
+  topK?: number;
 }
 
 /** 测试模型连接请求 */

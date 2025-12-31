@@ -44,6 +44,15 @@ class UserModel(Base):
     # 超时时间（秒）
     timeout: Mapped[int] = mapped_column(Integer, default=30)
 
+    # Top P 核采样参数 (0-1)，与 temperature 二选一调整
+    top_p: Mapped[Decimal | None] = mapped_column(Numeric(3, 2), default=None)
+
+    # 最大输出 token 数 (OpenAI/DeepSeek 支持)
+    max_tokens: Mapped[int | None] = mapped_column(Integer, default=None)
+
+    # Top K 参数 (Gemini 专用)
+    top_k: Mapped[int | None] = mapped_column(Integer, default=None)
+
     # 是否为该用户的默认模型
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -64,6 +73,9 @@ class UserModel(Base):
             "baseUrl": self.base_url,
             "temperature": float(self.temperature),
             "timeout": self.timeout,
+            "topP": float(self.top_p) if self.top_p is not None else None,
+            "maxTokens": self.max_tokens,
+            "topK": self.top_k,
             "isDefault": self.is_default,
             "status": self.status,
         }

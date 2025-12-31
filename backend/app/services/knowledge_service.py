@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.knowledge_base import KnowledgeBase
+from app.schema.base import PageParams
 from app.utils.snowflake import generate_id
 
 
@@ -66,7 +67,9 @@ class KnowledgeService:
         logger.info(f"Created knowledge base: {kb.id} - {name}")
         return kb
 
-    async def list_knowledge_bases(self, user_id: int) -> list[KnowledgeBase]:
+    async def list_knowledge_bases(
+        self, user_id: int, page_params: PageParams
+    ) -> tuple[list[KnowledgeBase], int]:
         """
         列出用户的所有知识库
 
@@ -76,12 +79,21 @@ class KnowledgeService:
         Returns:
             知识库列表
         """
+        # 1.查询总数
+        count_result = await self.db.execute(
+            select(func.count()).select_from(KnowledgeBase).where(KnowledgeBase.user_id == user_id)
+        )
+        total = count_result.scalar() or 0
+
+        # 查询当页数据
         result = await self.db.execute(
             select(KnowledgeBase)
             .where(KnowledgeBase.user_id == user_id)
             .order_by(KnowledgeBase.update_time.desc())
+            .limit(page_params.size)
+            .offset(page_params.offset)
         )
-        return list(result.scalars().all())
+        return list(result.scalars().all()), total
 
     async def get_knowledge_base(
         self,
@@ -176,22 +188,36 @@ class KnowledgeService:
         logger.info(f"Created document: {doc.id} - {file_name}")
         return doc
 
-    async def list_documents(self, knowledge_base_id: int) -> list[Document]:
+    async def list_documents(
+        self, knowledge_base_id: int, page_params: PageParams
+    ) -> tuple[list[Document], int]:
         """
-        列出知识库的所有文档
+        列出知识库的所有文档（分页）
 
         Args:
             knowledge_base_id: 知识库 ID
+            page_params: 分页参数
 
         Returns:
-            文档列表
+            (文档列表, 总记录数)
         """
+        # 1. 查询总数
+        count_result = await self.db.execute(
+            select(func.count())
+            .select_from(Document)
+            .where(Document.knowledge_base_id == knowledge_base_id)
+        )
+        total = count_result.scalar() or 0
+
+        # 2. 查询当页数据
         result = await self.db.execute(
             select(Document)
             .where(Document.knowledge_base_id == knowledge_base_id)
             .order_by(Document.create_time.desc())
+            .limit(page_params.size)
+            .offset(page_params.offset)
         )
-        return list(result.scalars().all())
+        return list(result.scalars().all()), total
 
     async def get_document(self, doc_id: int) -> Document | None:
         """

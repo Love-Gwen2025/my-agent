@@ -66,36 +66,63 @@ class ModelService:
         provider = user_model.provider.lower()
         instance = cls.__new__(cls)
 
+        # 提取高级参数（转换为 float/int，None 值保持不变）
+        top_p = float(user_model.top_p) if user_model.top_p is not None else None
+        max_tokens = user_model.max_tokens
+        top_k = user_model.top_k
+
         # 根据提供商创建模型
         if provider == "gemini":
             logger.info(f"Creating ChatGoogleGenerativeAI from user_model: {user_model.model_code}")
-            instance.model = ChatGoogleGenerativeAI(
-                model=user_model.model_code,
-                google_api_key=user_model.api_key,
-                temperature=float(user_model.temperature),
-            )
+            # Gemini 支持 top_p 和 top_k，不支持 max_tokens
+            kwargs = {
+                "model": user_model.model_code,
+                "google_api_key": user_model.api_key,
+                "temperature": float(user_model.temperature),
+            }
+            if top_p is not None:
+                kwargs["top_p"] = top_p
+            if top_k is not None:
+                kwargs["top_k"] = top_k
+            instance.model = ChatGoogleGenerativeAI(**kwargs)
+
         elif provider == "openai":
             logger.info(f"Creating ChatOpenAI (OpenAI) from user_model: {user_model.model_code}")
-            instance.model = ChatOpenAI(
-                api_key=user_model.api_key,
-                base_url=user_model.base_url or "https://api.openai.com/v1",
-                model=user_model.model_code,
-                temperature=float(user_model.temperature),
-                timeout=user_model.timeout,
-            )
+            # OpenAI 支持 top_p 和 max_tokens
+            kwargs = {
+                "api_key": user_model.api_key,
+                "base_url": user_model.base_url or "https://api.openai.com/v1",
+                "model": user_model.model_code,
+                "temperature": float(user_model.temperature),
+                "timeout": user_model.timeout,
+            }
+            if top_p is not None:
+                kwargs["top_p"] = top_p
+            if max_tokens is not None:
+                kwargs["max_tokens"] = max_tokens
+            instance.model = ChatOpenAI(**kwargs)
+
         elif provider == "deepseek":
             logger.info(f"Creating ChatOpenAI (DeepSeek) from user_model: {user_model.model_code}")
-            instance.model = ChatOpenAI(
-                api_key=user_model.api_key,
-                base_url=user_model.base_url or "https://api.deepseek.com",
-                model=user_model.model_code,
-                temperature=float(user_model.temperature),
-                timeout=user_model.timeout,
-            )
+            # DeepSeek 支持 top_p 和 max_tokens
+            kwargs = {
+                "api_key": user_model.api_key,
+                "base_url": user_model.base_url or "https://api.deepseek.com",
+                "model": user_model.model_code,
+                "temperature": float(user_model.temperature),
+                "timeout": user_model.timeout,
+            }
+            if top_p is not None:
+                kwargs["top_p"] = top_p
+            if max_tokens is not None:
+                kwargs["max_tokens"] = max_tokens
+            instance.model = ChatOpenAI(**kwargs)
+
         elif provider == "custom":
             if not user_model.base_url:
                 raise ValueError("custom 提供商必须配置 base_url")
             logger.info(f"Creating ChatOpenAI (Custom) from user_model: {user_model.model_code}")
+            # Custom 只支持基础参数
             instance.model = ChatOpenAI(
                 api_key=user_model.api_key,
                 base_url=user_model.base_url,
@@ -109,19 +136,19 @@ class ModelService:
         return instance
 
     @classmethod
-    def create_default_deepseek_r1(cls, api_key: str) -> "ModelService":
+    def create_default_deepseek(cls, api_key: str) -> "ModelService":
         """
-        创建默认的 DeepSeek R1 模型服务
+        创建默认的 DeepSeek 模型服务
 
-        系统默认模型，使用 DeepSeek-Reasoner
+        系统默认模型，使用 DeepSeek-Chat (V3)，支持工具调用
         """
         instance = cls.__new__(cls)
 
-        logger.info("Creating default DeepSeek R1 ModelService")
+        logger.info("Creating default DeepSeek Chat ModelService")
         instance.model = ChatOpenAI(
             api_key=api_key,
             base_url="https://api.deepseek.com",
-            model="deepseek-reasoner",
+            model="deepseek-chat",
             temperature=0.7,
             timeout=60,
         )

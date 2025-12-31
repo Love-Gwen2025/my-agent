@@ -44,17 +44,17 @@ async def list_models(
     返回可用模型列表
 
     包含:
-    1. 系统默认模型 (DeepSeek-R1)
+    1. 系统默认模型 (DeepSeek-Chat)
     2. 用户自定义模型 (如已登录)
     """
     models: list[ModelVo] = []
 
-    # 1. 系统默认模型 - DeepSeek R1
+    # 1. 系统默认模型 - DeepSeek Chat
     models.append(
         ModelVo(
             id=0,
-            modelCode="deepseek-reasoner",
-            modelName="DeepSeek R1 (默认)",
+            modelCode="deepseek-chat",
+            modelName="DeepSeek Chat (默认)",
             provider="deepseek",
             isDefault=True,
             status=1,
@@ -76,8 +76,8 @@ async def list_models(
                 # 取消系统默认模型的默认状态
                 models[0] = ModelVo(
                     id=0,
-                    modelCode="deepseek-reasoner",
-                    modelName="DeepSeek R1 (系统)",
+                    modelCode="deepseek-chat",
+                    modelName="DeepSeek Chat (系统)",
                     provider="deepseek",
                     isDefault=False,
                     status=1,

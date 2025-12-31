@@ -51,24 +51,26 @@ export function ChatInput({
   };
 
   return (
-    <div className="shrink-0 p-4 pb-6 bg-background border-t border-border/30">
-      <div className="max-w-3xl mx-auto relative">
+    <div className="shrink-0 p-6 pt-2 pb-10 bg-transparent relative z-10">
+      <div className="max-w-4xl mx-auto relative group">
+        {/* Outer Soft Glow */}
+        <div className="absolute inset-x-4 -top-10 -bottom-4 bg-purple-500/5 blur-[100px] pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity duration-1000" />
+
         <motion.div
           initial={false}
           animate={{
-            boxShadow: isFocused
-              ? '0 0 0 2px rgba(var(--primary), 0.15), 0 8px 32px rgba(0, 0, 0, 0.08)'
-              : '0 4px 12px rgba(0, 0, 0, 0.05)'
+            y: isFocused ? -4 : 0,
+            scale: isFocused ? 1.01 : 1
           }}
           className={clsx(
-            'flex items-end gap-2 p-2 rounded-[26px] transition-all duration-300',
-            'glass bg-surface/80 backdrop-blur-xl',
-            isFocused ? 'border-primary/20' : 'border-border/50'
+            'flex items-end gap-2 p-3 rounded-[32px] transition-all duration-500',
+            'glass-premium dual-stroke shadow-premium',
+            isFocused ? 'ring-1 ring-white/10' : 'ring-1 ring-white/5'
           )}
         >
           {/* Left Actions */}
           <button
-            className="p-2.5 rounded-full hover:bg-surface-highlight text-muted hover:text-foreground transition-colors"
+            className="p-3 rounded-2xl hover:bg-white/[0.05] text-gray-400 hover:text-white transition-all active:scale-95"
           >
             <Plus className="w-5 h-5" />
           </button>
@@ -77,10 +79,10 @@ export function ChatInput({
           <button
             onClick={() => setIsDeepSearch(!isDeepSearch)}
             className={clsx(
-              "p-2.5 rounded-full transition-all duration-200",
+              "p-3 rounded-2xl transition-all duration-300 active:scale-95",
               isDeepSearch
-                ? "bg-primary/20 text-primary ring-1 ring-primary/30"
-                : "hover:bg-surface-highlight text-muted hover:text-foreground"
+                ? "bg-purple-500/20 text-purple-400 ring-1 ring-purple-500/30"
+                : "hover:bg-white/[0.05] text-gray-400 hover:text-white"
             )}
             title={isDeepSearch ? "深度搜索模式（已开启）" : "切换到深度搜索模式"}
           >
@@ -89,7 +91,7 @@ export function ChatInput({
 
           <textarea
             ref={textareaRef}
-            className="flex-1 bg-transparent text-foreground resize-none outline-none py-3 px-1 max-h-[200px] placeholder:text-muted/60 text-[15px] min-h-[48px] leading-relaxed"
+            className="flex-1 bg-transparent text-white resize-none outline-none py-3 px-2 max-h-[200px] placeholder:text-gray-600 text-[16px] min-h-[48px] leading-relaxed font-medium"
             placeholder={isDeepSearch ? "深度研究：输入复杂问题..." : "Ask anything..."}
             rows={1}
             value={input}
@@ -101,7 +103,7 @@ export function ChatInput({
           />
 
           {/* Right Actions */}
-          <div className="flex items-center gap-1 pb-1">
+          <div className="flex items-center gap-2 pb-1 px-1">
             <AnimatePresence mode="wait">
               {isLoading ? (
                 <motion.button
@@ -109,7 +111,8 @@ export function ChatInput({
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0, opacity: 0 }}
-                  className="p-2 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+                  whileTap={{ scale: 0.9 }}
+                  className="p-2.5 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
                   onClick={onAbort}
                 >
                   <StopCircle className="w-6 h-6 fill-current" />
@@ -120,14 +123,16 @@ export function ChatInput({
                   disabled={!input.trim()}
                   initial={{ scale: 0.9, opacity: 0.5 }}
                   animate={{
-                    scale: input.trim() ? 1 : 0.9,
-                    opacity: input.trim() ? 1 : 0.5
+                    scale: input.trim() ? 1 : 0.95,
+                    opacity: input.trim() ? 1 : 0.3
                   }}
+                  whileHover={input.trim() ? { scale: 1.05 } : {}}
+                  whileTap={input.trim() ? { scale: 0.95 } : {}}
                   className={clsx(
-                    "p-2 rounded-full transition-all",
+                    "p-3 rounded-2xl transition-all duration-500",
                     input.trim()
-                      ? "bg-primary text-primary-foreground shadow-sm hover:shadow-glow-sm"
-                      : "bg-surface-highlight text-muted"
+                      ? "bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-lg shadow-purple-500/20"
+                      : "bg-white/5 text-gray-500"
                   )}
                   onClick={handleSend}
                 >
@@ -138,11 +143,13 @@ export function ChatInput({
           </div>
         </motion.div>
 
-        {/* Mode Indicator */}
-        <div className="text-center mt-3">
-          <p className="text-[10px] text-muted/50 font-medium tracking-wide uppercase">
-            {isDeepSearch ? '🔬 DeepSearch Mode • 多轮搜索 + 深度分析' : 'AI Generated Content • Verify Important Info'}
+        {/* Mode Indicator & Secondary Branding */}
+        <div className="flex items-center justify-center gap-6 mt-4 opacity-40 hover:opacity-100 transition-opacity duration-500">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <p className="text-[10px] text-gray-400 font-bold tracking-[0.3em] uppercase whitespace-nowrap">
+            {isDeepSearch ? 'Protocol Active • Deep Reasoning' : 'MYAGENT KERNEL • v2.5'}
           </p>
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
         </div>
       </div>
     </div>

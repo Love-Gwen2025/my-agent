@@ -96,24 +96,3 @@ class StreamChatEvent(BaseModel):
     error: str | None = Field(default=None, description="错误信息")
     tokenCount: int | None = Field(default=None, description="Token 使用量")
     checkpointId: str | None = Field(default=None, description="生成后的最新 checkpoint ID")
-
-
-class PageParams(BaseModel):
-    """
-    分页参数。
-    """
-
-    page: int | None = Field(default=1, description="页码")
-    size: int | None = Field(default=10, description="页大小")
-
-
-class PageResponse(BaseModel):
-    """
-    分页响应。
-    """
-
-    records: list = Field(default=[], description="记录列表")
-    total: int = Field(default=0, description="总记录数")
-    size: int = Field(default=10, description="页大小")
-    current: int = Field(default=1, description="当前页")
-    pages: int = Field(default=0, description="总页数")

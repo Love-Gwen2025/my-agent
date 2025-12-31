@@ -89,8 +89,8 @@ export function KnowledgeDetailModal({
         if (!knowledgeBase) return;
         setIsLoading(true);
         try {
-            const docs = await getDocuments(knowledgeBase.id);
-            setDocuments(docs);
+            const docsPage = await getDocuments(knowledgeBase.id);
+            setDocuments(docsPage?.records || []);
         } catch (error) {
             console.error('Failed to load documents:', error);
         } finally {

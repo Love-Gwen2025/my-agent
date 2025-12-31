@@ -2,7 +2,7 @@
  * 知识库相关 API
  */
 import apiClient from './client';
-import type { ApiResponse } from '../types';
+import type { ApiResponse, PageResponse } from '../types';
 
 // ========== 类型定义 ==========
 
@@ -49,11 +49,25 @@ export interface RecallTestParams {
 // ========== 知识库 CRUD ==========
 
 /**
- * 获取知识库列表
+ * 获取知识库列表（分页）
  */
-export async function getKnowledgeBases(): Promise<KnowledgeBase[]> {
-    const response = await apiClient.get<ApiResponse<KnowledgeBase[]>>('/knowledge-bases');
-    return response.data.data || [];
+export async function getKnowledgeBases(
+    page: number = 1,
+    size: number = 20
+): Promise<PageResponse<KnowledgeBase>> {
+    const response = await apiClient.get<ApiResponse<PageResponse<KnowledgeBase>>>(
+        '/knowledge-bases',
+        { params: { page, size } }
+    );
+    return response.data.data || { records: [], total: 0, size, current: page, pages: 0 };
+}
+
+/**
+ * 获取单个知识库详情
+ */
+export async function getKnowledgeBase(id: string): Promise<KnowledgeBase> {
+    const response = await apiClient.get<ApiResponse<KnowledgeBase>>(`/knowledge-bases/${id}`);
+    return response.data.data;
 }
 
 /**
@@ -80,13 +94,18 @@ export async function deleteKnowledgeBase(id: string): Promise<void> {
 // ========== 文档管理 ==========
 
 /**
- * 获取文档列表
+ * 获取文档列表（分页）
  */
-export async function getDocuments(kbId: string): Promise<Document[]> {
-    const response = await apiClient.get<ApiResponse<Document[]>>(
-        `/knowledge-bases/${kbId}/documents`
+export async function getDocuments(
+    kbId: string,
+    page: number = 1,
+    size: number = 20
+): Promise<PageResponse<Document>> {
+    const response = await apiClient.get<ApiResponse<PageResponse<Document>>>(
+        `/knowledge-bases/${kbId}/documents`,
+        { params: { page, size } }
     );
-    return response.data.data || [];
+    return response.data.data || { records: [], total: 0, size, current: page, pages: 0 };
 }
 
 /**

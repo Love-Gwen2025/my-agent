@@ -3,3 +3,5 @@
  */
 export { KnowledgeDetailModal } from './KnowledgeDetailModal';
 export { RecallTestModal } from './RecallTestModal';
+export { KnowledgePage } from './KnowledgePage';
+export { KnowledgeDetailPage } from './KnowledgeDetailPage';

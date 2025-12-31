@@ -127,10 +127,10 @@ export function MessageBubble({
 
         <div className={clsx(
           "w-full relative",
-          // User messages: Clean solid color with subtle shadow
-          isUser && !isEditing ? "bg-surface-container-high text-foreground rounded-[20px] rounded-tr-sm px-5 py-3 shadow-sm border border-border/50" : "",
-          // Assistant messages: Transparent, clean typography
-          isAssistant ? "px-1 text-foreground" : ""
+          // User messages: Purple gradient with glow
+          isUser && !isEditing ? "bg-gradient-to-br from-purple-600 to-pink-500 text-white rounded-[24px] rounded-tr-sm px-5 py-3 shadow-[0_4px_15px_-5px_rgba(168,85,247,0.4)]" : "",
+          // Assistant messages: Glassy effect
+          isAssistant ? "px-1 text-gray-100" : ""
         )}>
 
           {isEditing ? (

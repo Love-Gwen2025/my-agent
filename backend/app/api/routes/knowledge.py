@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_db_session
 from app.core.settings import get_settings
 from app.dependencies.auth import CurrentUser, get_current_user
-from app.schema.base import ApiResult
+from app.schema.base import ApiResult, PageParams, PageResponse
 from app.services.embedding_service import EmbeddingService
 from app.services.knowledge_service import KnowledgeService
 from app.tasks.document_tasks import process_document_task
@@ -99,17 +99,29 @@ async def create_knowledge_base(
     return ApiResult.ok(KnowledgeBaseVo(**kb.to_vo()))
 
 
-@router.get("", response_model=ApiResult[list[KnowledgeBaseVo]])
+@router.get("", response_model=ApiResult[PageResponse])
 async def list_knowledge_bases(
+    page: int = 1,
+    size: int = 20,
     db: AsyncSession = Depends(get_db_session),
     current: CurrentUser = Depends(get_current_user),
-) -> ApiResult[list[KnowledgeBaseVo]]:
+) -> ApiResult[PageResponse]:
     """
     列出用户的所有知识库
     """
     service = KnowledgeService(db)
-    kbs = await service.list_knowledge_bases(current.id)
-    return ApiResult.ok([KnowledgeBaseVo(**kb.to_vo()) for kb in kbs])
+
+    params = PageParams(page=page, size=size)
+
+    kbs, total = await service.list_knowledge_bases(current.id, params)
+    return ApiResult.ok(
+        PageResponse.of(
+            records=[KnowledgeBaseVo(**kb.to_vo()) for kb in kbs],
+            total=total,
+            page=params.page,
+            size=params.size,
+        )
+    )
 
 
 @router.get("/{kb_id}", response_model=ApiResult[KnowledgeBaseVo])
@@ -214,14 +226,16 @@ async def upload_document(
     return ApiResult.ok(DocumentVo(**doc.to_vo()))
 
 
-@router.get("/{kb_id}/documents", response_model=ApiResult[list[DocumentVo]])
+@router.get("/{kb_id}/documents", response_model=ApiResult[PageResponse])
 async def list_documents(
     kb_id: str,
+    page: int = 1,
+    size: int = 20,
     db: AsyncSession = Depends(get_db_session),
     current: CurrentUser = Depends(get_current_user),
-) -> ApiResult[list[DocumentVo]]:
+) -> ApiResult[PageResponse]:
     """
-    列出知识库的所有文档
+    列出知识库的所有文档（分页）
     """
     kb_service = KnowledgeService(db)
 
@@ -230,8 +244,16 @@ async def list_documents(
     if kb is None:
         return ApiResult.fail("知识库不存在")
 
-    docs = await kb_service.list_documents(int(kb_id))
-    return ApiResult.ok([DocumentVo(**doc.to_vo()) for doc in docs])
+    params = PageParams(page=page, size=size)
+    docs, total = await kb_service.list_documents(int(kb_id), params)
+    return ApiResult.ok(
+        PageResponse.of(
+            records=[DocumentVo(**doc.to_vo()) for doc in docs],
+            total=total,
+            page=params.page,
+            size=params.size,
+        )
+    )
 
 
 @router.delete("/{kb_id}/documents/{doc_id}", response_model=ApiResult[None])

@@ -113,6 +113,10 @@ class UserModelService:
             base_url=payload.baseUrl,
             temperature=Decimal(str(payload.temperature)),
             timeout=payload.timeout,
+            # 高级参数
+            top_p=Decimal(str(payload.topP)) if payload.topP is not None else None,
+            max_tokens=payload.maxTokens,
+            top_k=payload.topK,
             is_default=False,
             status=1,
         )
@@ -156,6 +160,13 @@ class UserModelService:
             model.temperature = Decimal(str(payload.temperature))
         if payload.timeout is not None:
             model.timeout = payload.timeout
+        # 高级参数
+        if payload.topP is not None:
+            model.top_p = Decimal(str(payload.topP))
+        if payload.maxTokens is not None:
+            model.max_tokens = payload.maxTokens
+        if payload.topK is not None:
+            model.top_k = payload.topK
 
         await self.db.commit()
         await self.db.refresh(model)

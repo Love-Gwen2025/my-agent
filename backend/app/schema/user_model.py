@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class UserModelPayload(BaseModel):
     """
-    添加/更新用户模型请求体
+    添加用户模型请求体
     """
 
     modelName: str = Field(..., max_length=100, description="模型显示名称")
@@ -17,6 +17,10 @@ class UserModelPayload(BaseModel):
     baseUrl: str | None = Field(default=None, description="Base URL（custom 必填）")
     temperature: float = Field(default=0.7, ge=0, le=2, description="温度参数")
     timeout: int = Field(default=30, ge=1, le=300, description="超时(秒)")
+    # 高级参数
+    topP: float | None = Field(default=None, ge=0, le=1, description="Top P 核采样参数")
+    maxTokens: int | None = Field(default=None, ge=1, le=128000, description="最大输出 token 数")
+    topK: int | None = Field(default=None, ge=1, le=100, description="Top K 参数 (Gemini)")
 
 
 class UserModelUpdatePayload(BaseModel):
@@ -31,6 +35,10 @@ class UserModelUpdatePayload(BaseModel):
     baseUrl: str | None = Field(default=None, description="Base URL")
     temperature: float | None = Field(default=None, ge=0, le=2, description="温度参数")
     timeout: int | None = Field(default=None, ge=1, le=300, description="超时(秒)")
+    # 高级参数
+    topP: float | None = Field(default=None, ge=0, le=1, description="Top P 核采样参数")
+    maxTokens: int | None = Field(default=None, ge=1, le=128000, description="最大输出 token 数")
+    topK: int | None = Field(default=None, ge=1, le=100, description="Top K 参数 (Gemini)")
 
 
 class UserModelVo(BaseModel):
@@ -47,6 +55,9 @@ class UserModelVo(BaseModel):
     baseUrl: str | None = Field(default=None, description="Base URL")
     temperature: float = Field(default=0.7, description="温度参数")
     timeout: int = Field(default=30, description="超时(秒)")
+    topP: float | None = Field(default=None, description="Top P 核采样参数")
+    maxTokens: int | None = Field(default=None, description="最大输出 token 数")
+    topK: int | None = Field(default=None, description="Top K 参数")
     isDefault: bool = Field(default=False, description="是否为默认模型")
     status: int = Field(default=1, description="状态")
 

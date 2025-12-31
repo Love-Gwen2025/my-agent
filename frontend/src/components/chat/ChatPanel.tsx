@@ -307,7 +307,7 @@ export function ChatPanel() {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full relative bg-surface">
+    <div className="flex-1 flex flex-col h-full relative bg-background ml-0 lg:ml-2">
       {/* Header with Model Selector */}
       <div className="absolute top-0 left-0 right-0 p-4 z-10 flex justify-between items-start pointer-events-none">
         <div className="pointer-events-auto">

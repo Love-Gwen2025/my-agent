@@ -1,10 +1,11 @@
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ForbiddenError
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.message_embedding import MessageEmbedding
+from app.schema.base import PageParams
 
 
 class ConversationService:
@@ -47,14 +48,46 @@ class ConversationService:
         await self.db.refresh(conversation)
         return conversation.id
 
-    async def list_conversations(
-        self, user_id: int, limit: int = 20, offset: int = 0
-    ) -> tuple[list[dict], bool]:
+    async def list_conversations_page(
+        self, user_id: int, params: PageParams
+    ) -> tuple[list[Conversation], int]:
         """
-        查询当前用户会话列表，按更新时间降序，支持分页。
+        分页查询用户会话列表。
+
+        Args:
+            user_id: 用户 ID
+            params: 分页参数
 
         Returns:
-            (items, has_more): 会话列表和是否有更多数据
+            (items, total): 当前页会话实体列表和总记录数
+        """
+        # 1. 查询总数
+        count_result = await self.db.execute(
+            select(func.count()).select_from(Conversation).where(Conversation.user_id == user_id)
+        )
+        total = count_result.scalar() or 0
+
+        # 2. 查询当前页数据
+        query = await self.db.execute(
+            select(Conversation)
+            .where(Conversation.user_id == user_id)
+            .order_by(Conversation.update_time.desc())
+            .limit(params.size)
+            .offset(params.offset)
+        )
+        items = query.scalars().all()
+
+        return list(items), total
+
+    async def list_conversations(
+        self, user_id: int, limit: int = 20, offset: int = 0
+    ) -> tuple[list[Conversation], bool]:
+        """
+        查询当前用户会话列表，按更新时间降序，支持分页。
+        [已废弃] 请使用 list_conversations_page 方法
+
+        Returns:
+            (items, has_more): 会话实体列表和是否有更多数据
         """
         # 多查一条用于判断是否有更多
         query = await self.db.execute(
@@ -64,21 +97,20 @@ class ConversationService:
             .limit(limit + 1)
             .offset(offset)
         )
-        items = query.scalars().all()
+        items = list(query.scalars().all())
 
         has_more = len(items) > limit
         if has_more:
             items = items[:limit]
 
-        return [item.to_vo() for item in items], has_more
+        return items, has_more
 
-    async def get_conversation(self, conversation_id: int, user_id: int) -> dict:
+    async def get_conversation(self, conversation_id: int, user_id: int) -> Conversation:
         """
         1. 获取会话详情，校验归属。
         """
         # 1. 复用归属校验
-        conversation = await self.ensure_owner(conversation_id, user_id)
-        return conversation.to_vo()
+        return await self.ensure_owner(conversation_id, user_id)
 
     async def modify_conversation(
         self, user_id: int, conversation_id: int, title: str | None
@@ -104,15 +136,12 @@ class ConversationService:
         await self.db.execute(delete(Conversation).where(Conversation.id == conversation_id))
         await self.db.commit()
 
-    async def history(self, user_id: int, conversation_id: int) -> dict:
+    async def history(self, user_id: int, conversation_id: int) -> tuple[list[Message], int | None]:
         """
         返回完整消息树，让前端处理分支逻辑。
 
-        返回:
-            {
-                "messages": [...],  # 所有消息
-                "currentMessageId": "..."  # 当前选中的消息 ID
-            }
+        Returns:
+            (messages, current_message_id): 所有消息实体列表和当前选中的消息 ID
         """
         # 1. 校验归属
         conversation = await self.ensure_owner(conversation_id, user_id)
@@ -123,15 +152,10 @@ class ConversationService:
             .where(Message.conversation_id == conversation_id)
             .order_by(Message.create_time.asc(), Message.id.asc())
         )
-        all_messages = query.scalars().all()
+        all_messages = list(query.scalars().all())
 
-        # 3. 返回完整消息列表和当前选中消息ID
-        return {
-            "messages": [msg.to_vo() for msg in all_messages],
-            "currentMessageId": str(conversation.current_message_id)
-            if conversation.current_message_id
-            else None,
-        }
+        # 3. 返回消息实体列表和当前选中消息ID
+        return all_messages, conversation.current_message_id
 
     async def persist_message(
         self,
