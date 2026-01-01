@@ -2,23 +2,30 @@
 API Key 加密工具
 
 使用 Fernet 对称加密保护用户 API Key。
-密钥从 jwt_secret 通过 PBKDF2 派生，无需额外配置。
+密钥从 jwt_secret 通过 PBKDF2 派生，提供更强的安全性。
 """
 
 import base64
-import hashlib
 
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from app.core.settings import get_settings
+
+# 固定盐值（用于密钥派生）
+# 注意：在生产环境中，建议将盐值存储在环境变量中
+_SALT = b"my-agent-api-key-encryption-salt-v1"
 
 
 def _derive_key(secret: str) -> bytes:
     """
-    从 jwt_secret 派生 Fernet 密钥
+    从 jwt_secret 派生 Fernet 密钥（使用 PBKDF2）
 
-    使用 SHA-256 哈希将任意长度的 secret 转换为 32 字节密钥，
-    然后 base64 编码为 Fernet 要求的格式。
+    使用 PBKDF2 密钥派生函数，相比 SHA-256 提供更强的安全性：
+    - 使用固定盐值防止彩虹表攻击
+    - 100,000 次迭代增加破解难度
+    - 符合 NIST 安全标准
 
     Args:
         secret: JWT 密钥字符串
@@ -26,8 +33,13 @@ def _derive_key(secret: str) -> bytes:
     Returns:
         32 字节的 base64 编码密钥
     """
-    # 使用 SHA-256 生成 32 字节哈希
-    key_bytes = hashlib.sha256(secret.encode()).digest()
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,  # Fernet 需要 32 字节密钥
+        salt=_SALT,
+        iterations=100000,  # NIST 推荐至少 10,000 次，使用 100,000 次提高安全性
+    )
+    key_bytes = kdf.derive(secret.encode())
     # Fernet 要求 base64 编码的 32 字节密钥
     return base64.urlsafe_b64encode(key_bytes)
 

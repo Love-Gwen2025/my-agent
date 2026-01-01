@@ -86,13 +86,31 @@ async def login_user(
     redis=Depends(get_redis),
 ):
     """
-    1. 用户登录：兼容明文/哈希，生成 JWT 并写入 Redis 会话。
+    用户登录：兼容明文/哈希，生成 JWT 并写入 Redis 会话。
+
+    安全改进：
+    - Token 通过 HttpOnly Cookie 返回，防止 XSS 攻击
+    - 同时在响应体中返回 Token（兼容旧客户端）
+    - Cookie 设置 Secure 和 SameSite 属性
     """
     settings = get_settings()
     store = SessionStore(redis, settings)
     service = AuthService(db, store, settings)
     try:
         token = await service.login(payload.model_dump())
+
+        # 设置 HttpOnly Cookie（推荐方式）
+        response.set_cookie(
+            key="token",
+            value=token,
+            httponly=True,  # 防止 JavaScript 访问，抵御 XSS
+            secure=True,  # 仅通过 HTTPS 传输（生产环境）
+            samesite="lax",  # 防止 CSRF 攻击
+            max_age=settings.jwt_expire_seconds,  # Cookie 过期时间与 JWT 一致
+            path="/",  # Cookie 作用路径
+        )
+
+        # 同时在响应体返回 Token（兼容旧客户端，逐步迁移后可移除）
         return ApiResult.ok(token)
     except ValueError as ex:
         response.status_code = status.HTTP_400_BAD_REQUEST
@@ -106,12 +124,16 @@ async def logout_user(
     redis=Depends(get_redis),
 ):
     """
-    1. 注销：删除 Redis 会话索引。
+    注销：删除 Redis 会话索引并清除 Cookie
     """
     settings = get_settings()
     store = SessionStore(redis, settings)
-    # 使用 CurrentUser 中存储的 token（从请求头获取）
+    # 使用 CurrentUser 中存储的 token（从请求头或 Cookie 获取）
     await store.remove_session(str(current.id), current.token)
+
+    # 清除 HttpOnly Cookie
+    response.delete_cookie(key="token", path="/")
+
     return ApiResult.ok()
 
 
