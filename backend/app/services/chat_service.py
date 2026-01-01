@@ -1,10 +1,11 @@
-﻿"""
-聊天服务 v2 - 使用 LangGraph 原生 checkpoint 分支
+"""
+聊天服务 v3 - 知识库集成架构
 
 架构：
 1. 只传 thread_id + checkpoint_id，LangGraph 自动管理历史
-2. RAG 和搜索作为工具，模型自主决定调用
-3. 每轮结束持久化到数据库（用于展示和审计）
+2. 知识库 RAG 自动集成到 context_retrieval 节点
+3. DeepSearch 模式支持知识库预检查
+4. 每轮结束持久化到数据库（用于展示和审计）
 """
 
 import json
@@ -32,18 +33,20 @@ SYSTEM_PROMPT = """你是一个智能助手。你可以使用以下工具来帮�
 - get_current_time: 获取当前时间
 - simple_calculator: 进行数学计算
 
-请根据用户的问题决定是否需要使用工具。保持回答简洁、准确、有帮助。"""
+系统会自动从知识库中检索相关信息并提供给你参考。
+请根据用户的问题和提供的参考资料进行回答。保持回答简洁、准确、有帮助。"""
 
 
 class ChatService:
     """
-    聊天服务 v2 - 使用 LangGraph 原生状态管理
+    聊天服务 v3 - 知识库集成架构
 
     特性：
     1. checkpoint_id 分支：支持从历史任意点分叉
     2. 代词消解：RewriteNode 自动处理
-    3. 工具自主调用：模型决定是否调用 RAG/搜索
-    4. 流式输出：逐 token 推送
+    3. 知识库 RAG：context_retrieval 节点自动检索
+    4. 工具自主调用：模型决定是否调用 RAG/搜索
+    5. 流式输出：逐 token 推送
     """
 
     def __init__(
@@ -228,6 +231,7 @@ class ChatService:
         parent_message_id: int | None = None,
         db: AsyncSession | None = None,
         mode: str = "chat",
+        knowledge_base_ids: list[int] | None = None,
     ) -> AsyncIterator[str]:
         """
         流式对话 - 使用 LangGraph 原生状态管理
@@ -237,7 +241,7 @@ class ChatService:
         1.1 如果是首次发送消息，自动生成标题
         2. 持久化用户消息（regenerate 模式下跳过）
         3. 设置 RAG 上下文
-        4. 调用 LangGraph（自动加载历史、执行工具）
+        4. 调用 LangGraph（自动加载历史、执行工具、检索知识库）
         5. 流式输出
         6. 持久化助手回复
 
@@ -250,6 +254,8 @@ class ChatService:
             regenerate: 重新生成模式，跳过用户消息持久化
             parent_message_id: 父消息 ID，用于构建消息树
             db: 数据库会话（用于 RAG）
+            mode: 对话模式 ("chat" | "deep_search")
+            knowledge_base_ids: 启用的知识库 ID 列表
 
         Yields:
             JSON 格式的 SSE 数据
@@ -297,7 +303,7 @@ class ChatService:
                     ]
 
                 # 构建 Graph 输入状态
-                # DeepSearch 模式需要额外的状态字段
+                # 包含知识库配置和依赖注入
                 graph_input = {
                     "messages": input_messages,
                     "mode": mode,
@@ -305,10 +311,21 @@ class ChatService:
                     "search_queries": [],
                     "references": {},
                     "planning_rounds": 0,
+                    # 知识库相关
+                    "knowledge_base_ids": knowledge_base_ids or [],
+                    "history_context": "",
+                    "kb_context": "",
+                    # 依赖注入（以 _ 开头，供节点内部使用）
+                    "_embedding_service": self.embedding_service,
+                    "_db_session": db,
+                    "_conversation_id": conversation_id,
                 }
 
                 # 使用 astream_events 获得 token 级流式输出
-                logger.info(f"[stream] Starting graph with mode={mode}")
+                logger.info(
+                    f"[stream] Starting graph with mode={mode}, "
+                    f"kb_ids={knowledge_base_ids or []}"
+                )
 
                 # 注入 Langfuse callback（如果启用）
                 langfuse_service = get_langfuse_service(self.settings)

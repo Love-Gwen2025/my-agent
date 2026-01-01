@@ -43,6 +43,9 @@ class StreamChatParam(BaseModel):
     parentMessageId: str | None = Field(default=None, description="父消息 ID，用于构建消息树")
     regenerate: bool = Field(default=False, description="重新生成模式，从父消息分叉生成新回复")
     mode: str = Field(default="chat", description="对话模式: chat/deep_search")
+    knowledgeBaseIds: list[int] | None = Field(
+        default=None, description="启用的知识库 ID 列表，用于 RAG 检索"
+    )
 
 
 class MessageVo(BaseModel):
